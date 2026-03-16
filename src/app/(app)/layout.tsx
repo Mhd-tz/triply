@@ -1,6 +1,9 @@
+import SiteHeader from "@/components/layout/site-header";
+
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
     return (
-        <div className="flex h-screen">
+        <div className="h-screen">
+            <SiteHeader />
             {children}
         </div>
     );
