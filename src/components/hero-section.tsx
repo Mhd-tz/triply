@@ -279,9 +279,14 @@ export default function HeroSection() {
     const showScrim = appState === "collapsed" || appState === "expanded" || appState === "generating" || (appState === "result" && activePanel !== "transport");
 
     return (
-        <section className="relative w-full bg-background -mt-px min-h-[900px] pb-24 font-sans" style={{ overflowX: "clip", overflowY: "visible" }}>
+        <section className="relative w-full bg-background -mt-px pb-24 font-sans" style={{ overflowX: "clip", overflowY: "visible" }}>
             {/* Banner Background */}
-            <div className="relative w-full transition-all duration-700" style={{ height: appState === "result" ? "320px" : "clamp(200px, 26vw, 360px)" }}>
+            <motion.div 
+                layout
+                className="relative w-full" 
+                animate={{ height: appState === "result" ? "320px" : "clamp(200px, 26vw, 360px)" }}
+                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+            >
 
                 <div className="absolute inset-0 bg-[#e2e8f0]" />
 
@@ -317,7 +322,7 @@ export default function HeroSection() {
                         </motion.div>
                     )}
                 </AnimatePresence>
-            </div>
+            </motion.div>
 
             {/* Interactive Widget Area */}
             <div className="relative z-10 w-full px-4 -mt-10 flex flex-col items-center">

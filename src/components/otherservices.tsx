@@ -44,8 +44,10 @@ const SERVICES = [
 
 export default function OtherServices() {
     return (
-        <section className="w-full px-4 py-2">
-            <h2 className="text-lg font-heading font-bold text-gray-800 mb-3">Other Services</h2>
+        <section className="w-[85%] mx-auto px-4 py-2">
+            <h2 className="text-lg font-heading font-bold text-gray-800 mb-3">
+                Trips & Travel Services
+            </h2>
             <div className="flex rounded-2xl border border-gray-200 overflow-hidden divide-x divide-gray-200 bg-white shadow-sm">
                 {SERVICES.map((svc) => (
                     <button
