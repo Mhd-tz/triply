@@ -24,6 +24,7 @@ import {
     AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 /* ── Nav data ─────────────────────────────────────────────── */
 const navItems = [
@@ -85,16 +86,14 @@ export default function SiteHeader() {
             transition={{ duration: 0.35, ease: "easeOut" }}
         >
             {/* ── Logo + Desktop Nav ── */}
-            <div className="flex items-center gap-10">
+            <div className="flex items-center gap-9">
                 {/* Logo */}
-                <motion.a
+                <Link
                     href="/"
                     className="flex shrink-0 items-center"
-                    whileHover={{ scale: 1.03 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
                 >
                     <Image src={logo} alt="Triply Logo" className="h-9 w-auto" />
-                </motion.a>
+                </Link>
 
                 {/* Desktop NavigationMenu */}
                 <NavigationMenu className="hidden md:flex">

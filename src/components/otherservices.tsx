@@ -44,7 +44,7 @@ const SERVICES = [
 
 export default function OtherServices() {
     return (
-        <section className="w-[85%] mx-auto px-4 py-2">
+        <section className="w-[90%] mx-auto px-4 py-2">
             <h2 className="text-lg font-heading font-bold text-gray-800 mb-3">
                 Trips & Travel Services
             </h2>
