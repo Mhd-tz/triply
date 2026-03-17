@@ -343,7 +343,7 @@ export default function HeroSection() {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0, transition: { duration: 0.1 } }}
-                                className="flex items-center w-full p-2"
+                                className="flex items-center w-full p-2.5"
                             >
                                 <div className="relative flex items-center w-full">
                                     <MapPin className="absolute left-4 h-5 w-5 text-gray-400 pointer-events-none" />
@@ -353,7 +353,7 @@ export default function HeroSection() {
                                         onChange={(e) => setDestination(e.target.value)}
                                         onClick={expand}
                                         placeholder="Where do you wanna go?"
-                                        className="w-full h-[56px] border-[1.5px] border-gray-200 pl-12 pr-14 text-[16px] font-medium text-gray-800 placeholder:text-gray-400 outline-none focus:border-primary transition-colors cursor-text"
+                                        className="w-full h-12 border-[1.5px] border-gray-200 pl-11 pr-14 text-[16px] font-medium text-gray-800 placeholder:text-gray-400 outline-none focus:border-primary transition-colors cursor-text rounded-lg"
                                     />
                                 </div>
                             </motion.div>
