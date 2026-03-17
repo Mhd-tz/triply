@@ -86,7 +86,7 @@
   /* ── Accent — Peach #FFD29C (Gemini's choice, converted) ── */
   /* Warm highlight for hover states, tags, decorative uses.  */
   /* Not a button color — expressive only.                    */
-  --accent: oklch(0.87 0.09 70);
+  --accent: oklch(76.439% 0.11976 67.437);
   --accent-foreground: oklch(0.25 0.06 50);
 
   /* ── Destructive — Coral #FF5964 ───────────────────────── */
@@ -172,4 +172,24 @@
   h6 {
     @apply font-subheading;
   }
+}
+
+/* 1. Define the initial state of the banner (hidden) */
+.banner {
+  opacity: 0; /* Fully transparent */
+  visibility: hidden; /* Element is hidden from view and interaction */
+
+  /* 2. Set up the smooth transition effect */
+  transition:
+    opacity 1s ease-in-out,
+    visibility 1s ease-in-out;
+  /* '1s' is the duration of the fade (1 second). 
+    'ease-in-out' makes the animation start slow, speed up, and then slow down for a natural feel. 
+  */
+}
+
+/* 3. Define the visible state using a modifier class */
+.banner.is-visible {
+  opacity: 1; /* Fully opaque (visible) */
+  visibility: visible; /* Element is visible */
 }
