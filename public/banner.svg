@@ -13595,16 +13595,20 @@ z"/>
 
   <!-- Clip regions per vehicle -->
   <clipPath id="clip-flights">
-    <rect x="1350" y="0" width="1000" height="560"/>
+    <rect x="1350" y="0" width="1000" height="550"/>
   </clipPath>
   <clipPath id="clip-cruises">
-    <rect x="1250" y="450" width="750" height="250"/>
+    <rect x="1250" y="450" width="770" height="250"/>
   </clipPath>
   <clipPath id="clip-trains">
-    <rect x="2000" y="450" width="670" height="250"/>
+    <rect x="2100" y="450" width="585" height="300"/>
+	<rect x="2500" y="500" width="300" height="100"/>
+	<rect x="2500" y="450" width="380" height="100"/>
+	<rect x="2800" y="450" width="200" height="70"/>
   </clipPath>
   <clipPath id="clip-cars">
-    <rect x="2680" y="530" width="600" height="350"/>
+    <rect x="2680" y="595" width="550" height="250"/>
+	<rect x="2850" y="530" width="380" height="80"/>
   </clipPath>
   <clipPath id="clip-stays">
     <rect x="2800" y="0" width="800" height="400"/>
