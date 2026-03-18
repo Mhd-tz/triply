@@ -48,26 +48,26 @@ export default function OtherServices() {
             <h2 className="text-lg font-heading font-bold text-gray-800 mb-3">
                 Trips & Travel Services
             </h2>
-            <div className="flex rounded-2xl border border-gray-200 overflow-hidden divide-x divide-gray-200 bg-white shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 rounded-2xl border border-gray-200 overflow-hidden bg-white shadow-sm divide-y sm:divide-y-0 sm:divide-x lg:divide-x divide-gray-200">
                 {SERVICES.map((svc) => (
                     <button
                         key={svc.label}
                         className={cn(
-                            "group flex flex-1 items-center gap-3 px-5 py-4 text-left cursor-pointer",
+                            "group flex items-center gap-3 px-4 py-3 sm:px-5 sm:py-4 text-left cursor-pointer",
                             "transition-colors duration-200",
                             svc.hoverBg,
                             "focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
                         )}
                     >
                         <div className={cn(
-                            "shrink-0 h-10 w-10 rounded-full flex items-center justify-center transition-transform duration-200 group-hover:scale-110",
+                            "shrink-0 h-9 w-9 sm:h-10 sm:w-10 rounded-full flex items-center justify-center transition-transform duration-200 group-hover:scale-110",
                             svc.bg
                         )}>
-                            <svc.Icon className={cn("h-5 w-5", svc.color)} strokeWidth={1.8} />
+                            <svc.Icon className={cn("h-4 w-4 sm:h-5 sm:w-5", svc.color)} strokeWidth={1.8} />
                         </div>
                         <div className="min-w-0">
                             <p className="text-sm font-semibold text-gray-800 truncate">{svc.label}</p>
-                            <p className="text-[11px] text-gray-400 truncate">{svc.description}</p>
+                            <p className="text-[10px] sm:text-[11px] text-gray-400 truncate">{svc.description}</p>
                         </div>
                     </button>
                 ))}

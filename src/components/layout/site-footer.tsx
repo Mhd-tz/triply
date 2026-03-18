@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Send } from "lucide-react";
+import { Button } from "../ui/button";
 
 const FOOTER_LINKS = [
     {
@@ -86,7 +87,7 @@ export default function Footer() {
                     <div className="hidden lg:block w-px bg-border shrink-0" />
 
                     {/* ── Newsletter ────────────────────────────── */}
-                    <div className="flex flex-col gap-3 lg:w-[240px] shrink-0">
+                    <div className="flex flex-col gap-3 lg:w-[300px] shrink-0">
                         <p className="text-sm font-heading font-bold text-foreground">
                             Get the Newsletter
                         </p>
@@ -108,13 +109,13 @@ export default function Footer() {
                                     required
                                     className="flex-1 min-w-0 h-9 rounded-lg border border-border bg-white px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                                 />
-                                <button
+                                <Button
                                     type="submit"
-                                    className="h-9 w-9 shrink-0 rounded-lg bg-primary text-white flex items-center justify-center hover:bg-primary/90 transition-colors"
+                                    className="h-9 w-9 transition-colors"
                                     aria-label="Subscribe"
                                 >
                                     <Send className="h-4 w-4" />
-                                </button>
+                                </Button>
                             </form>
                         )}
 

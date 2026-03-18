@@ -129,6 +129,7 @@ export default function StayCard({
 
                 <Button
                     variant='outline'
+                    size='lg'
                     className="mt-2 group-hover:text-white group-hover:bg-primary/90"
                 >
                     View Details

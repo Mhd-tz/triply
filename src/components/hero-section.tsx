@@ -281,9 +281,9 @@ export default function HeroSection() {
     return (
         <section className="relative w-full bg-background -mt-px pb-24 font-sans" style={{ overflowX: "clip", overflowY: "visible" }}>
             {/* Banner Background */}
-            <motion.div 
+            <motion.div
                 layout
-                className="relative w-full" 
+                className="relative w-full"
                 animate={{ height: appState === "result" ? "320px" : "clamp(200px, 26vw, 360px)" }}
                 transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             >
@@ -298,7 +298,7 @@ export default function HeroSection() {
                     className="absolute inset-0 pointer-events-none z-0"
                     animate={{
                         backgroundColor: showScrim ? "rgba(10,14,28,0.4)" : "rgba(10,14,28,0)",
-                        backdropFilter: showScrim ? "blur(8px)" : "blur(0px)",
+                        backdropFilter: showScrim ? "blur(3.5px)" : "blur(0px)",
                     }}
                     transition={{ duration: 0.6 }}
                 />
