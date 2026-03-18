@@ -65,17 +65,41 @@ export default function StayCard({
             </div>
 
             {/* ── Body ──────────────────────────────────────────── */}
-            <div className="flex flex-col gap-2.5 p-4">
+            <div className="flex flex-col gap-3 p-4">
 
-                {/* Rating */}
-                <div className="flex items-center gap-1.5">
-                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                    <span className="text-sm font-bold text-gray-800">{rating.toFixed(1)}</span>
-                    <span className="text-xs text-muted-foreground">{reviewCount.toLocaleString()} Reviews</span>
+                {/* 1st: Name — the most important element */}
+                <h3 className="font-subheading font-bold text-[19px] leading-tight text-foreground line-clamp-2">
+                    {name}
+                </h3>
+
+                {/* 2nd: Location — where it is matters immediately after the name */}
+                <div className="flex items-center gap-1 text-sm text-muted-foreground -mt-1">
+                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{location}</span>
                 </div>
 
-                {/* Meta: rooms · guests · location */}
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+                {/* 3rd: Price — visually dominant, clear call-to-value */}
+                <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="text-[18px] font-bold text-foreground tracking-tight">
+                        ${pricePerNight}
+                    </span>
+                    <span className="text-sm text-muted-foreground font-normal">/ night</span>
+                    {originalPrice && (
+                        <span className="text-xs text-muted-foreground line-through ml-1">
+                            ${originalPrice}
+                        </span>
+                    )}
+                </div>
+
+                {/* 4th: Rating — social proof, secondary to price */}
+                <div className="flex items-center gap-1.5">
+                    <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400 shrink-0" />
+                    <span className="text-sm font-semibold text-gray-800">{rating.toFixed(1)}</span>
+                    <span className="text-xs text-muted-foreground">({reviewCount.toLocaleString()} reviews)</span>
+                </div>
+
+                {/* 5th: Room/guest meta — tertiary details */}
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                         <DoorOpen className="h-3 w-3" />
                         {rooms} {rooms === 1 ? "Room" : "Rooms"}
@@ -83,36 +107,13 @@ export default function StayCard({
                     <span className="text-border">·</span>
                     <span className="flex items-center gap-1">
                         <Users className="h-3 w-3" />
-                        {maxGuests} People
-                    </span>
-                    <span className="text-border">·</span>
-                    <span className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {location}
+                        {maxGuests} Guests
                     </span>
                 </div>
 
-                {/* Name */}
-                <h3 className="font-subheading font-bold text-[15px] text-foreground leading-snug line-clamp-1">
-                    {name}
-                </h3>
-
-                {/* Price row */}
-                <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-[15px] font-bold text-foreground">
-                        ${pricePerNight}
-                        <span className="text-xs font-normal text-muted-foreground ml-0.5">/ night</span>
-                    </span>
-                    {originalPrice && (
-                        <span className="text-xs text-muted-foreground line-through">
-                            ${originalPrice} / night
-                        </span>
-                    )}
-                </div>
-
-                {/* Tags */}
+                {/* 6th: Tags — contextual, lowest hierarchy */}
                 {(isReady || isFastDeal) && (
-                    <div className="flex items-center gap-2 pt-0.5">
+                    <div className="flex items-center gap-2">
                         {isReady && (
                             <span className="text-[11px] font-semibold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
                                 Ready to Book
@@ -128,9 +129,9 @@ export default function StayCard({
                 )}
 
                 <Button
-                    variant='outline'
-                    size='lg'
-                    className="mt-2 group-hover:text-white group-hover:bg-primary/90"
+                    variant="outline"
+                    size="lg"
+                    className="mt-1 group-hover:text-white group-hover:bg-primary/90"
                 >
                     View Details
                 </Button>

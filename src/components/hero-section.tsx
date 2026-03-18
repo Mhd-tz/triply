@@ -298,7 +298,7 @@ export default function HeroSection() {
                     className="absolute inset-0 pointer-events-none z-0"
                     animate={{
                         backgroundColor: showScrim ? "rgba(10,14,28,0.4)" : "rgba(10,14,28,0)",
-                        backdropFilter: showScrim ? "blur(3.5px)" : "blur(0px)",
+                        backdropFilter: showScrim ? "blur(4px)" : "blur(0px)",
                     }}
                     transition={{ duration: 0.6 }}
                 />
