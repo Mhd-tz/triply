@@ -54,7 +54,7 @@ const FEATURED_STAYS: StayCardProps[] = [
 
 export default function FeaturedStays() {
     return (
-        <section className="w-[90%] mx-auto px-4 py-6 pt-20">
+        <section className="w-[90%] mx-auto px-4 py-6 pt-14">
 
             {/* ── Header ──────────────────────────────────────── */}
             <div className="flex items-end justify-between mb-5">

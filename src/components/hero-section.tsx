@@ -331,9 +331,9 @@ export default function HeroSection() {
                     layout
                     className={cn(
                         "relative z-10 bg-white origin-top mx-auto",
-                        appState === "collapsed" ? "rounded-[1.25rem] shadow-lg border border-gray-200 w-full max-w-2xl" :
-                            appState === "expanded" || appState === "generating" ? "rounded-[2rem] shadow-2xl border border-gray-100 w-full max-w-4xl" :
-                                "rounded-[2rem] shadow-xl border border-gray-200 w-full max-w-[1100px] overflow-hidden"
+                        appState === "collapsed" ? "rounded-xl shadow-lg border border-gray-200 w-full max-w-2xl" :
+                            appState === "expanded" || appState === "generating" ? "rounded-2xl shadow-2xl border border-gray-100 w-full max-w-4xl" :
+                                "rounded-2xl shadow-xl border border-gray-200 w-full max-w-[1200px] overflow-hidden"
                     )}
                     initial={{ opacity: 0, y: 22 }}
                     animate={{ opacity: 1, y: 0 }}
