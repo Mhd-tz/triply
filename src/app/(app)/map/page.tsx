@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import Logo from '@/assets/images/logo.png'
+import Link from "next/link";
 
 /* ─── Types ──────────────────────────────────────────────────── */
 type ViewMode = "itinerary" | "map";
@@ -274,7 +275,9 @@ export default function TripMapPage() {
                         </button>
                     ))}
                 </div>
-                <Image src={Logo} alt="Triply Logo" className="w-auto h-9" />
+                <Link href="/">
+                    <Image src={Logo} alt="Triply Logo" className="w-auto h-9" />
+                </Link>
             </header>
 
             {/* Day tabs */}
