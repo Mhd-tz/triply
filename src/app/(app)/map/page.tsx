@@ -213,7 +213,7 @@ const COLORS = {
     location: "#0f9a8e",
     transit: "#16a34a",
     note: "#94a3b8",
-    drive: "#f97316",
+    drive: "#4a98f7",
     walk: "#7c3aed",
 };
 
@@ -1412,6 +1412,7 @@ function MapView({
                         <LegendItem color={COLORS.meal} label="Meal" />
                         <LegendItem color={COLORS.activity} label="Activity" />
                         <LegendItem color={COLORS.location} label="Location" />
+                        {/* @ts-expect-error: transportMode is not a valid key of COLORS */}
                         <LegendItem color={
                             transportMode === "transit" ? COLORS.transit : transportMode === "drive" ? COLORS.drive : transportMode === "walk" ? COLORS.walk : null
                         } label={transportMode} />
@@ -1500,9 +1501,9 @@ function TransitRow({
         drive: {
             Icon: Car,
             label: "Drive",
-            card: "bg-orange-50 border-orange-100",
-            text: "text-orange-600",
-            badge: "bg-orange-100 text-orange-600",
+            card: "bg-blue-50 border-blue-100",
+            text: "text-blue-600",
+            badge: "bg-blue-100 text-blue-600",
         },
         transit: {
             Icon: Train,

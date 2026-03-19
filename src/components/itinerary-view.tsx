@@ -122,11 +122,11 @@ function TransitRow({
         drive: {
             Icon: Car,
             label: "Drive",
-            bg: "bg-orange-50",
-            border: "border-orange-100",
-            text: "text-orange-700",
-            iconBg: "bg-orange-100",
-            iconText: "text-orange-600",
+            bg: "bg-blue-50",
+            border: "border-blue-100",
+            text: "text-blue-700",
+            iconBg: "bg-blue-100",
+            iconText: "text-blue-600",
         },
         transit: {
             Icon: Train,
