@@ -25,27 +25,16 @@ import {
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import { useSignInDialog } from "@/components/signin-dialog";
 
 /* ── Nav data ─────────────────────────────────────────────── */
 const navItems = [
     {
         label: "Discover",
         dropdown: [
-            {
-                label: "Destinations",
-                href: "/discover/destinations",
-                description: "Explore top travel destinations worldwide",
-            },
-            {
-                label: "Travel Guides",
-                href: "/discover/guides",
-                description: "Tips and itineraries from seasoned travelers",
-            },
-            {
-                label: "Top Experiences",
-                href: "/discover/experiences",
-                description: "Handpicked activities you won't forget",
-            },
+            { label: "Destinations", href: "/discover/destinations", description: "Explore top travel destinations worldwide" },
+            { label: "Travel Guides", href: "/discover/guides", description: "Tips and itineraries from seasoned travelers" },
+            { label: "Top Experiences", href: "/discover/experiences", description: "Handpicked activities you won't forget" },
         ],
     },
     {
@@ -77,6 +66,7 @@ const navItems = [
 /* ── Header ───────────────────────────────────────────────── */
 export default function SiteHeader() {
     const [mobileOpen, setMobileOpen] = React.useState(false);
+    const { setOpen: openSignIn } = useSignInDialog();
 
     return (
         <motion.header
@@ -87,49 +77,33 @@ export default function SiteHeader() {
         >
             {/* ── Logo + Desktop Nav ── */}
             <div className="flex items-center gap-9">
-                {/* Logo */}
-                <Link
-                    href="/"
-                    className="flex shrink-0 items-center"
-                >
+                <Link href="/" className="flex shrink-0 items-center">
                     <Image src={logo} alt="Triply Logo" className="h-9 w-auto" />
                 </Link>
 
-                {/* Desktop NavigationMenu */}
                 <NavigationMenu className="hidden md:flex">
                     <NavigationMenuList className="gap-0">
                         {navItems.map((item, i) => (
                             <React.Fragment key={item.label}>
-                                {/* Pipe divider between items */}
-                                {i > 0 && (
-                                    <div className="h-5 w-px bg-border mx-1" aria-hidden />
-                                )}
-
+                                {i > 0 && <div className="h-5 w-px bg-border mx-1" aria-hidden />}
                                 <NavigationMenuItem>
                                     {item.dropdown ? (
                                         <>
                                             <NavigationMenuTrigger className="text-sm text-gray-800 bg-transparent hover:bg-transparent hover:text-primary focus:bg-transparent data-active:bg-transparent data-[state=open]:bg-transparent data-[state=open]:text-primary transition-colors">
                                                 {item.label}
                                             </NavigationMenuTrigger>
-
                                             <NavigationMenuContent>
                                                 <motion.ul
                                                     className={cn(
                                                         "grid gap-1 p-3",
-                                                        item.dropdown.length > 4
-                                                            ? "w-[380px] grid-cols-2"
-                                                            : "w-[280px] grid-cols-1"
+                                                        item.dropdown.length > 4 ? "w-[380px] grid-cols-2" : "w-[280px] grid-cols-1"
                                                     )}
                                                     initial={{ opacity: 0, y: -6 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     transition={{ duration: 0.18, ease: "easeOut" }}
                                                 >
                                                     {item.dropdown.map((opt) => (
-                                                        <ListItem
-                                                            key={opt.href}
-                                                            href={opt.href}
-                                                            title={opt.label}
-                                                        >
+                                                        <ListItem key={opt.href} href={opt.href} title={opt.label}>
                                                             {opt.description}
                                                         </ListItem>
                                                     ))}
@@ -162,11 +136,7 @@ export default function SiteHeader() {
                 transition={{ delay: 0.15, duration: 0.3 }}
             >
                 {/* Currency */}
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="flex items-center gap-1.5 -mr-1.5"
-                >
+                <Button variant="ghost" size="sm" className="flex items-center gap-1.5 -mr-1.5">
                     <span className="text-sm font-medium">CAD</span>
                     <Image
                         src="https://upload.wikimedia.org/wikipedia/commons/c/cf/Flag_of_Canada.svg"
@@ -178,16 +148,11 @@ export default function SiteHeader() {
                 </Button>
 
                 {/* My Trips */}
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-sm"
-                    asChild
-                >
-                    <a href="/trips">My Trips</a>
+                <Button variant="ghost" size="sm" className="text-sm" onClick={() => openSignIn(true)}>
+                    Sign In
                 </Button>
 
-                {/* Sign Up */}
+                {/* Sign Up — goes to page */}
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                     <Button
                         variant="outline"
@@ -195,7 +160,7 @@ export default function SiteHeader() {
                         className="rounded-lg border-primary px-5 text-sm font-medium text-primary hover:bg-primary hover:text-white transition-colors"
                         asChild
                     >
-                        <a href="/signup">SignUp</a>
+                        <Link href="/sign-up">Sign Up</Link>
                     </Button>
                 </motion.div>
             </motion.div>
@@ -207,23 +172,11 @@ export default function SiteHeader() {
                         <Button variant="ghost" size="icon" aria-label="Open menu">
                             <AnimatePresence mode="wait" initial={false}>
                                 {mobileOpen ? (
-                                    <motion.span
-                                        key="close"
-                                        initial={{ rotate: -90, opacity: 0 }}
-                                        animate={{ rotate: 0, opacity: 1 }}
-                                        exit={{ rotate: 90, opacity: 0 }}
-                                        transition={{ duration: 0.15 }}
-                                    >
+                                    <motion.span key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
                                         <X className="h-5 w-5" />
                                     </motion.span>
                                 ) : (
-                                    <motion.span
-                                        key="open"
-                                        initial={{ rotate: 90, opacity: 0 }}
-                                        animate={{ rotate: 0, opacity: 1 }}
-                                        exit={{ rotate: -90, opacity: 0 }}
-                                        transition={{ duration: 0.15 }}
-                                    >
+                                    <motion.span key="open" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
                                         <Menu className="h-5 w-5" />
                                     </motion.span>
                                 )}
@@ -292,14 +245,28 @@ export default function SiteHeader() {
                             >
                                 My Trips
                             </a>
-                            <Button
-                                variant="outline"
-                                asChild
-                            >
-                                <a href="/signup" onClick={() => setMobileOpen(false)}>
-                                    SignUp
-                                </a>
-                            </Button>
+                            <div className="grid grid-cols-2 gap-3">
+                                {/* Mobile Sign In — opens dialog */}
+                                <Button
+                                    variant="ghost"
+                                    className="text-sm font-medium text-gray-700 justify-center"
+                                    onClick={() => {
+                                        setMobileOpen(false);
+                                        setTimeout(() => openSignIn(true), 200);
+                                    }}
+                                >
+                                    Sign In
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="rounded-lg border-primary text-primary"
+                                    asChild
+                                >
+                                    <Link href="/sign-up" onClick={() => setMobileOpen(false)}>
+                                        Sign Up
+                                    </Link>
+                                </Button>
+                            </div>
                         </div>
                     </SheetContent>
                 </Sheet>
@@ -309,8 +276,7 @@ export default function SiteHeader() {
             <div
                 className="absolute bottom-0 left-0 h-px w-full"
                 style={{
-                    background:
-                        "linear-gradient(to right, transparent 0%, #d1d5db 15%, #d1d5db 85%, transparent 100%)",
+                    background: "linear-gradient(to right, transparent 0%, #d1d5db 15%, #d1d5db 85%, transparent 100%)",
                 }}
             />
         </motion.header>
@@ -334,12 +300,8 @@ const ListItem = React.forwardRef<
                 )}
                 {...props}
             >
-                <div className="text-sm font-medium text-gray-800 leading-none mb-1">
-                    {title}
-                </div>
-                <p className="text-xs leading-snug text-muted-foreground line-clamp-2">
-                    {children}
-                </p>
+                <div className="text-sm font-medium text-gray-800 leading-none mb-1">{title}</div>
+                <p className="text-xs leading-snug text-muted-foreground line-clamp-2">{children}</p>
             </a>
         </NavigationMenuLink>
     </li>

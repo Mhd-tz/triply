@@ -26,6 +26,8 @@ export const metadata: Metadata = {
   description: "Triply is a travel planning platform that helps you plan your trips in a simple and efficient way. It syncs with your calendar and email to automatically create your itinerary.",
 };
 
+import { SignInDialogProvider } from "@/components/signin-dialog";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -36,7 +38,9 @@ export default function RootLayout({
       <body
         className={`${cabin.variable} ${hind.variable} ${heebo.variable} antialiased`}
       >
-        {children}
+        <SignInDialogProvider>
+          {children}
+        </SignInDialogProvider>
       </body>
     </html>
   );
