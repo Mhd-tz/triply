@@ -1233,15 +1233,13 @@ export default function HeroSection() {
                                                 className="mt-1"
                                             >
                                                 {user ? (
-                                                    <motion.button
-                                                        whileHover={{ scale: 1.02 }}
-                                                        whileTap={{ scale: 0.98 }}
+                                                    <Button
                                                         onClick={handleConfirmSync}
-                                                        className="w-full h-12 rounded-xl bg-[#1D4983] hover:bg-[#163970] text-white font-bold text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-[#1D4983]/20 transition-colors"
+                                                        className="h-12 w-full hover:opacity-90"
                                                     >
                                                         <CheckCircle2 className="h-4.5 w-4.5" />
                                                         Confirm & Sync
-                                                    </motion.button>
+                                                    </Button>
                                                 ) : (
                                                     <motion.button
                                                         whileHover={{ scale: 1.02 }}
