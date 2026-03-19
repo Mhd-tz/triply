@@ -137,12 +137,12 @@ function getFlightCategory(departure: string) {
 }
 
 const MOCK_FLIGHTS = [
-    { id: "f1", airline: "Air Canada", logo: "🍁", departure: "1:45 PM", arrival: "4:25 PM", nextDay: 1, duration: "10h 40m", stops: 0, stopInfo: "", price: 1897 },
-    { id: "f2", airline: "ANA", logo: "✦", departure: "4:45 PM", arrival: "9:50 PM", nextDay: 1, duration: "13h 5m", stops: 1, stopInfo: "1hr 30 min HND", price: 399 },
-    { id: "f3", airline: "Delta", logo: "▲", departure: "11:30 AM", arrival: "3:15 PM", nextDay: 1, duration: "11h 45m", stops: 0, stopInfo: "", price: 1245 },
-    { id: "f4", airline: "United", logo: "✪", departure: "6:00 AM", arrival: "10:30 AM", nextDay: 1, duration: "12h 30m", stops: 1, stopInfo: "2hr SFO", price: 589 },
-    { id: "f5", airline: "Japan Airlines", logo: "🏮", departure: "2:15 PM", arrival: "5:45 PM", nextDay: 1, duration: "11h 30m", stops: 0, stopInfo: "", price: 1650 },
-    { id: "f6", airline: "Korean Air", logo: "◎", departure: "9:00 PM", arrival: "2:30 AM", nextDay: 2, duration: "15h 30m", stops: 1, stopInfo: "3hr ICN", price: 475 },
+    { id: "f1", airline: "Air Canada", logo: "https://upload.wikimedia.org/wikipedia/commons/3/3b/Air_Canada_logo.svg", departure: "1:45 PM", arrival: "4:25 PM", nextDay: 1, duration: "10h 40m", stops: 0, stopInfo: "", price: 1897 },
+    { id: "f2", airline: "ANA", logo: "https://upload.wikimedia.org/wikipedia/commons/d/d4/ANA-Logo.svg", departure: "4:45 PM", arrival: "9:50 PM", nextDay: 1, duration: "13h 5m", stops: 1, stopInfo: "1hr 30 min HND", price: 399 },
+    { id: "f3", airline: "Delta", logo: "https://upload.wikimedia.org/wikipedia/commons/d/d1/Delta_logo.svg", departure: "11:30 AM", arrival: "3:15 PM", nextDay: 1, duration: "11h 45m", stops: 0, stopInfo: "", price: 1245 },
+    { id: "f4", airline: "United", logo: "https://upload.wikimedia.org/wikipedia/sco/e/e0/United_Airlines_Logo.svg", departure: "6:00 AM", arrival: "10:30 AM", nextDay: 1, duration: "12h 30m", stops: 1, stopInfo: "2hr SFO", price: 589 },
+    { id: "f5", airline: "Japan Airlines", logo: "https://upload.wikimedia.org/wikipedia/vi/thumb/e/e4/Japan_Airlines_Logo.svg/1280px-Japan_Airlines_Logo.svg.png?_=20170319125510", departure: "2:15 PM", arrival: "5:45 PM", nextDay: 1, duration: "11h 30m", stops: 0, stopInfo: "", price: 1650 },
+    { id: "f6", airline: "Korean Air", logo: "https://upload.wikimedia.org/wikipedia/commons/8/8f/KoreanAir_logo.svg", departure: "9:00 PM", arrival: "2:30 AM", nextDay: 2, duration: "15h 30m", stops: 1, stopInfo: "3hr ICN", price: 475 },
 ];
 
 const MOCK_CARS = [
@@ -750,7 +750,7 @@ export default function HeroSection() {
                                                             <button onClick={() => setTransportSearched(false)} className="flex items-center gap-1.5 text-sm font-semibold text-[#829eb9] hover:text-[#6b8aaa] transition-colors">
                                                                 <ChevronLeft className="h-4 w-4" /> Back to Search
                                                             </button>
-                                                            <span className="text-xs text-gray-400 font-medium">{origin} → {destination}</span>
+                                                            <span className="text-xs text-gray-400 font-medium">{origin} - {destination}</span>
                                                         </div>
 
                                                         {activeTransportTab === "flights" && (
@@ -802,8 +802,9 @@ export default function HeroSection() {
                                                                                     <div className={cn("text-center py-2 text-white text-sm font-bold", cat.color)}>{cat.label} Flight</div>
                                                                                     <div className="p-5">
                                                                                         <div className="text-center mb-3">
-                                                                                            <span className="text-2xl">{flight.logo}</span>
-                                                                                            <p className="text-sm font-bold text-gray-800 mt-1">{flight.airline}</p>
+                                                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                                            <img src={flight.logo} alt={flight.airline} className="h-6 w-auto mx-auto" />
+                                                                                            <p className="text-xs font-medium text-gray-800 mt-1">{flight.airline}</p>
                                                                                         </div>
                                                                                         <div className="flex items-center justify-center gap-2 mb-3">
                                                                                             <span className="text-lg font-bold text-gray-900">{flight.departure}</span>
