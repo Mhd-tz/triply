@@ -220,7 +220,7 @@ function EditProfileDialog({ open, onClose, user, onSave }: { open: boolean; onC
                     <div className="flex items-center gap-4">
                         <div className="relative shrink-0">
                             <Avatar className="w-16 h-16 border-[3px] border-white shadow-md" style={{ outline: `2px solid ${NAVY}` }}>
-                                {avatarPreview && <AvatarImage src={avatarPreview} />}
+                                <AvatarImage src={avatarPreview || undefined} />
                                 <AvatarFallback style={{ backgroundColor: NAVY, color: "#fff" }} className="font-bold text-lg">{initials}</AvatarFallback>
                             </Avatar>
                             <input
@@ -696,7 +696,7 @@ export default function ProfileDashboard() {
                         <div className="flex items-start gap-4">
                             <div className="relative shrink-0">
                                 <Avatar className="w-16 h-16 border-[3px] border-white shadow-md" style={{ outline: `2px solid ${NAVY}` }}>
-                                    {user.avatar && <AvatarImage src={user.avatar} />}
+                                    <AvatarImage src={user.avatar || undefined} />
                                     <AvatarFallback className="font-bold text-lg" style={{ backgroundColor: NAVY, color: "#fff" }}>{initials}</AvatarFallback>
                                 </Avatar>
                             </div>

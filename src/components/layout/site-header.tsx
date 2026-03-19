@@ -185,7 +185,7 @@ export default function SiteHeader() {
                             <DropdownMenuTrigger asChild>
                                 <button className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform hover:scale-105">
                                     <Avatar className="w-9 h-9 border-2 border-white shadow-md cursor-pointer" style={{ outline: "2px solid #1D4983" }}>
-                                        {user.avatar && <AvatarImage src={user.avatar} />}
+                                        <AvatarImage src={user.avatar || undefined} />
                                         <AvatarFallback className="font-bold text-xs text-white" style={{ backgroundColor: "#1D4983" }}>
                                             {initials}
                                         </AvatarFallback>
@@ -306,7 +306,7 @@ export default function SiteHeader() {
                                 <>
                                     <div className="flex items-center gap-3 py-2">
                                         <Avatar className="w-9 h-9 border-2 border-white shadow-sm" style={{ outline: "1.5px solid #1D4983" }}>
-                                            {user.avatar && <AvatarImage src={user.avatar} />}
+                                            <AvatarImage src={user.avatar || undefined} />
                                             <AvatarFallback className="font-bold text-xs text-white" style={{ backgroundColor: "#1D4983" }}>
                                                 {initials}
                                             </AvatarFallback>
