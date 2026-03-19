@@ -22,17 +22,22 @@ import { Separator } from "@/components/ui/separator";
 interface SignInDialogContextValue {
     open: boolean;
     setOpen: (open: boolean) => void;
+    onSignInSuccess: (() => void) | null;
+    setOnSignInSuccess: (cb: (() => void) | null) => void;
 }
 
 const SignInDialogContext = React.createContext<SignInDialogContextValue>({
     open: false,
     setOpen: () => { },
+    onSignInSuccess: null,
+    setOnSignInSuccess: () => { },
 });
 
 export function SignInDialogProvider({ children }: { children: React.ReactNode }) {
     const [open, setOpen] = React.useState(false);
+    const [onSignInSuccess, setOnSignInSuccess] = React.useState<(() => void) | null>(null);
     return (
-        <SignInDialogContext.Provider value={{ open, setOpen }}>
+        <SignInDialogContext.Provider value={{ open, setOpen, onSignInSuccess, setOnSignInSuccess }}>
             {children}
             <SignInDialog />
         </SignInDialogContext.Provider>
@@ -48,7 +53,7 @@ type View = "signin" | "forgot" | "forgot_sent";
 
 /* ─── Main dialog ────────────────────────────────────────────── */
 function SignInDialog() {
-    const { open, setOpen } = React.useContext(SignInDialogContext);
+    const { open, setOpen, onSignInSuccess, setOnSignInSuccess } = React.useContext(SignInDialogContext);
     const { signIn } = useAuth();
     const router = useRouter();
     const [view, setView] = React.useState<View>("signin");
@@ -93,7 +98,13 @@ function SignInDialog() {
                 setError(result.error || "Invalid email or password.");
             } else {
                 setOpen(false);
-                router.push("/dashboard");
+                if (onSignInSuccess) {
+                    const cb = onSignInSuccess;
+                    setOnSignInSuccess(null);
+                    cb();
+                } else {
+                    router.push("/dashboard");
+                }
             }
         }, 800);
     }

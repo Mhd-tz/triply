@@ -36,11 +36,23 @@ import {
     ChevronDown,
     Calendar,
     List,
-    Pencil
+    Pencil,
+    Smartphone,
+    Check,
+    LayoutDashboard,
+    RotateCcw,
+    LogIn,
+    Loader2,
+    Star,
+    SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
+import MapGL, { Marker as MapMarker } from "@vis.gl/react-maplibre";
+import { useAuth } from "@/lib/auth-context";
+import { useSignInDialog } from "@/components/signin-dialog";
+import { useRouter } from "next/navigation";
 
 // --- Mock Planner Data ---
 const INITIAL_ITINERARY = [
@@ -109,7 +121,62 @@ const TRANSPORT_TABS: { id: TransportTab; label: string; Icon: React.ElementType
     { id: "sync", label: "Already Booked?", Icon: LinkIcon },
 ];
 
+function getFlightCategory(departure: string) {
+    const hour = parseInt(departure.split(":")[0]);
+    const isPM = departure.includes("PM");
+    const h24 = isPM ? (hour === 12 ? 12 : hour + 12) : (hour === 12 ? 0 : hour);
+    if (h24 < 6 || h24 >= 21) return { label: "Red-Eye", color: "bg-red-600" };
+    if (h24 < 12) return { label: "Morning", color: "bg-amber-500" };
+    if (h24 < 17) return { label: "Mid-Day", color: "bg-gray-700" };
+    return { label: "Evening", color: "bg-indigo-600" };
+}
+
+const MOCK_FLIGHTS = [
+    { id: "f1", airline: "Air Canada", logo: "🍁", departure: "1:45 PM", arrival: "4:25 PM", nextDay: 1, duration: "10h 40m", stops: 0, stopInfo: "", price: 1897 },
+    { id: "f2", airline: "ANA", logo: "✦", departure: "4:45 PM", arrival: "9:50 PM", nextDay: 1, duration: "13h 5m", stops: 1, stopInfo: "1hr 30 min HND", price: 399 },
+    { id: "f3", airline: "Delta", logo: "▲", departure: "11:30 AM", arrival: "3:15 PM", nextDay: 1, duration: "11h 45m", stops: 0, stopInfo: "", price: 1245 },
+    { id: "f4", airline: "United", logo: "✪", departure: "6:00 AM", arrival: "10:30 AM", nextDay: 1, duration: "12h 30m", stops: 1, stopInfo: "2hr SFO", price: 589 },
+    { id: "f5", airline: "Japan Airlines", logo: "🏮", departure: "2:15 PM", arrival: "5:45 PM", nextDay: 1, duration: "11h 30m", stops: 0, stopInfo: "", price: 1650 },
+    { id: "f6", airline: "Korean Air", logo: "◎", departure: "9:00 PM", arrival: "2:30 AM", nextDay: 2, duration: "15h 30m", stops: 1, stopInfo: "3hr ICN", price: 475 },
+];
+
+const MOCK_CARS = [
+    { id: "c1", provider: "Hertz", type: "Economy", car: "Toyota Corolla", pricePerDay: 45, features: ["Unlimited Mileage", "A/C", "Automatic"] },
+    { id: "c2", provider: "Enterprise", type: "SUV", car: "Ford Explorer", pricePerDay: 89, features: ["Unlimited Mileage", "GPS", "A/C"] },
+    { id: "c3", provider: "Budget", type: "Compact", car: "Honda Civic", pricePerDay: 38, features: ["200 mi/day", "A/C", "Automatic"] },
+    { id: "c4", provider: "Avis", type: "Luxury", car: "BMW 5 Series", pricePerDay: 165, features: ["Unlimited Mileage", "GPS", "Leather"] },
+];
+
+const MOCK_TRAINS = [
+    { id: "t1", provider: "Amtrak", route: "Cascades", departure: "7:45 AM", arrival: "3:30 PM", duration: "7h 45m", stops: 4, price: 89 },
+    { id: "t2", provider: "VIA Rail", route: "Pacific Express", departure: "10:00 AM", arrival: "6:45 PM", duration: "8h 45m", stops: 6, price: 125 },
+    { id: "t3", provider: "Amtrak", route: "Coast Starlight", departure: "2:00 PM", arrival: "8:15 PM", duration: "6h 15m", stops: 3, price: 67 },
+    { id: "t4", provider: "VIA Rail", route: "Canadian", departure: "8:30 PM", arrival: "7:00 AM", duration: "10h 30m", stops: 2, price: 199 },
+];
+
+const MOCK_CRUISES = [
+    { id: "cr1", line: "Royal Caribbean", ship: "Ovation of the Seas", route: "Vancouver → Tokyo", duration: "14 nights", departure: "Apr 15", price: 2899, ports: ["Victoria", "Honolulu", "Tokyo"] },
+    { id: "cr2", line: "Princess Cruises", ship: "Diamond Princess", route: "Vancouver → Yokohama", duration: "18 nights", departure: "Apr 20", price: 3450, ports: ["Juneau", "Ketchikan", "Yokohama"] },
+    { id: "cr3", line: "Celebrity Cruises", ship: "Celebrity Solstice", route: "Vancouver → Osaka", duration: "16 nights", departure: "May 1", price: 3199, ports: ["Victoria", "Maui", "Osaka"] },
+];
+
+const MOCK_HOTELS = [
+    { id: "h1", name: "The Ritz-Carlton", stars: 5, rating: 4.8, pricePerNight: 549, amenities: ["Free WiFi", "Pool", "Spa", "Gym", "Restaurant"], neighborhood: "Downtown" },
+    { id: "h2", name: "Park Hyatt", stars: 5, rating: 4.7, pricePerNight: 425, amenities: ["Free WiFi", "Pool", "Spa", "Gym"], neighborhood: "Shinjuku" },
+    { id: "h3", name: "Hilton Garden Inn", stars: 4, rating: 4.3, pricePerNight: 189, amenities: ["Free WiFi", "Gym", "Restaurant"], neighborhood: "Shibuya" },
+    { id: "h4", name: "Courtyard by Marriott", stars: 4, rating: 4.1, pricePerNight: 159, amenities: ["Free WiFi", "Gym", "Parking"], neighborhood: "Ginza" },
+    { id: "h5", name: "Sakura Hotel", stars: 3, rating: 3.9, pricePerNight: 89, amenities: ["Free WiFi"], neighborhood: "Asakusa" },
+    { id: "h6", name: "APA Hotel", stars: 3, rating: 3.7, pricePerNight: 75, amenities: ["Free WiFi", "Restaurant"], neighborhood: "Akihabara" },
+];
+
+const ALL_AMENITIES = ["Free WiFi", "Pool", "Spa", "Gym", "Restaurant", "Parking"];
+
 export default function HeroSection() {
+    // Auth & Navigation
+    const { user } = useAuth();
+    const { setOpen: openSignIn, setOnSignInSuccess } = useSignInDialog();
+    const router = useRouter();
+
     // UI State
     const [appState, setAppState] = React.useState<AppState>("collapsed");
     const [loadingStep, setLoadingStep] = React.useState(0);
@@ -148,7 +215,67 @@ export default function HeroSection() {
     const [addEventStep, setAddEventStep] = React.useState<"choose" | "manual" | "ai_loading">("choose");
     const [newEventName, setNewEventName] = React.useState("");
     const [newEventTime, setNewEventTime] = React.useState("12:00 PM");
-    const [selectedDayIndex, setSelectedDayIndex] = React.useState("0"); // Added Day Selection
+    const [selectedDayIndex, setSelectedDayIndex] = React.useState("0");
+
+    // Transport Search State
+    const [transportSearched, setTransportSearched] = React.useState(false);
+    const [selectedFlightId, setSelectedFlightId] = React.useState<string | null>(null);
+    const [selectedCarId, setSelectedCarId] = React.useState<string | null>(null);
+    const [selectedTrainId, setSelectedTrainId] = React.useState<string | null>(null);
+    const [selectedCruiseId, setSelectedCruiseId] = React.useState<string | null>(null);
+    const [flightStopFilter, setFlightStopFilter] = React.useState<number[]>([]);
+    const [flightMaxPrice, setFlightMaxPrice] = React.useState(3000);
+    const [flightSortBy, setFlightSortBy] = React.useState("price");
+
+    // Stay Search State
+    const [staySearched, setStaySearched] = React.useState(false);
+    const [selectedHotelId, setSelectedHotelId] = React.useState<string | null>(null);
+    const [stayMaxPrice, setStayMaxPrice] = React.useState(800);
+    const [stayStarFilter, setStayStarFilter] = React.useState<number[]>([]);
+    const [stayAmenityFilter, setStayAmenityFilter] = React.useState<string[]>([]);
+    const [staySortBy, setStaySortBy] = React.useState("price");
+
+    // Filtered results
+    const filteredFlights = React.useMemo(() => {
+        let results = [...MOCK_FLIGHTS];
+        if (flightStopFilter.length > 0) results = results.filter(f => flightStopFilter.includes(f.stops));
+        results = results.filter(f => f.price <= flightMaxPrice);
+        if (flightSortBy === "price") results.sort((a, b) => a.price - b.price);
+        else results.sort((a, b) => parseFloat(a.duration) - parseFloat(b.duration));
+        return results;
+    }, [flightStopFilter, flightMaxPrice, flightSortBy]);
+
+    const filteredHotels = React.useMemo(() => {
+        let results = [...MOCK_HOTELS];
+        if (stayStarFilter.length > 0) results = results.filter(h => stayStarFilter.includes(h.stars));
+        results = results.filter(h => h.pricePerNight <= stayMaxPrice);
+        if (stayAmenityFilter.length > 0) results = results.filter(h => stayAmenityFilter.every(a => h.amenities.includes(a)));
+        if (staySortBy === "price") results.sort((a, b) => a.pricePerNight - b.pricePerNight);
+        else if (staySortBy === "rating") results.sort((a, b) => b.rating - a.rating);
+        else results.sort((a, b) => a.name.localeCompare(b.name));
+        return results;
+    }, [stayStarFilter, stayMaxPrice, stayAmenityFilter, staySortBy]);
+
+    // Sync Modal State
+    type SyncPhase = "idle" | "syncing" | "complete" | "done";
+    const [syncPhase, setSyncPhase] = React.useState<SyncPhase>("idle");
+
+    const startSyncFlow = React.useCallback(() => {
+        setSyncPhase("syncing");
+        setTimeout(() => setSyncPhase("complete"), 3200);
+    }, []);
+
+    const handleConfirmSync = () => {
+        if (user) {
+            startSyncFlow();
+        } else {
+            setOnSignInSuccess(() => () => {
+                // Runs after successful sign-in
+                setTimeout(() => startSyncFlow(), 400);
+            });
+            openSignIn(true);
+        }
+    };
 
     const expand = () => setAppState("expanded");
     const collapse = () => {
@@ -168,6 +295,21 @@ export default function HeroSection() {
         setLinkedStay(null);
         setShowDatePicker(false);
         setItinerary(INITIAL_ITINERARY);
+        setSyncPhase("idle");
+        setTransportSearched(false);
+        setStaySearched(false);
+        setSelectedFlightId(null);
+        setSelectedCarId(null);
+        setSelectedTrainId(null);
+        setSelectedCruiseId(null);
+        setSelectedHotelId(null);
+        setFlightStopFilter([]);
+        setFlightMaxPrice(3000);
+        setFlightSortBy("price");
+        setStayMaxPrice(800);
+        setStayStarFilter([]);
+        setStayAmenityFilter([]);
+        setStaySortBy("price");
     };
 
     const handleSearch = () => {
@@ -201,6 +343,33 @@ export default function HeroSection() {
         setLinkedStay(syncStayName || "Synced Stay");
         setActivePanel("none");
     };
+
+    const handleTransportSearch = () => setTransportSearched(true);
+    const handleStaySearch = () => setStaySearched(true);
+
+    const handleSelectFlight = (flight: typeof MOCK_FLIGHTS[0]) => {
+        if (selectedFlightId === flight.id) { setSelectedFlightId(null); setLinkedTransport(null); }
+        else { setSelectedFlightId(flight.id); setLinkedTransport(`${flight.airline} • ${flight.departure} → ${flight.arrival} • $${flight.price.toLocaleString()}`); }
+    };
+    const handleSelectCar = (car: typeof MOCK_CARS[0]) => {
+        if (selectedCarId === car.id) { setSelectedCarId(null); setLinkedTransport(null); }
+        else { setSelectedCarId(car.id); setLinkedTransport(`${car.provider} ${car.car} • $${car.pricePerDay}/day`); }
+    };
+    const handleSelectTrain = (train: typeof MOCK_TRAINS[0]) => {
+        if (selectedTrainId === train.id) { setSelectedTrainId(null); setLinkedTransport(null); }
+        else { setSelectedTrainId(train.id); setLinkedTransport(`${train.provider} ${train.route} • $${train.price}`); }
+    };
+    const handleSelectCruise = (cruise: typeof MOCK_CRUISES[0]) => {
+        if (selectedCruiseId === cruise.id) { setSelectedCruiseId(null); setLinkedTransport(null); }
+        else { setSelectedCruiseId(cruise.id); setLinkedTransport(`${cruise.line} • $${cruise.price.toLocaleString()}`); }
+    };
+    const handleSelectHotel = (hotel: typeof MOCK_HOTELS[0]) => {
+        if (selectedHotelId === hotel.id) { setSelectedHotelId(null); setLinkedStay(null); }
+        else { setSelectedHotelId(hotel.id); setLinkedStay(`${hotel.name} • ~$${hotel.pricePerNight}/night`); }
+    };
+    const toggleStopFilter = (v: number) => setFlightStopFilter(p => p.includes(v) ? p.filter(s => s !== v) : [...p, v]);
+    const toggleStarFilter = (v: number) => setStayStarFilter(p => p.includes(v) ? p.filter(s => s !== v) : [...p, v]);
+    const toggleAmenityFilter = (v: string) => setStayAmenityFilter(p => p.includes(v) ? p.filter(a => a !== v) : [...p, v]);
 
     const renderSummaryDate = () => {
         if (dateMode === "exact") {
@@ -519,7 +688,7 @@ export default function HeroSection() {
                                             <div className="p-6 md:px-8">
                                                 <div className="flex overflow-x-auto border-b border-gray-100 scrollbar-none mb-6 gap-6 items-center justify-center">
                                                     {TRANSPORT_TABS.map((tab) => (
-                                                        <button key={tab.id} onClick={() => setActiveTransportTab(tab.id)} className={cn("relative flex items-center gap-2 pb-3 text-[15px] font-semibold transition-colors", activeTransportTab === tab.id ? "text-accent" : "text-gray-500 hover:text-gray-800")}>
+                                                        <button key={tab.id} onClick={() => { setActiveTransportTab(tab.id); if (tab.id !== "sync") setTransportSearched(false); }} className={cn("relative flex items-center gap-2 pb-3 text-[15px] font-semibold transition-colors", activeTransportTab === tab.id ? "text-accent" : "text-gray-500 hover:text-gray-800")}>
                                                             <tab.Icon className="h-4 w-4" /> {tab.label}
                                                             {activeTransportTab === tab.id && <motion.div layoutId="trans-under" className="absolute bottom-0 left-0 right-0 h-[3px] rounded-t-sm bg-accent" />}
                                                         </button>
@@ -532,12 +701,178 @@ export default function HeroSection() {
                                                         <Input value={syncTransProv} onChange={(e) => setSyncTransProv(e.target.value)} placeholder="Airline / Provider" className="h-11 flex-2" />
                                                         <Button onClick={handleSyncTransport} className="h-11 px-8 flex-1" disabled={!syncTransRef}>Sync Booking</Button>
                                                     </div>
-                                                ) : (
+                                                ) : !transportSearched ? (
                                                     <div className="flex flex-col md:flex-row gap-3">
                                                         <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Origin City" className="h-11 flex-1" />
                                                         <div className="hidden md:flex items-center text-gray-300"><ArrowRight className="h-5 w-5" /></div>
                                                         <Input value={destination} readOnly className="h-11 flex-1 bg-gray-50 text-gray-600 cursor-default" />
-                                                        <Button className="h-11 px-8" disabled={!origin || !destination}>Search Routes</Button>
+                                                        <Button className="h-11 px-8" disabled={!origin || !destination} onClick={handleTransportSearch}>
+                                                            Find {activeTransportTab === "flights" ? "Flights" : activeTransportTab === "cars" ? "Cars" : activeTransportTab === "trains" ? "Trains" : "Cruises"}
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <div className="flex items-center justify-between mb-5">
+                                                            <button onClick={() => setTransportSearched(false)} className="flex items-center gap-1.5 text-sm font-semibold text-[#829eb9] hover:text-[#6b8aaa] transition-colors">
+                                                                <ChevronLeft className="h-4 w-4" /> Back to Search
+                                                            </button>
+                                                            <span className="text-xs text-gray-400 font-medium">{origin} → {destination}</span>
+                                                        </div>
+
+                                                        {activeTransportTab === "flights" && (
+                                                            <div className="flex flex-col lg:flex-row gap-6">
+                                                                {/* Flight Filter Sidebar */}
+                                                                <div className="lg:w-[220px] shrink-0 space-y-5 bg-gray-50/50 rounded-xl p-4 border border-gray-100">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <h4 className="font-bold text-sm text-gray-900 flex items-center gap-1.5"><SlidersHorizontal className="h-3.5 w-3.5" /> Filters</h4>
+                                                                        <button onClick={() => { setFlightStopFilter([]); setFlightMaxPrice(3000); }} className="text-[11px] text-[#829eb9] font-semibold hover:underline">Reset</button>
+                                                                    </div>
+                                                                    <div>
+                                                                        <h5 className="text-xs font-semibold text-gray-600 mb-2.5 uppercase tracking-wider">Price Range</h5>
+                                                                        <input type="range" min={100} max={3000} step={50} value={flightMaxPrice} onChange={(e) => setFlightMaxPrice(Number(e.target.value))} className="w-full accent-[#829eb9] h-1.5" />
+                                                                        <div className="flex justify-between text-[11px] text-gray-500 mt-1"><span>$100</span><span className="font-bold text-gray-800">Up to ${flightMaxPrice.toLocaleString()}</span></div>
+                                                                    </div>
+                                                                    <div className="border-t border-gray-200 pt-4">
+                                                                        <h5 className="text-xs font-semibold text-gray-600 mb-2.5 uppercase tracking-wider">Stops</h5>
+                                                                        <div className="space-y-2">
+                                                                            {[{ label: "Non-Stop", value: 0 }, { label: "1 Stop", value: 1 }].map(opt => (
+                                                                                <label key={opt.value} className="flex items-center gap-2 cursor-pointer group" onClick={() => toggleStopFilter(opt.value)}>
+                                                                                    <div className={cn("w-4 h-4 rounded border-[1.5px] flex items-center justify-center transition-colors", flightStopFilter.includes(opt.value) ? "bg-[#829eb9] border-[#829eb9]" : "border-gray-300 group-hover:border-gray-400")}>
+                                                                                        {flightStopFilter.includes(opt.value) && <Check className="h-2.5 w-2.5 text-white" />}
+                                                                                    </div>
+                                                                                    <span className="text-sm text-gray-700">{opt.label}</span>
+                                                                                </label>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="border-t border-gray-200 pt-4">
+                                                                        <h5 className="text-xs font-semibold text-gray-600 mb-2.5 uppercase tracking-wider">Sort By</h5>
+                                                                        <Select value={flightSortBy} onValueChange={setFlightSortBy}>
+                                                                            <SelectTrigger className="w-full h-9 text-sm border-gray-200 bg-white"><SelectValue /></SelectTrigger>
+                                                                            <SelectContent>
+                                                                                <SelectItem value="price">Price (Low → High)</SelectItem>
+                                                                                <SelectItem value="duration">Duration (Short → Long)</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    </div>
+                                                                </div>
+                                                                {/* Flight Cards */}
+                                                                <div className="flex-1">
+                                                                    <p className="text-xs font-semibold text-gray-500 mb-3">{filteredFlights.length} flights found</p>
+                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                        {filteredFlights.map(flight => {
+                                                                            const cat = getFlightCategory(flight.departure);
+                                                                            const isSelected = selectedFlightId === flight.id;
+                                                                            return (
+                                                                                <div key={flight.id} className={cn("bg-white rounded-2xl border-2 overflow-hidden transition-all hover:shadow-lg", isSelected ? "border-[#829eb9] shadow-lg ring-2 ring-[#829eb9]/20" : "border-gray-200")}>
+                                                                                    <div className={cn("text-center py-2 text-white text-sm font-bold", cat.color)}>{cat.label} Flight</div>
+                                                                                    <div className="p-5">
+                                                                                        <div className="text-center mb-3">
+                                                                                            <span className="text-2xl">{flight.logo}</span>
+                                                                                            <p className="text-sm font-bold text-gray-800 mt-1">{flight.airline}</p>
+                                                                                        </div>
+                                                                                        <div className="flex items-center justify-center gap-2 mb-3">
+                                                                                            <span className="text-lg font-bold text-gray-900">{flight.departure}</span>
+                                                                                            <ArrowRight className="h-4 w-4 text-gray-400" />
+                                                                                            <span className="text-lg font-bold text-gray-900">{flight.arrival}<sup className="text-[10px] text-gray-400 ml-0.5">+{flight.nextDay}</sup></span>
+                                                                                        </div>
+                                                                                        <div className="text-center space-y-1 text-sm text-gray-500 mb-4">
+                                                                                            <p>Duration: {flight.duration}</p>
+                                                                                            <p>{flight.stops === 0 ? "Non-Stop" : `${flight.stops} Stop`}{flight.stopInfo && <span className="text-xs text-gray-400 ml-1.5">{flight.stopInfo}</span>}</p>
+                                                                                        </div>
+                                                                                        <p className="text-center text-lg font-bold text-gray-900 mb-4">Price: ${flight.price.toLocaleString()}</p>
+                                                                                        <button onClick={() => handleSelectFlight(flight)} className={cn("w-full py-2.5 rounded-full font-semibold text-sm transition-all", isSelected ? "bg-[#829eb9] text-white shadow-md" : "border-2 border-gray-300 text-gray-700 hover:border-[#829eb9] hover:text-[#829eb9]")}>
+                                                                                            {isSelected ? "✓ Selected" : "Select"}
+                                                                                        </button>
+                                                                                    </div>
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                    {filteredFlights.length === 0 && <div className="py-12 text-center text-gray-400"><p className="font-semibold">No flights match your filters</p><p className="text-sm mt-1">Try adjusting your criteria</p></div>}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {activeTransportTab === "cars" && (
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                {MOCK_CARS.map(car => {
+                                                                    const isSelected = selectedCarId === car.id;
+                                                                    return (
+                                                                        <div key={car.id} className={cn("bg-white rounded-2xl border-2 p-5 transition-all hover:shadow-md", isSelected ? "border-[#829eb9] shadow-lg" : "border-gray-200")}>
+                                                                            <div className="flex items-center justify-between mb-3">
+                                                                                <span className="text-xs font-bold uppercase tracking-wider text-gray-400">{car.type}</span>
+                                                                                <span className="text-lg font-bold text-gray-900">${car.pricePerDay}<span className="text-sm font-normal text-gray-500">/day</span></span>
+                                                                            </div>
+                                                                            <h5 className="text-lg font-bold text-gray-900">{car.car}</h5>
+                                                                            <p className="text-sm text-gray-500 mb-1">{car.provider}</p>
+                                                                            <div className="flex flex-wrap gap-1.5 mt-3 mb-4">
+                                                                                {car.features.map(f => <span key={f} className="text-[11px] font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{f}</span>)}
+                                                                            </div>
+                                                                            <button onClick={() => handleSelectCar(car)} className={cn("w-full py-2.5 rounded-full font-semibold text-sm transition-all", isSelected ? "bg-[#829eb9] text-white" : "border-2 border-gray-300 text-gray-700 hover:border-[#829eb9]")}>
+                                                                                {isSelected ? "✓ Selected" : "Select"}
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+
+                                                        {activeTransportTab === "trains" && (
+                                                            <div className="space-y-3">
+                                                                {MOCK_TRAINS.map(train => {
+                                                                    const isSelected = selectedTrainId === train.id;
+                                                                    return (
+                                                                        <div key={train.id} className={cn("bg-white rounded-xl border-2 p-4 flex flex-col md:flex-row md:items-center gap-4 transition-all hover:shadow-md", isSelected ? "border-[#829eb9] shadow-lg" : "border-gray-200")}>
+                                                                            <div className="flex-1">
+                                                                                <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">{train.provider}</p>
+                                                                                <h5 className="text-base font-bold text-gray-900">{train.route}</h5>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-2 text-sm">
+                                                                                <span className="font-bold text-gray-900">{train.departure}</span>
+                                                                                <ArrowRight className="h-3.5 w-3.5 text-gray-400" />
+                                                                                <span className="font-bold text-gray-900">{train.arrival}</span>
+                                                                            </div>
+                                                                            <div className="text-sm text-gray-500">{train.duration} • {train.stops} stops</div>
+                                                                            <div className="text-lg font-bold text-gray-900">${train.price}</div>
+                                                                            <button onClick={() => handleSelectTrain(train)} className={cn("px-6 py-2 rounded-full font-semibold text-sm transition-all shrink-0", isSelected ? "bg-[#829eb9] text-white" : "border-2 border-gray-300 text-gray-700 hover:border-[#829eb9]")}>
+                                                                                {isSelected ? "✓ Selected" : "Select"}
+                                                                            </button>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
+
+                                                        {activeTransportTab === "cruises" && (
+                                                            <div className="grid grid-cols-1 gap-4">
+                                                                {MOCK_CRUISES.map(cruise => {
+                                                                    const isSelected = selectedCruiseId === cruise.id;
+                                                                    return (
+                                                                        <div key={cruise.id} className={cn("bg-white rounded-2xl border-2 p-5 transition-all hover:shadow-md", isSelected ? "border-[#829eb9] shadow-lg" : "border-gray-200")}>
+                                                                            <div className="flex flex-col md:flex-row md:items-start gap-4">
+                                                                                <div className="flex-1">
+                                                                                    <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">{cruise.line}</p>
+                                                                                    <h5 className="text-lg font-bold text-gray-900">{cruise.ship}</h5>
+                                                                                    <p className="text-sm text-gray-600 mt-1">{cruise.route}</p>
+                                                                                    <div className="flex flex-wrap gap-1.5 mt-2">
+                                                                                        <span className="text-[11px] font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">🚢 {cruise.duration}</span>
+                                                                                        <span className="text-[11px] font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Departs {cruise.departure}</span>
+                                                                                    </div>
+                                                                                    <p className="text-xs text-gray-400 mt-2">Ports: {cruise.ports.join(" → ")}</p>
+                                                                                </div>
+                                                                                <div className="flex flex-col items-end gap-2">
+                                                                                    <p className="text-xl font-bold text-gray-900">${cruise.price.toLocaleString()}</p>
+                                                                                    <button onClick={() => handleSelectCruise(cruise)} className={cn("px-6 py-2.5 rounded-full font-semibold text-sm transition-all", isSelected ? "bg-[#829eb9] text-white" : "border-2 border-gray-300 text-gray-700 hover:border-[#829eb9]")}>
+                                                                                        {isSelected ? "✓ Selected" : "Select"}
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -567,11 +902,104 @@ export default function HeroSection() {
                                                         <Input value={syncStayName} onChange={(e) => setSyncStayName(e.target.value)} placeholder="Hotel Name / Airbnb" className="h-11 flex-2" />
                                                         <Button onClick={handleSyncStay} className="h-11 px-8 flex-1" disabled={!syncStayName}>Sync Stay</Button>
                                                     </div>
-                                                ) : (
+                                                ) : !staySearched ? (
                                                     <div className="flex flex-col md:flex-row gap-3">
                                                         <Input value={destination} readOnly className="h-11 flex-2 bg-gray-50 cursor-default" />
                                                         <Input type="number" value={guests} onChange={(e) => setGuests(e.target.value)} placeholder="Guests" className="h-11 flex-1" />
-                                                        <Button className="h-11 px-8">Search Accommodations</Button>
+                                                        <Button className="h-11 px-8" onClick={handleStaySearch}>Find Stays</Button>
+                                                    </div>
+                                                ) : (
+                                                    <div>
+                                                        <div className="flex items-center justify-between mb-5">
+                                                            <button onClick={() => setStaySearched(false)} className="flex items-center gap-1.5 text-sm font-semibold text-[#829eb9] hover:text-[#6b8aaa] transition-colors">
+                                                                <ChevronLeft className="h-4 w-4" /> Back to Search
+                                                            </button>
+                                                            <span className="text-xs text-gray-400 font-medium">Stays in {destination} • {guests} guests</span>
+                                                        </div>
+
+                                                        <div className="flex flex-col lg:flex-row gap-6">
+                                                            {/* Hotel Filter Sidebar */}
+                                                            <div className="lg:w-[220px] shrink-0 space-y-5 bg-gray-50/50 rounded-xl p-4 border border-gray-100">
+                                                                <div className="flex items-center justify-between">
+                                                                    <h4 className="font-bold text-sm text-gray-900 flex items-center gap-1.5"><SlidersHorizontal className="h-3.5 w-3.5" /> Hotel Filter</h4>
+                                                                    <button onClick={() => { setStayStarFilter([]); setStayMaxPrice(800); setStayAmenityFilter([]); }} className="text-[11px] text-[#829eb9] font-semibold hover:underline">Reset</button>
+                                                                </div>
+                                                                <div>
+                                                                    <h5 className="text-xs font-semibold text-gray-600 mb-2.5 uppercase tracking-wider">Price Range <span className="normal-case text-gray-400">(per night)</span></h5>
+                                                                    <input type="range" min={50} max={800} step={25} value={stayMaxPrice} onChange={(e) => setStayMaxPrice(Number(e.target.value))} className="w-full accent-[#829eb9] h-1.5" />
+                                                                    <div className="flex justify-between text-[11px] text-gray-500 mt-1"><span>$50</span><span className="font-bold text-gray-800">Up to ${stayMaxPrice}</span></div>
+                                                                </div>
+                                                                <div className="border-t border-gray-200 pt-4">
+                                                                    <h5 className="text-xs font-semibold text-gray-600 mb-2.5 uppercase tracking-wider">Star Rating</h5>
+                                                                    <div className="space-y-2">
+                                                                        {[5, 4, 3].map(stars => (
+                                                                            <label key={stars} className="flex items-center gap-2 cursor-pointer group" onClick={() => toggleStarFilter(stars)}>
+                                                                                <div className={cn("w-4 h-4 rounded border-[1.5px] flex items-center justify-center transition-colors", stayStarFilter.includes(stars) ? "bg-[#829eb9] border-[#829eb9]" : "border-gray-300 group-hover:border-gray-400")}>
+                                                                                    {stayStarFilter.includes(stars) && <Check className="h-2.5 w-2.5 text-white" />}
+                                                                                </div>
+                                                                                <span className="text-sm text-gray-700 flex items-center gap-1">{stars} <Star className="h-3 w-3 fill-amber-400 text-amber-400" /></span>
+                                                                            </label>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="border-t border-gray-200 pt-4">
+                                                                    <h5 className="text-xs font-semibold text-gray-600 mb-2.5 uppercase tracking-wider">Amenities</h5>
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        {ALL_AMENITIES.map(amenity => (
+                                                                            <label key={amenity} className="flex items-center gap-1.5 cursor-pointer group" onClick={() => toggleAmenityFilter(amenity)}>
+                                                                                <div className={cn("w-3.5 h-3.5 rounded border-[1.5px] flex items-center justify-center transition-colors", stayAmenityFilter.includes(amenity) ? "bg-[#829eb9] border-[#829eb9]" : "border-gray-300 group-hover:border-gray-400")}>
+                                                                                    {stayAmenityFilter.includes(amenity) && <Check className="h-2 w-2 text-white" />}
+                                                                                </div>
+                                                                                <span className="text-[12px] text-gray-600">{amenity}</span>
+                                                                            </label>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                                <div className="border-t border-gray-200 pt-4">
+                                                                    <h5 className="text-xs font-semibold text-gray-600 mb-2.5 uppercase tracking-wider">Sort By</h5>
+                                                                    <Select value={staySortBy} onValueChange={setStaySortBy}>
+                                                                        <SelectTrigger className="w-full h-9 text-sm border-gray-200 bg-white"><SelectValue /></SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="price">Price (Low → High)</SelectItem>
+                                                                            <SelectItem value="rating">Rating (High → Low)</SelectItem>
+                                                                            <SelectItem value="name">Name (A → Z)</SelectItem>
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            </div>
+                                                            {/* Hotel Results */}
+                                                            <div className="flex-1">
+                                                                <p className="text-xs font-semibold text-gray-500 mb-3">{filteredHotels.length} stays found</p>
+                                                                <div className="space-y-3">
+                                                                    {filteredHotels.map(hotel => {
+                                                                        const isSelected = selectedHotelId === hotel.id;
+                                                                        return (
+                                                                            <div key={hotel.id} className={cn("bg-white rounded-xl border-2 p-4 flex flex-col sm:flex-row sm:items-center gap-4 transition-all hover:shadow-md", isSelected ? "border-[#829eb9] shadow-lg ring-2 ring-[#829eb9]/20" : "border-gray-200")}>
+                                                                                <div className="flex-1">
+                                                                                    <div className="flex items-center gap-3">
+                                                                                        <h5 className="text-base font-bold text-gray-900">{hotel.name}</h5>
+                                                                                        <span className="flex items-center gap-0.5 text-sm font-semibold text-gray-700">
+                                                                                            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" /> {hotel.rating}/5
+                                                                                        </span>
+                                                                                    </div>
+                                                                                    <p className="text-xs text-gray-400 mt-0.5">{hotel.neighborhood} • {"★".repeat(hotel.stars)} {hotel.stars}-Star</p>
+                                                                                    <div className="flex flex-wrap gap-1 mt-2">
+                                                                                        {hotel.amenities.map(a => <span key={a} className="text-[10px] font-medium bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{a}</span>)}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="flex sm:flex-col items-center sm:items-end gap-3">
+                                                                                    <p className="text-lg font-bold text-gray-900">~${hotel.pricePerNight} <span className="text-sm font-normal text-gray-500">Per Night</span></p>
+                                                                                    <button onClick={() => handleSelectHotel(hotel)} className={cn("px-5 py-2 rounded-full font-semibold text-sm transition-all whitespace-nowrap", isSelected ? "bg-[#829eb9] text-white shadow-md" : "border-2 border-gray-800 text-gray-800 hover:bg-gray-800 hover:text-white")}>
+                                                                                        {isSelected ? "✓ Added to Plan" : "Add to Plan"}
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                                {filteredHotels.length === 0 && <div className="py-12 text-center text-gray-400"><p className="font-semibold">No stays match your filters</p><p className="text-sm mt-1">Try adjusting your criteria</p></div>}
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
@@ -773,18 +1201,78 @@ export default function HeroSection() {
                                                 </div>
                                             </div>
 
-                                            {/* Map Placeholder */}
-                                            <Link
-                                                href="/map"
-                                            >
-                                                <div className="w-full h-32 bg-slate-100 border border-gray-200 relative overflow-hidden flex items-center justify-center group cursor-pointer mt-2 rounded-md">
-                                                    <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #829eb9 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
-                                                    <div className="relative z-10 bg-white shadow-sm p-2.5 rounded-full transform transition-transform group-hover:scale-110 flex items-center gap-2">
-                                                        <MapIcon className="h-4 w-4 text-[#829eb9]" />
-                                                        <span className="text-xs font-bold text-gray-700 pr-1">View Map</span>
+                                            {/* Live Mini-Map */}
+                                            <div className="mt-2">
+                                                <Link href="/map">
+                                                    <div className="w-full h-[180px] rounded-xl overflow-hidden border border-gray-200 relative group cursor-pointer">
+                                                        <MapGL
+                                                            initialViewState={{
+                                                                longitude: 103.8198,
+                                                                latitude: 1.3521,
+                                                                zoom: 11,
+                                                            }}
+                                                            style={{ width: "100%", height: "100%" }}
+                                                            mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+                                                            interactive={false}
+                                                            attributionControl={false}
+                                                        >
+                                                            {itinerary.flatMap((day) =>
+                                                                day.activities
+                                                                    .filter((a) => a.images && a.images.length > 0)
+                                                                    .map((act, i) => (
+                                                                        <MapMarker
+                                                                            key={act.id}
+                                                                            longitude={103.82 + (i % 3) * 0.015 - 0.015}
+                                                                            latitude={1.35 + Math.floor(i / 3) * 0.012 - 0.006}
+                                                                            anchor="center"
+                                                                        >
+                                                                            <div className="w-6 h-6 bg-[#1D4983] rounded-full border-2 border-white shadow-md flex items-center justify-center">
+                                                                                <span className="text-[9px] font-bold text-white">{i + 1}</span>
+                                                                            </div>
+                                                                        </MapMarker>
+                                                                    ))
+                                                            )}
+                                                        </MapGL>
+                                                        {/* Hover overlay */}
+                                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5">
+                                                                <MapIcon className="h-3.5 w-3.5 text-[#1D4983]" />
+                                                                <span className="text-xs font-bold text-gray-800">Open Full Map</span>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </Link>
+                                                </Link>
+                                            </div>
+
+                                            {/* Confirm & Sync Button */}
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.3, duration: 0.4 }}
+                                                className="mt-1"
+                                            >
+                                                {user ? (
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.02 }}
+                                                        whileTap={{ scale: 0.98 }}
+                                                        onClick={handleConfirmSync}
+                                                        className="w-full h-12 rounded-xl bg-[#1D4983] hover:bg-[#163970] text-white font-bold text-sm flex items-center justify-center gap-2.5 shadow-lg shadow-[#1D4983]/20 transition-colors"
+                                                    >
+                                                        <CheckCircle2 className="h-4.5 w-4.5" />
+                                                        Confirm & Sync
+                                                    </motion.button>
+                                                ) : (
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.02 }}
+                                                        whileTap={{ scale: 0.98 }}
+                                                        onClick={handleConfirmSync}
+                                                        className="w-full h-12 rounded-xl border-2 border-[#1D4983] text-[#1D4983] hover:bg-[#1D4983] hover:text-white font-bold text-sm flex items-center justify-center gap-2.5 transition-all"
+                                                    >
+                                                        <LogIn className="h-4.5 w-4.5" />
+                                                        Sign in to confirm
+                                                    </motion.button>
+                                                )}
+                                            </motion.div>
                                         </div>
                                     </div>
 
@@ -883,7 +1371,145 @@ export default function HeroSection() {
                         </div>
                     )
                 }
-            </AnimatePresence >
+            </AnimatePresence>
+
+            {/* ── Sync Modal Overlay ── */}
+            <AnimatePresence>
+                {syncPhase !== "idle" && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.92, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.92, y: 20 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden"
+                        >
+                            <div className="px-8 py-10 flex flex-col items-center text-center">
+                                <AnimatePresence mode="wait">
+                                    {/* Phase 1: Syncing */}
+                                    {syncPhase === "syncing" && (
+                                        <motion.div
+                                            key="syncing"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="flex flex-col items-center"
+                                        >
+                                            {/* Phone icon with pulsing ring */}
+                                            <div className="relative mb-6">
+                                                <motion.div
+                                                    className="absolute inset-0 rounded-full bg-[#1D4983]/15"
+                                                    animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
+                                                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                                                    style={{ width: 72, height: 72, top: -6, left: -6 }}
+                                                />
+                                                <motion.div
+                                                    className="absolute inset-0 rounded-full bg-[#1D4983]/10"
+                                                    animate={{ scale: [1, 2, 1], opacity: [0.3, 0, 0.3] }}
+                                                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+                                                    style={{ width: 72, height: 72, top: -6, left: -6 }}
+                                                />
+                                                <div className="relative w-[60px] h-[60px] bg-gradient-to-br from-[#1D4983] to-[#2a6bc4] rounded-2xl flex items-center justify-center shadow-lg">
+                                                    <Smartphone className="h-7 w-7 text-white" />
+                                                </div>
+                                            </div>
+                                            <h3 className="text-xl font-bold text-gray-900 mb-2">Syncing with your mobile</h3>
+                                            <p className="text-sm text-gray-500 mb-5">Sending your itinerary to the Triply app…</p>
+                                            <div className="flex items-center gap-2 text-[#1D4983]">
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                <span className="text-xs font-semibold">Please wait</span>
+                                            </div>
+                                            {/* Progress bar */}
+                                            <div className="w-full h-1.5 bg-gray-100 rounded-full mt-5 overflow-hidden">
+                                                <motion.div
+                                                    className="h-full bg-gradient-to-r from-[#1D4983] to-[#4a98f7] rounded-full"
+                                                    initial={{ width: "0%" }}
+                                                    animate={{ width: "100%" }}
+                                                    transition={{ duration: 3, ease: "easeInOut" }}
+                                                />
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    {/* Phase 2: Complete */}
+                                    {syncPhase === "complete" && (
+                                        <motion.div
+                                            key="complete"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            className="flex flex-col items-center"
+                                        >
+                                            {/* Animated checkmark */}
+                                            <motion.div
+                                                initial={{ scale: 0 }}
+                                                animate={{ scale: 1 }}
+                                                transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                                                className="w-16 h-16 rounded-full bg-[#0f9a8e] flex items-center justify-center mb-5"
+                                                style={{ boxShadow: "0 0 0 8px rgba(15,154,142,0.08)" }}
+                                            >
+                                                <Check className="w-8 h-8 text-white stroke-[2.5]" />
+                                            </motion.div>
+
+                                            {/* Confetti particles */}
+                                            {[...Array(8)].map((_, i) => (
+                                                <motion.div
+                                                    key={i}
+                                                    className="absolute w-2 h-2 rounded-full"
+                                                    style={{
+                                                        backgroundColor: ["#1D4983", "#0f9a8e", "#e8820c", "#7c3aed", "#4a98f7", "#f43f5e", "#f59e0b", "#10b981"][i],
+                                                        top: "40%",
+                                                        left: "50%",
+                                                    }}
+                                                    initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
+                                                    animate={{
+                                                        x: Math.cos((i * Math.PI * 2) / 8) * 80,
+                                                        y: Math.sin((i * Math.PI * 2) / 8) * 80 - 20,
+                                                        scale: [0, 1.2, 0],
+                                                        opacity: [0, 1, 0],
+                                                    }}
+                                                    transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
+                                                />
+                                            ))}
+
+                                            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+                                                <h3 className="text-xl font-bold text-gray-900 mb-2">Trip synced!</h3>
+                                                <p className="text-sm text-gray-500 mb-7">Your itinerary is ready on your mobile device.</p>
+
+                                                <div className="flex flex-col gap-3 w-full">
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.02 }}
+                                                        whileTap={{ scale: 0.98 }}
+                                                        onClick={() => { setSyncPhase("idle"); router.push("/dashboard"); }}
+                                                        className="w-full h-11 rounded-xl bg-[#1D4983] hover:bg-[#163970] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md transition-colors"
+                                                    >
+                                                        <LayoutDashboard className="h-4 w-4" />
+                                                        Go to Dashboard
+                                                    </motion.button>
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.02 }}
+                                                        whileTap={{ scale: 0.98 }}
+                                                        onClick={() => { setSyncPhase("idle"); reset(); }}
+                                                        className="w-full h-11 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+                                                    >
+                                                        <RotateCcw className="h-4 w-4" />
+                                                        Start a New Plan
+                                                    </motion.button>
+                                                </div>
+                                            </motion.div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </section >
     );
 }
