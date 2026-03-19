@@ -6,9 +6,12 @@ import { motion, AnimatePresence } from "motion/react";
 import {
     Clock, Star, Edit2, Trash2, ChevronDown,
     Train, Car, PersonStanding, Plus,
-    Navigation, Search, X,
+    Navigation, Search, X, GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 /* ─── Types (mirrors page.tsx) ───────────────────────────────── */
 export type TransportMode = "drive" | "transit" | "walk";
@@ -68,6 +71,7 @@ interface ItineraryViewProps {
     onOpenModal: (mode: "add" | "edit" | "remove", eventId?: string) => void;
     onSearchResultClick: (result: SearchResult) => void;
     searchResults: SearchResult[];
+    onReorder?: (newPlaceEvents: EventItem[]) => void;
 }
 
 /* ─── Colors ─────────────────────────────────────────────────── */
@@ -191,7 +195,7 @@ function TransitRow({
     );
 }
 
-/* ─── Place Row ──────────────────────────────────────────────── */
+/* ─── Sortable Place Row ────────────────────────────────────── */
 function PlaceRow({
     event,
     isExpanded,
@@ -209,8 +213,18 @@ function PlaceRow({
     onEdit: () => void;
     onRemove: () => void;
 }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: event.id });
+    const dndStyle = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+        opacity: isDragging ? 0.85 : 1,
+    };
+
     return (
         <motion.div
+            ref={setNodeRef}
+            style={dndStyle}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.04, duration: 0.25 }}
@@ -240,7 +254,8 @@ function PlaceRow({
                 <div
                     className={cn(
                         "rounded-[14px] overflow-hidden border transition-all duration-200 cursor-pointer",
-                        isExpanded ? "shadow-lg" : "shadow-sm hover:shadow-md hover:-translate-y-px"
+                        isExpanded ? "shadow-lg" : "shadow-sm hover:shadow-md hover:-translate-y-px",
+                        isDragging && "shadow-xl ring-2 ring-blue-300"
                     )}
                     style={{ borderColor: isExpanded ? event.color : `${event.color}25` }}
                     onClick={onClick}
@@ -250,9 +265,16 @@ function PlaceRow({
                         className="flex items-center justify-between px-4 py-3"
                         style={{ backgroundColor: event.color }}
                     >
-                        <span className="text-[14px] font-bold text-white truncate flex-1 min-w-0">
-                            {event.title}
-                        </span>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <button {...attributes} {...listeners} className="touch-none cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-white/20 text-white/60 hover:text-white transition-colors" onClick={(e) => e.stopPropagation()}>
+                                <GripVertical className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="text-[14px] font-bold text-white truncate">
+                                {
+                                    event.title.length > 18 ? event.title.substring(0, 18) + "..." : event.title
+                                }
+                            </span>
+                        </div>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
                             <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-white/20 text-white">
                                 {TYPE_LABELS[event.type]}
@@ -613,7 +635,23 @@ export default function ItineraryView({
     onOpenModal,
     onSearchResultClick,
     searchResults,
+    onReorder,
 }: ItineraryViewProps) {
+    const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+    const [activePlaceDragId, setActivePlaceDragId] = React.useState<string | null>(null);
+
+    const placeEvents = day.events.filter((e) => !(e.type === "transit" && e.fromId));
+    const placeIds = placeEvents.map((e) => e.id);
+
+    const handleDragEnd = (evt: DragEndEvent) => {
+        const { active, over } = evt;
+        if (!over || active.id === over.id || !onReorder) return;
+        const oldIndex = placeEvents.findIndex(e => e.id === active.id);
+        const newIndex = placeEvents.findIndex(e => e.id === (over.id as string));
+        if (oldIndex === -1 || newIndex === -1) return;
+        onReorder(arrayMove(placeEvents, oldIndex, newIndex));
+    };
+
     return (
         <motion.div
             key="itinerary"
@@ -660,39 +698,61 @@ export default function ItineraryView({
                     </div>
                 </div>
 
-                {/* Timeline scroll */}
+                {/* Timeline scroll — Sortable */}
                 <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2" style={{ scrollbarWidth: "none" }}>
                     {day.events.length === 0 && (
                         <div className="h-full flex items-center justify-center text-gray-400 text-sm italic py-10">
                             No plans yet. Add something!
                         </div>
                     )}
-                    {(() => {
-                        let placeIndex = 0;
-                        return day.events.map((event, i) => {
-                            const isTransit = event.type === "transit" && !!event.fromId;
-                            if (isTransit) {
-                                return <TransitRow key={event.id} event={event} transportMode={transportMode} />;
-                            }
-                            const currentPlaceIndex = placeIndex++;
-                            const isLast =
-                                i === day.events.length - 1 ||
-                                (i < day.events.length - 1 &&
-                                    day.events.slice(i + 1).every((e) => e.type === "transit" && e.fromId));
-                            return (
-                                <PlaceRow
-                                    key={event.id}
-                                    event={event}
-                                    isExpanded={expandedEvent === event.id}
-                                    isLast={isLast}
-                                    index={currentPlaceIndex}
-                                    onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
-                                    onEdit={() => onOpenModal("edit", event.id)}
-                                    onRemove={() => onOpenModal("remove", event.id)}
-                                />
-                            );
-                        });
-                    })()}
+                    <DndContext
+                        sensors={dndSensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={(e) => setActivePlaceDragId(String(e.active.id))}
+                        onDragEnd={(e) => { setActivePlaceDragId(null); handleDragEnd(e); }}
+                        onDragCancel={() => setActivePlaceDragId(null)}
+                    >
+                        <SortableContext items={placeIds} strategy={verticalListSortingStrategy}>
+                            {(() => {
+                                let placeIndex = 0;
+                                return day.events.map((event, i) => {
+                                    const isTransit = event.type === "transit" && !!event.fromId;
+                                    if (isTransit) {
+                                        return <TransitRow key={event.id} event={event} transportMode={transportMode} />;
+                                    }
+                                    const currentPlaceIndex = placeIndex++;
+                                    const isLast =
+                                        i === day.events.length - 1 ||
+                                        (i < day.events.length - 1 &&
+                                            day.events.slice(i + 1).every((e) => e.type === "transit" && e.fromId));
+                                    return (
+                                        <PlaceRow
+                                            key={event.id}
+                                            event={event}
+                                            isExpanded={expandedEvent === event.id}
+                                            isLast={isLast}
+                                            index={currentPlaceIndex}
+                                            onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
+                                            onEdit={() => onOpenModal("edit", event.id)}
+                                            onRemove={() => onOpenModal("remove", event.id)}
+                                        />
+                                    );
+                                });
+                            })()}
+                        </SortableContext>
+                        <DragOverlay dropAnimation={null}>
+                            {activePlaceDragId ? (() => {
+                                const dragEvt = day.events.find(e => e.id === activePlaceDragId);
+                                if (!dragEvt) return null;
+                                return (
+                                    <div className="rounded-xl p-3 border-2 border-blue-400 shadow-2xl opacity-90 max-w-[360px]" style={{ backgroundColor: dragEvt.color }}>
+                                        <p className="text-[14px] font-bold text-white truncate">{dragEvt.title}</p>
+                                        <p className="text-[11px] text-white/70 mt-0.5">{dragEvt.time}</p>
+                                    </div>
+                                );
+                            })() : null}
+                        </DragOverlay>
+                    </DndContext>
                 </div>
 
                 <Legend transportMode={transportMode} />

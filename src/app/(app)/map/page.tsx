@@ -3,6 +3,7 @@
 "use client";
 
 import * as React from "react";
+import * as ReactDOM from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
 import Map, {
     Marker,
@@ -40,6 +41,14 @@ import {
     Globe,
     Navigation,
     Pencil,
+    Plane,
+    Bed,
+    CheckCircle2,
+    LogIn,
+    Loader2,
+    Check,
+    GripVertical,
+    Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -48,6 +57,13 @@ import Image from "next/image";
 import Logo from "@/assets/images/logo.png";
 import Link from "next/link";
 import ItineraryView from "@/components/itinerary-view";
+import { useAuth } from "@/lib/auth-context";
+import { useSignInDialog } from "@/components/signin-dialog";
+import { useTripStore } from "@/lib/trip-store";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useRouter } from "next/navigation";
 
 /* ─── Types ──────────────────────────────────────────────────── */
 type ViewMode = "itinerary" | "map";
@@ -525,6 +541,7 @@ const INITIAL_TRIP_DATA: DayPlan[] = RAW_SEED.map((d) => ({
 
 /* ─── Main Page ──────────────────────────────────────────────── */
 export default function TripMapPage() {
+    const router = useRouter();
     const [view, setView] = React.useState<ViewMode>("map");
     const [tripData, setTripData] = React.useState<DayPlan[]>(INITIAL_TRIP_DATA);
     const [activeDay, setActiveDay] = React.useState(0);
@@ -592,6 +609,45 @@ export default function TripMapPage() {
         setModalConfig({ isOpen: false, mode: "add" });
     };
 
+    /* Zustand store — read linked transport + stay from hero */
+    const linkedTransport = useTripStore((s) => s.linkedTransport);
+    const linkedStay = useTripStore((s) => s.linkedStay);
+
+    /* Confirm & Sync */
+    const { user } = useAuth();
+    const { setOpen: openSignIn, setOnSignInSuccess } = useSignInDialog();
+    type SyncPhase = "idle" | "syncing" | "complete";
+    const [syncPhase, setSyncPhase] = React.useState<SyncPhase>("idle");
+
+    const startSyncFlow = React.useCallback(() => {
+        setSyncPhase("syncing");
+        setTimeout(() => setSyncPhase("complete"), 3200);
+    }, []);
+
+    const handleConfirmSync = () => {
+        if (user) {
+            startSyncFlow();
+        } else {
+            setOnSignInSuccess(() => () => {
+                setTimeout(() => startSyncFlow(), 400);
+            });
+            openSignIn(true);
+        }
+    };
+
+    /* Reorder handler for itinerary view */
+    const handleReorder = React.useCallback(
+        (newPlaceEvents: EventItem[]) => {
+            setTripData((prev) => {
+                const newData = prev.map((d) => ({ ...d, events: [...d.events] }));
+                // rebuild: place newPlaceEvents in order, then add transits
+                newData[activeDay].events = rebuildTransits(newPlaceEvents, transportMode);
+                return newData;
+            });
+        },
+        [activeDay, transportMode]
+    );
+
     return (
         <div className="flex flex-col h-screen w-screen bg-[#f0f4fa] overflow-hidden fixed inset-0">
             <style
@@ -645,38 +701,79 @@ export default function TripMapPage() {
             </header>
 
             {/* Day tabs */}
-            <div className="shrink-0 h-12 bg-white border-b border-gray-200 flex items-center gap-1 px-5 overflow-x-auto z-10">
-                {tripData.map((d, i) => (
-                    <button
-                        key={d.day}
-                        onClick={() => {
-                            setActiveDay(i);
-                            setExpandedEvent(null);
-                        }}
-                        className={cn(
-                            "relative flex items-center gap-2 shrink-0 px-4 h-full text-sm font-semibold whitespace-nowrap transition-colors",
-                            activeDay === i ? "text-accent" : "text-gray-500 hover:text-gray-900"
-                        )}
-                    >
-                        <span
+            <div className="px-5 bg-white border-b border-gray-200 flex items-center justify-between">
+                <div className="shrink-0 h-12 flex items-center gap-1 overflow-x-auto z-10">
+                    {tripData.map((d, i) => (
+                        <button
+                            key={d.day}
+                            onClick={() => {
+                                setActiveDay(i);
+                                setExpandedEvent(null);
+                            }}
                             className={cn(
-                                "flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold",
-                                activeDay === i ? "bg-accent text-white" : "bg-gray-200 text-gray-500"
+                                "relative flex items-center gap-2 shrink-0 px-4 h-full text-sm font-semibold whitespace-nowrap transition-colors",
+                                activeDay === i ? "text-accent" : "text-gray-500 hover:text-gray-900"
                             )}
                         >
-                            {d.day}
-                        </span>
-                        Day {d.day}
-                        <span className="text-xs font-normal text-gray-400 hidden sm:inline">{d.date}</span>
-                        {activeDay === i && (
-                            <motion.div
-                                layoutId="day-underline"
-                                className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent rounded-t"
-                            />
-                        )}
-                    </button>
-                ))}
+                            <span
+                                className={cn(
+                                    "flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold",
+                                    activeDay === i ? "bg-accent text-white" : "bg-gray-200 text-gray-500"
+                                )}
+                            >
+                                {d.day}
+                            </span>
+                            Day {d.day}
+                            <span className="text-xs font-normal text-gray-400 hidden sm:inline">{d.date}</span>
+                            {activeDay === i && (
+                                <motion.div
+                                    layoutId="day-underline"
+                                    className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent rounded-t"
+                                />
+                            )}
+                        </button>
+                    ))}
+                </div>
+                {/* Confirm & Sync Button */}
+                <Button
+                    onClick={handleConfirmSync}
+                    variant="outline"
+                // className="rounded-xl h-9 px-5 bg-primary hover:bg-primary/80 text-white font-bold text-[12px] gap-2 shadow-sm"
+                >
+                    {user ? (
+                        <><Check className="h-3.5 w-3.5" /> Confirm & Sync</>
+                    ) : (
+                        <><LogIn className="h-3.5 w-3.5" /> Sign in to Confirm</>
+                    )}
+                </Button>
             </div>
+
+            {/* Logistics Panel — linked transport + stay from hero */}
+            {(linkedTransport || linkedStay) && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="shrink-0 bg-white border-b border-gray-200 px-5 py-3"
+                >
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Linked Logistics</p>
+                    <div className="flex flex-wrap gap-3">
+                        {linkedTransport && (
+                            <div className="flex items-center gap-2.5 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+                                <Plane className="h-4 w-4 text-blue-500" />
+                                <span className="text-[12px] font-semibold text-blue-800 truncate max-w-[260px]">{linkedTransport}</span>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                            </div>
+                        )}
+                        {linkedStay && (
+                            <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                                <Bed className="h-4 w-4 text-amber-600" />
+                                <span className="text-[12px] font-semibold text-amber-800 truncate max-w-[260px]">{linkedStay}</span>
+                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                            </div>
+                        )}
+                    </div>
+                </motion.div>
+            )}
 
             {/* Content */}
             <div className="flex-1 w-full relative overflow-hidden bg-[#e2e8f0]">
@@ -693,8 +790,9 @@ export default function TripMapPage() {
                             onOpenModal={(mode, eventId) =>
                                 setModalConfig({ isOpen: true, mode, eventId })
                             }
-                            searchResults={DUMMY_SEARCH_RESULTS}        // pass your existing array
+                            searchResults={DUMMY_SEARCH_RESULTS}
                             onSearchResultClick={(r) => { setSelectedSearchResult(r); }}
+                            onReorder={handleReorder}
                         />
                     ) : (
                         <MapView
@@ -714,6 +812,7 @@ export default function TripMapPage() {
                             onOpenModal={(mode: ActionMode, eventId?: string) =>
                                 setModalConfig({ isOpen: true, mode: mode as any, eventId })
                             }
+                            onReorder={handleReorder}
                         />
                     )}
                 </AnimatePresence>
@@ -749,6 +848,137 @@ export default function TripMapPage() {
                 }
                 activeDayIndex={activeDay}
             />
+
+            {/* Sync Overlay */}
+            <AnimatePresence>
+                {syncPhase !== "idle" && (
+                    <motion.div
+                        key="sync-overlay"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+                        onClick={() => { if (syncPhase === "complete") setSyncPhase("idle"); }}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.92 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.92 }}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {syncPhase === "syncing" && (
+                                <motion.div
+                                    key="syncing"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="flex flex-col items-center"
+                                >
+                                    {/* Phone icon with pulsing ring */}
+                                    <div className="relative mb-6">
+                                        <motion.div
+                                            className="absolute inset-0 rounded-full bg-[#1D4983]/15"
+                                            animate={{ scale: [1, 1.6, 1], opacity: [0.5, 0, 0.5] }}
+                                            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                                            style={{ width: 72, height: 72, top: -6, left: -6 }}
+                                        />
+                                        <motion.div
+                                            className="absolute inset-0 rounded-full bg-[#1D4983]/10"
+                                            animate={{ scale: [1, 2, 1], opacity: [0.3, 0, 0.3] }}
+                                            transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
+                                            style={{ width: 72, height: 72, top: -6, left: -6 }}
+                                        />
+                                        <div className="relative w-[60px] h-[60px] bg-linear-to-br from-[#1D4983] to-[#2a6bc4] rounded-2xl flex items-center justify-center shadow-lg">
+                                            <Smartphone className="h-7 w-7 text-white" />
+                                        </div>
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">Syncing with your mobile</h3>
+                                    <p className="text-sm text-gray-500 mb-5">Sending your itinerary to the Triply app…</p>
+                                    <div className="flex items-center gap-2 text-[#1D4983]">
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        <span className="text-xs font-semibold">Please wait</span>
+                                    </div>
+                                    {/* Progress bar */}
+                                    <div className="w-full h-1.5 bg-gray-100 rounded-full mt-5 overflow-hidden">
+                                        <motion.div
+                                            className="h-full bg-linear-to-r from-[#1D4983] to-[#4a98f7] rounded-full"
+                                            initial={{ width: "0%" }}
+                                            animate={{ width: "100%" }}
+                                            transition={{ duration: 3, ease: "easeInOut" }}
+                                        />
+                                    </div>
+                                </motion.div>
+                            )}
+                            {syncPhase === "complete" && (
+                                <motion.div
+                                    key="complete"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -10 }}
+                                    className="flex flex-col items-center"
+                                >
+                                    {/* Animated checkmark */}
+                                    <motion.div
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                                        className="w-16 h-16 rounded-full bg-[#0f9a8e] flex items-center justify-center mb-5"
+                                        style={{ boxShadow: "0 0 0 8px rgba(15,154,142,0.08)" }}
+                                    >
+                                        <Check className="w-8 h-8 text-white stroke-[2.5]" />
+                                    </motion.div>
+
+                                    {/* Confetti particles */}
+                                    {[...Array(8)].map((_, i) => (
+                                        <motion.div
+                                            key={i}
+                                            className="absolute w-2 h-2 rounded-full"
+                                            style={{
+                                                backgroundColor: ["#1D4983", "#0f9a8e", "#e8820c", "#7c3aed", "#4a98f7", "#f43f5e", "#f59e0b", "#10b981"][i],
+                                                top: "40%",
+                                                left: "50%",
+                                            }}
+                                            initial={{ x: 0, y: 0, scale: 0, opacity: 1 }}
+                                            animate={{
+                                                x: Math.cos((i * Math.PI * 2) / 8) * 80,
+                                                y: Math.sin((i * Math.PI * 2) / 8) * 80 - 20,
+                                                scale: [0, 1.2, 0],
+                                                opacity: [0, 1, 0],
+                                            }}
+                                            transition={{ duration: 0.8, delay: 0.1, ease: "easeOut" }}
+                                        />
+                                    ))}
+
+                                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+                                        <h3 className="text-xl font-bold text-gray-900 mb-2">Trip synced!</h3>
+                                        <p className="text-sm text-gray-500 mb-7">Your itinerary is ready on your mobile device.</p>
+
+                                        <div className="flex flex-col gap-3 w-full">
+                                            <motion.button
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => { setSyncPhase("idle"); router.push("/dashboard"); }}
+                                                className="w-full h-11 rounded-xl bg-[#1D4983] hover:bg-[#163970] text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-md transition-colors"
+                                            >
+                                                Go to Dashboard
+                                            </motion.button>
+                                            <motion.button
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => { router.push("/"); }}
+                                                className="w-full h-11 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold text-sm flex items-center justify-center gap-2 transition-colors"
+                                            >
+                                                Start a New Plan
+                                            </motion.button>
+                                        </div>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -945,10 +1175,13 @@ function MapView({
     setSearchQuery,
     onSearchResultClick,
     onOpenModal,
+    onReorder,
 }: any) {
     const mapRef = React.useRef<MapRef>(null);
     const [actionMode, setActionMode] = React.useState<ActionMode>("view");
     const [hoveredEvent, setHoveredEvent] = React.useState<string | null>(null);
+    const [activeSidebarDragId, setActiveSidebarDragId] = React.useState<string | null>(null);
+    const sidebarDndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
     const placeEvents: EventItem[] = day.events.filter(
         (e: EventItem) => e.type !== "transit" && e.lat && e.lng
@@ -1387,28 +1620,66 @@ function MapView({
                                 No plans yet. Add something!
                             </div>
                         )}
-                        {day.events.map((event: EventItem, index: number) => {
-                            const isTransit = event.type === "transit" && !!event.fromId;
-                            if (isTransit) {
-                                return (
-                                    <TransitRow
-                                        key={event.id}
-                                        event={event}
-                                        transportMode={transportMode}
-                                        isLast={index === day.events.length - 1}
-                                    />
-                                );
-                            }
-                            return (
-                                <PlaceRow
-                                    key={event.id}
-                                    event={event}
-                                    isSelected={expandedEvent === event.id}
-                                    isLast={index === day.events.length - 1}
-                                    onClick={() => handleItemInteract(event)}
-                                />
-                            );
-                        })}
+                        <DndContext
+                            sensors={sidebarDndSensors}
+                            collisionDetection={closestCenter}
+                            onDragStart={(e) => setActiveSidebarDragId(String(e.active.id))}
+                            onDragEnd={(e) => {
+                                setActiveSidebarDragId(null);
+                                const { active, over } = e;
+                                if (!over || active.id === over.id || !onReorder) return;
+                                const placeEvts = day.events.filter((ev: EventItem) => !(ev.type === "transit" && ev.fromId));
+                                const oldIdx = placeEvts.findIndex((ev: EventItem) => ev.id === active.id);
+                                const newIdx = placeEvts.findIndex((ev: EventItem) => ev.id === over.id);
+                                if (oldIdx === -1 || newIdx === -1) return;
+                                const reordered = arrayMove(placeEvts, oldIdx, newIdx);
+                                onReorder(reordered);
+                            }}
+                            onDragCancel={() => setActiveSidebarDragId(null)}
+                        >
+                            <SortableContext
+                                items={day.events.filter((ev: EventItem) => !(ev.type === "transit" && ev.fromId)).map((ev: EventItem) => ev.id)}
+                                strategy={verticalListSortingStrategy}
+                            >
+                                {day.events.map((event: EventItem, index: number) => {
+                                    const isTransit = event.type === "transit" && !!event.fromId;
+                                    if (isTransit) {
+                                        return (
+                                            <TransitRow
+                                                key={event.id}
+                                                event={event}
+                                                transportMode={transportMode}
+                                                isLast={index === day.events.length - 1}
+                                            />
+                                        );
+                                    }
+                                    return (
+                                        <SortablePlaceRow
+                                            key={event.id}
+                                            event={event}
+                                            isSelected={expandedEvent === event.id}
+                                            isLast={index === day.events.length - 1}
+                                            onClick={() => handleItemInteract(event)}
+                                        />
+                                    );
+                                })}
+                            </SortableContext>
+                            {typeof document !== "undefined" && ReactDOM.createPortal(
+                                <DragOverlay dropAnimation={null}>
+                                    {activeSidebarDragId ? (() => {
+                                        const dragEvt = day.events.find((e: EventItem) => e.id === activeSidebarDragId);
+                                        if (!dragEvt) return null;
+                                        return (
+                                            <div className="rounded-lg p-3 border-2 border-blue-400 shadow-2xl opacity-90 max-w-[300px]" style={{ backgroundColor: dragEvt.color }}>
+                                                <p className="text-[15px] font-bold text-white truncate">{dragEvt.title}</p>
+                                                <p className="text-[11px] text-white/70 mt-0.5">{dragEvt.time}</p>
+                                            </div>
+                                        );
+                                    })() : null}
+                                </DragOverlay>,
+                                document.body
+                            )}
+                        </DndContext>
                     </div>
                     <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 px-4 py-3.5 flex items-center justify-center gap-x-5 gap-y-2 flex-wrap z-10 shadow-[0_-10px_15px_-5px_rgba(0,0,0,0.05)]">
                         <LegendItem color={COLORS.meal} label="Meal" />
@@ -1585,93 +1856,203 @@ function TransitRow({
 }
 
 /* ─── Map Sidebar Place Row ──────────────────────────────────── */
-function PlaceRow({
-    event,
-    isSelected,
-    isLast,
-    onClick,
-}: {
+// function PlaceRow({
+//     event,
+//     isSelected,
+//     isLast,
+//     onClick,
+// }: {
+//     event: EventItem;
+//     isSelected: boolean;
+//     isLast: boolean;
+//     onClick: () => void;
+// }) {
+//     return (
+//         <div className="flex group cursor-pointer" onClick={onClick}>
+//             <div className="w-[40px] shrink-0 pt-[10px] pr-3 text-right">
+//                 <span className="text-[12px] font-bold text-gray-600">{event.time}</span>
+//             </div>
+//             <div className="w-5 shrink-0 flex flex-col items-center relative">
+//                 {!isLast && (
+//                     <div className="absolute top-6 bottom-[-24px] w-[2px] bg-gray-200 z-0" />
+//                 )}
+//                 <div
+//                     className="w-4 h-4 rounded-full mt-3.5 relative z-10 border-[3px] border-white shadow-sm ring-1 ring-gray-100"
+//                     style={{ backgroundColor: event.color }}
+//                 />
+//             </div>
+//             <div className="flex-1 pb-5 pl-3">
+//                 <motion.div
+//                     layout
+//                     className="w-full overflow-hidden shadow-sm rounded-lg border transition-all"
+//                     style={{
+//                         backgroundColor: isSelected ? "white" : event.color,
+//                         borderColor: isSelected ? event.color : "transparent",
+//                     }}
+//                 >
+//                     <motion.div
+//                         layout
+//                         className="px-4 py-3 flex items-center justify-between"
+//                         style={{ backgroundColor: event.color }}
+//                     >
+//                         <p className="text-[15px] font-bold text-white truncate">
+//                             {event.title}
+//                         </p>
+//                         {isSelected ? (
+//                             <ChevronUp className="w-4 h-4 text-white opacity-80 shrink-0" />
+//                         ) : (
+//                             <ChevronDown className="w-4 h-4 text-white opacity-80 shrink-0" />
+//                         )}
+//                     </motion.div>
+//                     <AnimatePresence>
+//                         {isSelected && (
+//                             <motion.div
+//                                 initial={{ height: 0, opacity: 0 }}
+//                                 animate={{ height: "auto", opacity: 1 }}
+//                                 exit={{ height: 0, opacity: 0 }}
+//                                 className="bg-white"
+//                             >
+//                                 {event.images?.[0] && (
+//                                     <div className="h-32 w-full border-b border-gray-100">
+//                                         <img
+//                                             src={event.images[0]}
+//                                             className="w-full h-full object-cover"
+//                                             alt={event.title}
+//                                         />
+//                                     </div>
+//                                 )}
+//                                 <div className="p-4">
+//                                     {event.rating && (
+//                                         <div className="flex items-center gap-1.5 mb-2">
+//                                             <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+//                                             <span className="text-[13px] font-bold text-gray-800">
+//                                                 {event.rating}{" "}
+//                                                 <span className="text-gray-400 font-normal">
+//                                                     ({event.reviewCount})
+//                                                 </span>
+//                                             </span>
+//                                         </div>
+//                                     )}
+//                                     {event.desc && (
+//                                         <p className="text-[13px] text-gray-600 line-clamp-2 leading-relaxed">
+//                                             {event.desc}
+//                                         </p>
+//                                     )}
+//                                 </div>
+//                             </motion.div>
+//                         )}
+//                     </AnimatePresence>
+//                 </motion.div>
+//             </div>
+//         </div>
+//     );
+// }
+
+/* ─── Sortable Map Sidebar Place Row ───────────────────── */
+function SortablePlaceRow(props: {
     event: EventItem;
     isSelected: boolean;
     isLast: boolean;
     onClick: () => void;
 }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.event.id });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        position: "relative" as const,
+        zIndex: isDragging ? 50 : "auto" as const,
+    };
+
     return (
-        <div className="flex group cursor-pointer" onClick={onClick}>
-            <div className="w-[40px] shrink-0 pt-[10px] pr-3 text-right">
-                <span className="text-[12px] font-bold text-gray-600">{event.time}</span>
-            </div>
-            <div className="w-5 shrink-0 flex flex-col items-center relative">
-                {!isLast && (
-                    <div className="absolute top-6 bottom-[-24px] w-[2px] bg-gray-200 z-0" />
-                )}
-                <div
-                    className="w-4 h-4 rounded-full mt-3.5 relative z-10 border-[3px] border-white shadow-sm ring-1 ring-gray-100"
-                    style={{ backgroundColor: event.color }}
-                />
-            </div>
-            <div className="flex-1 pb-5 pl-3">
-                <motion.div
-                    layout
-                    className="w-full overflow-hidden shadow-sm rounded-lg border transition-all"
-                    style={{
-                        backgroundColor: isSelected ? "white" : event.color,
-                        borderColor: isSelected ? event.color : "transparent",
-                    }}
-                >
+        <div ref={setNodeRef} style={style}>
+            <div className="flex group cursor-pointer" onClick={props.onClick}>
+                <div className="w-[40px] shrink-0 pt-[10px] pr-3 text-right">
+                    <span className="text-[12px] font-bold text-gray-600">{props.event.time}</span>
+                </div>
+                <div className="w-5 shrink-0 flex flex-col items-center relative">
+                    {!props.isLast && (
+                        <div className="absolute top-6 bottom-[-24px] w-[2px] bg-gray-200 z-0" />
+                    )}
+                    <div
+                        className="w-4 h-4 rounded-full mt-3.5 relative z-10 border-[3px] border-white shadow-sm ring-1 ring-gray-100"
+                        style={{ backgroundColor: props.event.color }}
+                    />
+                </div>
+                <div className="flex-1 pb-5 pl-3">
                     <motion.div
                         layout
-                        className="px-4 py-3 flex items-center justify-between"
-                        style={{ backgroundColor: event.color }}
+                        className="w-full overflow-hidden shadow-sm rounded-lg border transition-all"
+                        style={{
+                            backgroundColor: props.isSelected ? "white" : props.event.color,
+                            borderColor: props.isSelected ? props.event.color : "transparent",
+                        }}
                     >
-                        <p className="text-[15px] font-bold text-white truncate">
-                            {event.title}
-                        </p>
-                        {isSelected ? (
-                            <ChevronUp className="w-4 h-4 text-white opacity-80 shrink-0" />
-                        ) : (
-                            <ChevronDown className="w-4 h-4 text-white opacity-80 shrink-0" />
-                        )}
-                    </motion.div>
-                    <AnimatePresence>
-                        {isSelected && (
-                            <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="bg-white"
+                        <motion.div
+                            layout
+                            className="px-4 py-3 flex items-center justify-between gap-2"
+                            style={{ backgroundColor: props.event.color }}
+                        >
+                            <button
+                                {...attributes}
+                                {...listeners}
+                                className="touch-none cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-white/20 text-white/60 hover:text-white transition-colors"
+                                onClick={(e) => e.stopPropagation()}
                             >
-                                {event.images?.[0] && (
-                                    <div className="h-32 w-full border-b border-gray-100">
-                                        <img
-                                            src={event.images[0]}
-                                            className="w-full h-full object-cover"
-                                            alt={event.title}
-                                        />
-                                    </div>
-                                )}
-                                <div className="p-4">
-                                    {event.rating && (
-                                        <div className="flex items-center gap-1.5 mb-2">
-                                            <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                                            <span className="text-[13px] font-bold text-gray-800">
-                                                {event.rating}{" "}
-                                                <span className="text-gray-400 font-normal">
-                                                    ({event.reviewCount})
-                                                </span>
-                                            </span>
+                                <GripVertical className="w-3.5 h-3.5" />
+                            </button>
+                            <p className="text-[15px] font-bold text-white truncate flex-1">
+                                {
+                                    //only show the first 20 characters
+                                    props.event.title.length > 19 ? props.event.title.substring(0, 19) + "..." : props.event.title
+                                }
+                            </p>
+                            {props.isSelected ? (
+                                <ChevronUp className="w-4 h-4 text-white opacity-80 shrink-0" />
+                            ) : (
+                                <ChevronDown className="w-4 h-4 text-white opacity-80 shrink-0" />
+                            )}
+                        </motion.div>
+                        <AnimatePresence>
+                            {props.isSelected && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="bg-white"
+                                >
+                                    {props.event.images?.[0] && (
+                                        <div className="h-32 w-full border-b border-gray-100">
+                                            <img
+                                                src={props.event.images[0]}
+                                                className="w-full h-full object-cover"
+                                                alt={props.event.title}
+                                            />
                                         </div>
                                     )}
-                                    {event.desc && (
-                                        <p className="text-[13px] text-gray-600 line-clamp-2 leading-relaxed">
-                                            {event.desc}
-                                        </p>
-                                    )}
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </motion.div>
+                                    <div className="p-4">
+                                        {props.event.rating && (
+                                            <div className="flex items-center gap-1.5 mb-2">
+                                                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                                                <span className="text-[13px] font-bold text-gray-800">
+                                                    {props.event.rating}{" "}
+                                                    <span className="text-gray-400 font-normal">
+                                                        ({props.event.reviewCount})
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        )}
+                                        {props.event.desc && (
+                                            <p className="text-[13px] text-gray-600 line-clamp-2 leading-relaxed">
+                                                {props.event.desc}
+                                            </p>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </motion.div>
+                </div>
             </div>
         </div>
     );

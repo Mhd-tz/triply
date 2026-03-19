@@ -45,6 +45,7 @@ import {
     Loader2,
     Star,
     SlidersHorizontal,
+    GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -53,6 +54,10 @@ import MapGL, { Marker as MapMarker } from "@vis.gl/react-maplibre";
 import { useAuth } from "@/lib/auth-context";
 import { useSignInDialog } from "@/components/signin-dialog";
 import { useRouter } from "next/navigation";
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent, DragOverlay } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useTripStore } from "@/lib/trip-store";
 
 // --- Mock Planner Data ---
 const INITIAL_ITINERARY = [
@@ -335,37 +340,66 @@ export default function HeroSection() {
     };
 
     const handleSyncTransport = () => {
-        setLinkedTransport(syncTransProv ? `${syncTransRef} (${syncTransProv})` : syncTransRef || "Synced Flight");
+        const v = syncTransProv ? `${syncTransRef} (${syncTransProv})` : syncTransRef || "Synced Flight";
+        setLinkedTransport(v);
+        useTripStore.getState().setLinkedTransport(v);
         setActivePanel("none");
     };
 
     const handleSyncStay = () => {
-        setLinkedStay(syncStayName || "Synced Stay");
+        const v = syncStayName || "Synced Stay";
+        setLinkedStay(v);
+        useTripStore.getState().setLinkedStay(v);
         setActivePanel("none");
     };
 
     const handleTransportSearch = () => setTransportSearched(true);
     const handleStaySearch = () => setStaySearched(true);
 
+    // Zustand store sync helpers
+    const storeSetTransport = useTripStore((s) => s.setLinkedTransport);
+    const storeSetStay = useTripStore((s) => s.setLinkedStay);
+
+    // Drag sensors for itinerary
+    const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+    const [activeDragId, setActiveDragId] = React.useState<string | null>(null);
+
+    const handleDragEnd = (dayIndex: number, event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        setItinerary(prev => prev.map((day, idx) => {
+            if (idx !== dayIndex) return day;
+            const oldIndex = day.activities.findIndex(a => a.id === active.id);
+            const newIndex = day.activities.findIndex(a => a.id === (over.id as string));
+            if (oldIndex === -1 || newIndex === -1) return day;
+            // Preserve original time slots — capture times before reorder
+            const originalTimes = day.activities.map(a => a.time);
+            const reordered = arrayMove([...day.activities], oldIndex, newIndex);
+            // Re-assign the original time slots to the reordered items
+            const withSwappedTimes = reordered.map((act, i) => ({ ...act, time: originalTimes[i] }));
+            return { ...day, activities: withSwappedTimes };
+        }));
+    };
+
     const handleSelectFlight = (flight: typeof MOCK_FLIGHTS[0]) => {
-        if (selectedFlightId === flight.id) { setSelectedFlightId(null); setLinkedTransport(null); }
-        else { setSelectedFlightId(flight.id); setLinkedTransport(`${flight.airline} • ${flight.departure} → ${flight.arrival} • $${flight.price.toLocaleString()}`); }
+        if (selectedFlightId === flight.id) { setSelectedFlightId(null); setLinkedTransport(null); storeSetTransport(null); }
+        else { const v = `${flight.airline} • ${flight.departure} → ${flight.arrival} • $${flight.price.toLocaleString()}`; setSelectedFlightId(flight.id); setLinkedTransport(v); storeSetTransport(v); }
     };
     const handleSelectCar = (car: typeof MOCK_CARS[0]) => {
-        if (selectedCarId === car.id) { setSelectedCarId(null); setLinkedTransport(null); }
-        else { setSelectedCarId(car.id); setLinkedTransport(`${car.provider} ${car.car} • $${car.pricePerDay}/day`); }
+        if (selectedCarId === car.id) { setSelectedCarId(null); setLinkedTransport(null); storeSetTransport(null); }
+        else { const v = `${car.provider} ${car.car} • $${car.pricePerDay}/day`; setSelectedCarId(car.id); setLinkedTransport(v); storeSetTransport(v); }
     };
     const handleSelectTrain = (train: typeof MOCK_TRAINS[0]) => {
-        if (selectedTrainId === train.id) { setSelectedTrainId(null); setLinkedTransport(null); }
-        else { setSelectedTrainId(train.id); setLinkedTransport(`${train.provider} ${train.route} • $${train.price}`); }
+        if (selectedTrainId === train.id) { setSelectedTrainId(null); setLinkedTransport(null); storeSetTransport(null); }
+        else { const v = `${train.provider} ${train.route} • $${train.price}`; setSelectedTrainId(train.id); setLinkedTransport(v); storeSetTransport(v); }
     };
     const handleSelectCruise = (cruise: typeof MOCK_CRUISES[0]) => {
-        if (selectedCruiseId === cruise.id) { setSelectedCruiseId(null); setLinkedTransport(null); }
-        else { setSelectedCruiseId(cruise.id); setLinkedTransport(`${cruise.line} • $${cruise.price.toLocaleString()}`); }
+        if (selectedCruiseId === cruise.id) { setSelectedCruiseId(null); setLinkedTransport(null); storeSetTransport(null); }
+        else { const v = `${cruise.line} • $${cruise.price.toLocaleString()}`; setSelectedCruiseId(cruise.id); setLinkedTransport(v); storeSetTransport(v); }
     };
     const handleSelectHotel = (hotel: typeof MOCK_HOTELS[0]) => {
-        if (selectedHotelId === hotel.id) { setSelectedHotelId(null); setLinkedStay(null); }
-        else { setSelectedHotelId(hotel.id); setLinkedStay(`${hotel.name} • ~$${hotel.pricePerNight}/night`); }
+        if (selectedHotelId === hotel.id) { setSelectedHotelId(null); setLinkedStay(null); storeSetStay(null); }
+        else { const v = `${hotel.name} • ~$${hotel.pricePerNight}/night`; setSelectedHotelId(hotel.id); setLinkedStay(v); storeSetStay(v); }
     };
     const toggleStopFilter = (v: number) => setFlightStopFilter(p => p.includes(v) ? p.filter(s => s !== v) : [...p, v]);
     const toggleStarFilter = (v: number) => setStayStarFilter(p => p.includes(v) ? p.filter(s => s !== v) : [...p, v]);
@@ -1057,99 +1091,45 @@ export default function HeroSection() {
                                                         </div>
                                                     )}
 
-                                                    {/* Activities List */}
-                                                    {day.activities.map((act, act_idx) => {
-                                                        const timeParts = act.time.split(" ");
-                                                        return (
-                                                            <div key={act.id} className="flex items-stretch">
-                                                                {/* Timeline & Time */}
-                                                                <div className="w-16 sm:w-24 shrink-0 flex flex-col items-center relative">
-                                                                    <div className={cn("w-px bg-gray-200 absolute top-0", act_idx === day.activities.length - 1 && d_idx === itinerary.length - 1 ? "bottom-1/2" : "bottom-0")} />
-                                                                    <div className="bg-[#f9fafb] py-1 relative z-10 mt-5 text-center px-1">
-                                                                        <span className="block text-[10.5px] sm:text-[12px] font-bold text-gray-500 leading-tight">{timeParts[0]}</span>
-                                                                        <span className="block text-[10.5px] sm:text-[12px] font-bold text-gray-500 leading-tight">{timeParts[1] || ''}</span>
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Activity Card */}
-                                                                <div className="flex-1 pb-8 pr-2">
-                                                                    <div className="bg-white rounded-2xl p-4 md:p-5 border border-gray-200 shadow-sm flex flex-col relative group">
-
-                                                                        {/* Header row */}
-                                                                        <div className="flex items-start justify-between gap-4">
-                                                                            <div className="flex items-center flex-wrap gap-2.5">
-                                                                                <h5 className="text-[18px] sm:text-xl font-bold text-gray-900">
-                                                                                    {act_idx + 1}. {act.name}
-                                                                                </h5>
-                                                                                {act.rating > 0 && (
-                                                                                    <span className="flex items-center gap-0.5 bg-red-50 text-red-500 font-bold text-[11px] px-1.5 py-0.5 rounded-md">
-                                                                                        <Flame className="h-3 w-3" /> {act.rating}
-                                                                                    </span>
-                                                                                )}
-                                                                            </div>
-
-                                                                            {/* 3-Dots Action Menu */}
-                                                                            <div className="relative">
-                                                                                <button
-                                                                                    onClick={() => setActiveMenuId(activeMenuId === act.id ? null : act.id)}
-                                                                                    className="h-8 w-8 bg-gray-50 hover:bg-gray-100 shrink-0 rounded-full flex items-center justify-center text-gray-500 transition-colors"
-                                                                                >
-                                                                                    <MoreHorizontal className="h-5 w-5" />
-                                                                                </button>
-
-                                                                                <AnimatePresence>
-                                                                                    {activeMenuId === act.id && (
-                                                                                        <motion.div
-                                                                                            initial={{ opacity: 0, scale: 0.95, y: -5 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                                                                                            className="absolute right-0 top-10 w-40 bg-white border border-gray-100 shadow-xl overflow-hidden z-20 py-1"
-                                                                                        >
-                                                                                            <button className="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
-                                                                                                <Edit2 className="h-3.5 w-3.5" /> Edit Time
-                                                                                            </button>
-                                                                                            <button
-                                                                                                onClick={() => removeEvent(d_idx, act.id)}
-                                                                                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                                                                            >
-                                                                                                <Trash2 className="h-3.5 w-3.5" /> Remove
-                                                                                            </button>
-                                                                                        </motion.div>
-                                                                                    )}
-                                                                                </AnimatePresence>
-                                                                            </div>
+                                                    {/* Activities List — Drag-and-drop sortable */}
+                                                    <DndContext
+                                                        sensors={dndSensors}
+                                                        collisionDetection={closestCenter}
+                                                        onDragStart={(e) => setActiveDragId(String(e.active.id))}
+                                                        onDragEnd={(e) => { setActiveDragId(null); handleDragEnd(d_idx, e); }}
+                                                        onDragCancel={() => setActiveDragId(null)}
+                                                    >
+                                                        <SortableContext items={day.activities.map(a => a.id)} strategy={verticalListSortingStrategy}>
+                                                            {day.activities.map((act, act_idx) => (
+                                                                <SortableActivityCard
+                                                                    key={act.id}
+                                                                    act={act}
+                                                                    actIdx={act_idx}
+                                                                    dIdx={d_idx}
+                                                                    isLastActivity={act_idx === day.activities.length - 1}
+                                                                    isLastDay={d_idx === itinerary.length - 1}
+                                                                    activeMenuId={activeMenuId}
+                                                                    setActiveMenuId={setActiveMenuId}
+                                                                    removeEvent={removeEvent}
+                                                                />
+                                                            ))}
+                                                        </SortableContext>
+                                                        <DragOverlay dropAnimation={null}>
+                                                            {activeDragId ? (() => {
+                                                                const dragAct = day.activities.find(a => a.id === activeDragId);
+                                                                if (!dragAct) return null;
+                                                                return (
+                                                                    <div className="bg-white rounded-2xl p-4 border-2 border-blue-400 shadow-2xl opacity-90 max-w-[400px]">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <GripVertical className="h-4 w-4 text-blue-400" />
+                                                                            <h5 className="text-lg font-bold text-gray-900">{dragAct.name}</h5>
                                                                         </div>
-
-                                                                        <p className="text-[13px] text-gray-500 mt-1.5">
-                                                                            {act.hours && `Opening hours: ${act.hours}`} {act.hours && <span className="mx-1.5 text-gray-300">|</span>} Suggested visit: {act.duration}
-                                                                        </p>
-
-                                                                        {act.award && (
-                                                                            <div className="flex items-center gap-1.5 mt-2.5 text-[#9a542b] font-medium text-[13px]">
-                                                                                <Award className="h-4 w-4" /> {act.award}
-                                                                            </div>
-                                                                        )}
-
-                                                                        {act.images && act.images.length > 0 && (
-                                                                            <div className="flex overflow-x-auto gap-2.5 mt-4 pb-2 scrollbar-none snap-x">
-                                                                                {act.images.map((img, i) => (
-                                                                                    <Image
-                                                                                        key={i} src={img} alt={act.name} width={210} height={140}
-                                                                                        className="h-[120px] w-[180px] sm:h-[140px] sm:w-[210px] object-cover rounded-[10px] shrink-0 border border-gray-100 snap-center"
-                                                                                    />
-                                                                                ))}
-                                                                            </div>
-                                                                        )}
-
-                                                                        <div className="mt-3 bg-gray-50/80 p-3.5 border border-gray-100">
-                                                                            <p className="text-[13px] sm:text-[14px] leading-relaxed text-gray-700">
-                                                                                {act.desc}
-                                                                            </p>
-                                                                        </div>
-
+                                                                        <p className="text-sm text-gray-500 mt-1">{dragAct.time} · {dragAct.duration}</p>
                                                                     </div>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
+                                                                );
+                                                            })() : null}
+                                                        </DragOverlay>
+                                                    </DndContext>
                                                 </div>
                                             ))}
                                         </div>
@@ -1380,7 +1360,7 @@ export default function HeroSection() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+                        className="fixed inset-0 z-200 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
                     >
                         <motion.div
                             initial={{ opacity: 0, scale: 0.92, y: 20 }}
@@ -1414,7 +1394,7 @@ export default function HeroSection() {
                                                     transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
                                                     style={{ width: 72, height: 72, top: -6, left: -6 }}
                                                 />
-                                                <div className="relative w-[60px] h-[60px] bg-gradient-to-br from-[#1D4983] to-[#2a6bc4] rounded-2xl flex items-center justify-center shadow-lg">
+                                                <div className="relative w-[60px] h-[60px] bg-linear-to-br from-[#1D4983] to-[#2a6bc4] rounded-2xl flex items-center justify-center shadow-lg">
                                                     <Smartphone className="h-7 w-7 text-white" />
                                                 </div>
                                             </div>
@@ -1427,7 +1407,7 @@ export default function HeroSection() {
                                             {/* Progress bar */}
                                             <div className="w-full h-1.5 bg-gray-100 rounded-full mt-5 overflow-hidden">
                                                 <motion.div
-                                                    className="h-full bg-gradient-to-r from-[#1D4983] to-[#4a98f7] rounded-full"
+                                                    className="h-full bg-linear-to-r from-[#1D4983] to-[#4a98f7] rounded-full"
                                                     initial={{ width: "0%" }}
                                                     animate={{ width: "100%" }}
                                                     transition={{ duration: 3, ease: "easeInOut" }}
@@ -1511,6 +1491,113 @@ export default function HeroSection() {
                 )}
             </AnimatePresence>
         </section >
+    );
+}
+
+// --- Sortable Activity Card ---
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function SortableActivityCard({ act, actIdx, dIdx, isLastActivity, isLastDay, activeMenuId, setActiveMenuId, removeEvent }: any) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: act.id });
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : undefined,
+        opacity: isDragging ? 0.85 : 1,
+    };
+    const timeParts = act.time.split(" ");
+
+    return (
+        <div ref={setNodeRef} style={style} className="flex items-stretch">
+            {/* Timeline & Time */}
+            <div className="w-16 sm:w-24 shrink-0 flex flex-col items-center relative">
+                <div className={cn("w-px bg-gray-200 absolute top-0", isLastActivity && isLastDay ? "bottom-1/2" : "bottom-0")} />
+                <div className="bg-[#f9fafb] py-1 relative z-10 mt-5 text-center px-1">
+                    <span className="block text-[10.5px] sm:text-[12px] font-bold text-gray-500 leading-tight">{timeParts[0]}</span>
+                    <span className="block text-[10.5px] sm:text-[12px] font-bold text-gray-500 leading-tight">{timeParts[1] || ''}</span>
+                </div>
+            </div>
+
+            {/* Activity Card */}
+            <div className="flex-1 pb-8 pr-2">
+                <div className={cn("bg-white rounded-2xl p-4 md:p-5 border border-gray-200 shadow-sm flex flex-col relative group", isDragging && "shadow-xl ring-2 ring-blue-300")}>
+
+                    {/* Header row */}
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center flex-wrap gap-2.5">
+                            {/* Drag Handle */}
+                            <button {...attributes} {...listeners} className="touch-none cursor-grab active:cursor-grabbing p-1 -ml-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-500 transition-colors">
+                                <GripVertical className="h-4 w-4" />
+                            </button>
+                            <h5 className="text-[18px] sm:text-xl font-bold text-gray-900">
+                                {actIdx + 1}. {act.name}
+                            </h5>
+                            {act.rating > 0 && (
+                                <span className="flex items-center gap-0.5 bg-red-50 text-red-500 font-bold text-[11px] px-1.5 py-0.5 rounded-md">
+                                    <Flame className="h-3 w-3" /> {act.rating}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* 3-Dots Action Menu */}
+                        <div className="relative">
+                            <button
+                                onClick={() => setActiveMenuId(activeMenuId === act.id ? null : act.id)}
+                                className="h-8 w-8 bg-gray-50 hover:bg-gray-100 shrink-0 rounded-full flex items-center justify-center text-gray-500 transition-colors"
+                            >
+                                <MoreHorizontal className="h-5 w-5" />
+                            </button>
+
+                            <AnimatePresence>
+                                {activeMenuId === act.id && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.95, y: -5 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                                        className="absolute right-0 top-10 w-40 bg-white border border-gray-100 shadow-xl overflow-hidden z-20 py-1"
+                                    >
+                                        <button className="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 flex items-center gap-2">
+                                            <Edit2 className="h-3.5 w-3.5" /> Edit Time
+                                        </button>
+                                        <button
+                                            onClick={() => removeEvent(dIdx, act.id)}
+                                            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" /> Remove
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
+
+                    <p className="text-[13px] text-gray-500 mt-1.5">
+                        {act.hours && `Opening hours: ${act.hours}`} {act.hours && <span className="mx-1.5 text-gray-300">|</span>} Suggested visit: {act.duration}
+                    </p>
+
+                    {act.award && (
+                        <div className="flex items-center gap-1.5 mt-2.5 text-[#9a542b] font-medium text-[13px]">
+                            <Award className="h-4 w-4" /> {act.award}
+                        </div>
+                    )}
+
+                    {act.images && act.images.length > 0 && (
+                        <div className="flex overflow-x-auto gap-2.5 mt-4 pb-2 scrollbar-none snap-x">
+                            {act.images.map((img: string, i: number) => (
+                                <Image
+                                    key={i} src={img} alt={act.name} width={210} height={140}
+                                    className="h-[120px] w-[180px] sm:h-[140px] sm:w-[210px] object-cover rounded-[10px] shrink-0 border border-gray-100 snap-center"
+                                />
+                            ))}
+                        </div>
+                    )}
+
+                    <div className="mt-3 bg-gray-50/80 p-3.5 border border-gray-100">
+                        <p className="text-[13px] sm:text-[14px] leading-relaxed text-gray-700">
+                            {act.desc}
+                        </p>
+                    </div>
+
+                </div>
+            </div>
+        </div>
     );
 }
 

@@ -174,10 +174,11 @@ export default function SiteHeader() {
                         <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                             <Button
                                 size="sm"
-                                className="rounded-lg bg-[#1D4983] hover:bg-[#163970] px-5 text-sm font-medium text-white transition-colors"
+                                variant='outline'
+                                className="px-5"
                                 asChild
                             >
-                                <Link href="/plan">Plan Trip</Link>
+                                <Link href="/">Plan Trip</Link>
                             </Button>
                         </motion.div>
 

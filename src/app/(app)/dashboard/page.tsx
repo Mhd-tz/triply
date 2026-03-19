@@ -10,7 +10,7 @@ import {
     Eye, EyeOff, Plus, Trash2, Lock, AlertCircle, Wifi,
     Cloud, Map, Bell,
     Crown,
-    Mountain, ImageOff,
+    Mountain, ImageOff, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ const UPCOMING_TRIPS = [
 ];
 const PAST_TRIPS = [
     { id: 1, title: "Japan Spring 2026", dates: "Apr 24 – May 2", img: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=400&auto=format&fit=crop", stops: 5 },
-    { id: 2, title: "Amalfi Coast", dates: "Aug 10 – Aug 18, 2025", img: "https://images.unsplash.com/photo-1612698093738-383b26d8b25f?w=400&auto=format&fit=crop", stops: 4 },
+    { id: 2, title: "Amalfi Coast", dates: "Aug 10 – Aug 18, 2025", img: "https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?q=80&w=400&auto=format&fit=crop", stops: 4 },
     { id: 3, title: "Santorini Escape", dates: "Jun 1 – Jun 8, 2025", img: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=400&auto=format&fit=crop", stops: 3 },
 ];
 const SAVED_PLACES = [
@@ -54,6 +54,94 @@ const BADGES = [
 ];
 
 const STATS = { trips: 14, countries: 9, saved: 38, reviews: 22 };
+
+/* ─── Trip Itineraries (dummy data) ──────────────────────────── */
+const EVENT_COLORS: Record<string, string> = {
+    activity: "#3b82f6",
+    meal: "#f59e0b",
+    transit: "#6366f1",
+    nature: "#22c55e",
+    culture: "#8b5cf6",
+    adventure: "#ef4444",
+};
+
+interface TripEvent {
+    time: string;
+    name: string;
+    type: string;
+    desc: string;
+    image?: string;
+}
+
+const TRIP_ITINERARIES: Record<number, { day: number; date: string; theme: string; events: TripEvent[] }[]> = {
+    4: [
+        {
+            day: 1, date: "Jul 15", theme: "Arrival & Medina", events: [
+                { time: "2:00 PM", name: "Arrive in Marrakech", type: "transit", desc: "Land at Menara Airport, transfer to riad.", image: "https://images.unsplash.com/photo-1597212618440-806262de4f6b?w=300&auto=format&fit=crop" },
+                { time: "4:30 PM", name: "Explore Jemaa el-Fnaa", type: "culture", desc: "Iconic square with snake charmers, storytellers, and market stalls.", image: "https://images.unsplash.com/photo-1489493887464-892be6d1daae?w=300&auto=format&fit=crop" },
+                { time: "7:00 PM", name: "Dinner at Le Jardin", type: "meal", desc: "Lush garden restaurant serving traditional Moroccan cuisine.", image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=300&auto=format&fit=crop" },
+            ]
+        },
+        {
+            day: 2, date: "Jul 16", theme: "Sahara Bound", events: [
+                { time: "8:00 AM", name: "Drive to Sahara Desert", type: "transit", desc: "Scenic drive through the Atlas Mountains.", image: "https://images.unsplash.com/photo-1504195826423-cedfc5dea03c?w=300&auto=format&fit=crop" },
+                { time: "4:00 PM", name: "Camel Trek at Sunset", type: "adventure", desc: "Ride through the dunes as the sun sets over the Sahara.", image: "https://images.unsplash.com/photo-1548017464-70c0113fbbb6?w=300&auto=format&fit=crop" },
+            ]
+        },
+        {
+            day: 3, date: "Jul 17", theme: "Desert & Oasis", events: [
+                { time: "6:00 AM", name: "Sunrise over Dunes", type: "nature", desc: "Wake up early for a breathtaking desert sunrise.", image: "https://images.unsplash.com/photo-1509097169550-cdf5ccb4d1e0?w=300&auto=format&fit=crop" },
+                { time: "12:00 PM", name: "Todra Gorge Hike", type: "adventure", desc: "Towering canyon walls with a river running through.", image: "https://images.unsplash.com/photo-1558981800-8703c15e99ec?w=300&auto=format&fit=crop" },
+            ]
+        },
+    ],
+    5: [
+        {
+            day: 1, date: "Oct 5", theme: "Arrival & Temples", events: [
+                { time: "10:00 AM", name: "Fushimi Inari Shrine", type: "culture", desc: "Thousands of vermilion torii gates winding through the forested mountain.", image: "https://images.unsplash.com/photo-1478436127897-769e1b3f0f36?w=300&auto=format&fit=crop" },
+                { time: "2:00 PM", name: "Kinkaku-ji Golden Pavilion", type: "culture", desc: "Iconic Zen temple covered in gold leaf.", image: "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=300&auto=format&fit=crop" },
+                { time: "6:30 PM", name: "Kaiseki Dinner", type: "meal", desc: "Traditional multi-course Japanese haute cuisine.", image: "https://images.unsplash.com/photo-1580442151529-343f2f6e0e27?w=300&auto=format&fit=crop" },
+            ]
+        },
+        {
+            day: 2, date: "Oct 6", theme: "Bamboo & Geisha", events: [
+                { time: "9:00 AM", name: "Arashiyama Bamboo Grove", type: "nature", desc: "Walk through towering bamboo stalks in this iconic forest.", image: "https://images.unsplash.com/photo-1551641506-ee5bf4cb45f1?w=300&auto=format&fit=crop" },
+                { time: "5:00 PM", name: "Gion District Walk", type: "culture", desc: "Historic geisha district with preserved wooden machiya houses.", image: "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=300&auto=format&fit=crop" },
+            ]
+        },
+    ],
+    1: [
+        {
+            day: 1, date: "Apr 24", theme: "Tokyo Highlights", events: [
+                { time: "10:00 AM", name: "Senso-ji Temple", type: "culture", desc: "Tokyo's oldest and most famous Buddhist temple.", image: "https://images.unsplash.com/photo-1583845019058-20202720d29b?w=300&auto=format&fit=crop" },
+                { time: "1:00 PM", name: "Sushi at Tsukiji", type: "meal", desc: "Fresh sushi from the outer market stalls.", image: "https://images.unsplash.com/photo-1579871494447-9811cf80d66c?w=300&auto=format&fit=crop" },
+                { time: "3:30 PM", name: "Shibuya Crossing", type: "activity", desc: "The world's busiest pedestrian crossing.", image: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=300&auto=format&fit=crop" },
+            ]
+        },
+        {
+            day: 2, date: "Apr 25", theme: "Mt. Fuji Day Trip", events: [
+                { time: "7:00 AM", name: "Train to Kawaguchiko", type: "transit", desc: "Scenic train ride from Shinjuku.", image: "https://images.unsplash.com/photo-1601042879364-f3947d3f9c16?w=300&auto=format&fit=crop" },
+                { time: "10:00 AM", name: "Chureito Pagoda", type: "nature", desc: "Iconic viewpoint with Mt. Fuji and cherry blossoms.", image: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=300&auto=format&fit=crop" },
+            ]
+        },
+    ],
+    2: [
+        {
+            day: 1, date: "Aug 10", theme: "Coastal Charms", events: [
+                { time: "11:00 AM", name: "Positano Beach", type: "nature", desc: "Sunbathe on the iconic cliffside beach.", image: "https://images.unsplash.com/photo-1534113414509-0eec2bfb493f?w=300&auto=format&fit=crop" },
+                { time: "7:00 PM", name: "Seafood Dinner", type: "meal", desc: "Fresh catch of the day on the waterfront.", image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=300&auto=format&fit=crop" },
+            ]
+        },
+    ],
+    3: [
+        {
+            day: 1, date: "Jun 1", theme: "Island Paradise", events: [
+                { time: "9:00 AM", name: "Oia Village Walk", type: "culture", desc: "White-washed buildings with blue domes overlooking the caldera.", image: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=300&auto=format&fit=crop" },
+                { time: "6:30 PM", name: "Sunset at Amoudi Bay", type: "nature", desc: "Watch the famous Santorini sunset from this hidden bay.", image: "https://images.unsplash.com/photo-1533105079780-92b9be482077?w=300&auto=format&fit=crop" },
+            ]
+        },
+    ],
+};
 
 const TAB_LIST = [
     { id: "trips", label: "Trips", icon: <Plane className="w-3.5 h-3.5" /> },
@@ -78,9 +166,15 @@ function SectionLabel({ color, children }: { color: string; children: React.Reac
 }
 
 /* ─── Row helpers ─────────────────────────────────────────────── */
-function TripRow({ trip, upcoming }: { trip: typeof PAST_TRIPS[0]; upcoming?: boolean }) {
+function TripRow({ trip, upcoming, onClick, isSelected }: { trip: typeof PAST_TRIPS[0]; upcoming?: boolean; onClick?: () => void; isSelected?: boolean }) {
     return (
-        <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group">
+        <div
+            className={cn(
+                "flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer group",
+                isSelected && "bg-blue-50 hover:bg-blue-50 ring-1 ring-blue-200 mx-1"
+            )}
+            onClick={onClick}
+        >
             <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 border border-gray-100">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={trip.img} alt={trip.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -93,10 +187,106 @@ function TripRow({ trip, upcoming }: { trip: typeof PAST_TRIPS[0]; upcoming?: bo
                     <span>{trip.stops} stops</span>
                 </div>
             </div>
-            <span className={cn("text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full shrink-0", upcoming ? "bg-orange-100 text-orange-600" : "bg-green-100 text-green-700")}>
-                {upcoming ? "Upcoming" : "Done"}
-            </span>
+            <div className="flex items-center gap-2">
+                <span className={cn("text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full shrink-0", upcoming ? "bg-orange-100 text-orange-600" : "bg-green-100 text-green-700")}>
+                    {upcoming ? "Upcoming" : "Done"}
+                </span>
+                <motion.div animate={{ rotate: isSelected ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                    <ChevronDown className="w-4 h-4 text-gray-300" />
+                </motion.div>
+            </div>
         </div>
+    );
+}
+
+/* ─── Trip Detail View ─────────────────────────────────────────── */
+function TripDetailView({ itinerary }: { itinerary: typeof TRIP_ITINERARIES[number] }) {
+    const [activeDay, setActiveDay] = React.useState(0);
+    const days = itinerary;
+    const current = days[activeDay];
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
+            className="overflow-hidden"
+        >
+            <div className="mt-2 mb-3 mx-1 bg-linear-to-br from-gray-50 to-blue-50/40 border border-gray-200/80 rounded-2xl p-4 shadow-inner">
+                {/* Day Tabs */}
+                <div className="flex items-center gap-1.5 mb-4 overflow-x-auto scrollbar-none">
+                    {days.map((d, i) => (
+                        <button
+                            key={d.day}
+                            onClick={() => setActiveDay(i)}
+                            className={cn(
+                                "shrink-0 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150",
+                                activeDay === i
+                                    ? "bg-[#1D4983] text-white shadow-md"
+                                    : "bg-white text-gray-500 hover:bg-gray-100 border border-gray-200"
+                            )}
+                        >
+                            Day {d.day} · {d.date}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Day Theme */}
+                <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Theme</span>
+                    <span className="text-[12px] font-semibold text-gray-700 bg-white px-2 py-0.5 rounded-md border border-gray-100">{current.theme}</span>
+                </div>
+
+                {/* Events Timeline */}
+                <div className="space-y-0">
+                    {current.events.map((evt, i) => {
+                        const color = EVENT_COLORS[evt.type] || "#6b7280";
+                        const isLast = i === current.events.length - 1;
+                        return (
+                            <motion.div
+                                key={`${evt.name}-${i}`}
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.06, duration: 0.25 }}
+                                className="flex"
+                            >
+                                {/* Time + spine */}
+                                <div className="w-[52px] shrink-0 flex flex-col items-center relative">
+                                    <div className="text-[10px] font-bold text-gray-400 mt-2 mb-1 whitespace-nowrap">{evt.time}</div>
+                                    <div className="w-3 h-3 rounded-full border-2 border-white shadow-sm relative z-10" style={{ backgroundColor: color }} />
+                                    {!isLast && <div className="w-[2px] flex-1" style={{ backgroundColor: `${color}30` }} />}
+                                </div>
+
+                                {/* Card */}
+                                <div className="flex-1 pb-3 pl-2.5">
+                                    <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                                        {evt.image && (
+                                            <div className="h-[80px] overflow-hidden">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={evt.image} alt={evt.name} className="w-full h-full object-cover" />
+                                            </div>
+                                        )}
+                                        <div className="p-3">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="text-[13px] font-bold text-gray-900 leading-tight">{evt.name}</span>
+                                                <span
+                                                    className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md text-white"
+                                                    style={{ backgroundColor: color }}
+                                                >
+                                                    {evt.type}
+                                                </span>
+                                            </div>
+                                            <p className="text-[11px] text-gray-500 leading-relaxed">{evt.desc}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        );
+                    })}
+                </div>
+            </div>
+        </motion.div>
     );
 }
 
@@ -621,6 +811,7 @@ export default function ProfileDashboard() {
     const [billingOpen, setBillingOpen] = React.useState(false);
     const [activeTab, setActiveTab] = React.useState<TabId>("trips");
     const [prevTab, setPrevTab] = React.useState<TabId>("trips");
+    const [selectedTrip, setSelectedTrip] = React.useState<number | null>(null);
     const [syncStates, setSyncStates] = React.useState({
         googleCalendar: true, appleCalendar: false, outlookCalendar: false,
         googleMail: true, appleMail: false,
@@ -749,11 +940,38 @@ export default function ProfileDashboard() {
                                         <div className="space-y-3">
                                             <div>
                                                 <SectionLabel color="#fb923c">Upcoming</SectionLabel>
-                                                {UPCOMING_TRIPS.map(t => <TripRow key={t.id} trip={t} upcoming />)}
+                                                {UPCOMING_TRIPS.map(t => (
+                                                    <React.Fragment key={t.id}>
+                                                        <TripRow
+                                                            trip={t}
+                                                            upcoming
+                                                            onClick={() => setSelectedTrip(selectedTrip === t.id ? null : t.id)}
+                                                            isSelected={selectedTrip === t.id}
+                                                        />
+                                                        <AnimatePresence>
+                                                            {selectedTrip === t.id && TRIP_ITINERARIES[t.id] && (
+                                                                <TripDetailView itinerary={TRIP_ITINERARIES[t.id]} />
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </React.Fragment>
+                                                ))}
                                             </div>
                                             <div>
                                                 <SectionLabel color="#22c55e">Past trips</SectionLabel>
-                                                {PAST_TRIPS.map(t => <TripRow key={t.id} trip={t} />)}
+                                                {PAST_TRIPS.map(t => (
+                                                    <React.Fragment key={t.id}>
+                                                        <TripRow
+                                                            trip={t}
+                                                            onClick={() => setSelectedTrip(selectedTrip === t.id ? null : t.id)}
+                                                            isSelected={selectedTrip === t.id}
+                                                        />
+                                                        <AnimatePresence>
+                                                            {selectedTrip === t.id && TRIP_ITINERARIES[t.id] && (
+                                                                <TripDetailView itinerary={TRIP_ITINERARIES[t.id]} />
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </React.Fragment>
+                                                ))}
                                             </div>
                                         </div>
                                     )}
