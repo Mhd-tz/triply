@@ -3,6 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import { Eye, EyeOff, ArrowLeft, Check, Mail, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 import { useSignInDialog } from "@/components/signin-dialog";
+import { useAuth } from "@/lib/auth-context";
 
 /* ─── Types ──────────────────────────────────────────────────── */
 type Step = 1 | 2 | 3;
@@ -68,6 +70,14 @@ const STEPS = [
 /* ─── Main ───────────────────────────────────────────────────── */
 export default function SignUpPage() {
     const { setOpen: openSignIn } = useSignInDialog();
+    const { signUp, user } = useAuth();
+    const router = useRouter();
+    const [signUpError, setSignUpError] = React.useState("");
+
+    // Redirect to dashboard if already authenticated
+    React.useEffect(() => {
+        if (user) router.replace("/dashboard");
+    }, [user, router]);
     const [step, setStep] = React.useState<Step>(1);
     const [direction, setDirection] = React.useState<1 | -1>(1);
     const [showPw, setShowPw] = React.useState(false);
@@ -97,7 +107,20 @@ export default function SignUpPage() {
 
     function handleNext() {
         if (step === 1 && step1Valid) goTo(2);
-        else if (step === 2 && step2Valid) goTo(3);
+        else if (step === 2 && step2Valid) {
+            const result = signUp({
+                email: form.email,
+                password: form.password,
+                firstName: form.firstName,
+                lastName: form.lastName,
+                receiveEmails: form.receiveEmails,
+            });
+            if (!result.ok) {
+                setSignUpError(result.error || "Sign up failed");
+                return;
+            }
+            goTo(3);
+        }
     }
 
     function handleBack() {
@@ -409,6 +432,10 @@ export default function SignUpPage() {
                                         <Link href="/privacy" className="text-[#1D4983] font-semibold hover:underline">Privacy Policy</Link>.
                                     </p>
 
+                                    {signUpError && (
+                                        <p className="text-[12px] text-red-500 font-medium bg-red-50 border border-red-100 rounded-lg px-3 py-2">{signUpError}</p>
+                                    )}
+
                                     <div className="flex gap-3">
                                         <Button variant="outline" onClick={handleBack} className="h-11 px-4 hover:bg-gray-50 gap-1.5">
                                             <ArrowLeft className="w-4 h-4" /> Back
@@ -456,11 +483,11 @@ export default function SignUpPage() {
                                     </motion.div>
 
                                     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="w-full flex flex-col gap-3">
-                                        <Button asChild className="w-full h-11 font-bold text-sm shadow-md gap-2">
-                                            <Link href="/">Start planning</Link>
+                                        <Button onClick={() => router.push("/")} className="w-full h-11 font-bold text-sm shadow-md gap-2">
+                                            Start planning
                                         </Button>
-                                        <Button asChild variant="outline" className="w-full h-11 font-medium hover:bg-gray-50 text-sm">
-                                            <Link href="/dashboard">Go to dashboard</Link>
+                                        <Button onClick={() => router.push("/dashboard")} variant="outline" className="w-full h-11 font-medium hover:bg-gray-50 text-sm">
+                                            Go to dashboard
                                         </Button>
                                     </motion.div>
                                 </motion.div>

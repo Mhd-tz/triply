@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard } from "lucide-react";
 import logo from "@/assets/images/logo.png";
 
 import {
@@ -23,9 +23,19 @@ import {
     AccordionItem,
     AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useSignInDialog } from "@/components/signin-dialog";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
 
 /* ── Nav data ─────────────────────────────────────────────── */
 const navItems = [
@@ -67,6 +77,17 @@ const navItems = [
 export default function SiteHeader() {
     const [mobileOpen, setMobileOpen] = React.useState(false);
     const { setOpen: openSignIn } = useSignInDialog();
+    const { user, signOut } = useAuth();
+    const router = useRouter();
+
+    function handleSignOut() {
+        signOut();
+        router.push("/");
+    }
+
+    const initials = user
+        ? `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase()
+        : "";
 
     return (
         <motion.header
@@ -147,22 +168,63 @@ export default function SiteHeader() {
                     />
                 </Button>
 
-                {/* My Trips */}
-                <Button variant="ghost" size="sm" className="text-sm" onClick={() => openSignIn(true)}>
-                    Sign In
-                </Button>
+                {user ? (
+                    /* ── Authenticated state ── */
+                    <>
+                        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                            <Button
+                                size="sm"
+                                className="rounded-lg bg-[#1D4983] hover:bg-[#163970] px-5 text-sm font-medium text-white transition-colors"
+                                asChild
+                            >
+                                <Link href="/plan">Plan Trip</Link>
+                            </Button>
+                        </motion.div>
 
-                {/* Sign Up — goes to page */}
-                <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="rounded-lg border-primary px-5 text-sm font-medium text-primary hover:bg-primary hover:text-white transition-colors"
-                        asChild
-                    >
-                        <Link href="/sign-up">Sign Up</Link>
-                    </Button>
-                </motion.div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 transition-transform hover:scale-105">
+                                    <Avatar className="w-9 h-9 border-2 border-white shadow-md cursor-pointer" style={{ outline: "2px solid #1D4983" }}>
+                                        {user.avatar && <AvatarImage src={user.avatar} />}
+                                        <AvatarFallback className="font-bold text-xs text-white" style={{ backgroundColor: "#1D4983" }}>
+                                            {initials}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52 mt-1">
+                                <div className="px-3 py-2.5 border-b border-gray-100">
+                                    <p className="text-[13px] font-semibold text-gray-900 truncate">{user.name}</p>
+                                    <p className="text-[11px] text-gray-400 truncate">{user.email}</p>
+                                </div>
+                                <DropdownMenuItem asChild className="flex items-center gap-2 text-sm cursor-pointer mt-1">
+                                    <Link href="/dashboard"><LayoutDashboard className="w-3.5 h-3.5" />Dashboard</Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={handleSignOut} className="text-red-500 focus:text-red-500 focus:bg-red-50 gap-2 text-sm cursor-pointer">
+                                    <LogOut className="w-3.5 h-3.5" />Sign out
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </>
+                ) : (
+                    /* ── Not authenticated state ── */
+                    <>
+                        <Button variant="ghost" size="sm" className="text-sm" onClick={() => openSignIn(true)}>
+                            Sign In
+                        </Button>
+                        <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="rounded-lg border-primary px-5 text-sm font-medium text-primary hover:bg-primary hover:text-white transition-colors"
+                                asChild
+                            >
+                                <Link href="/sign-up">Sign Up</Link>
+                            </Button>
+                        </motion.div>
+                    </>
+                )}
             </motion.div>
 
             {/* ── Mobile Sheet ── */}
@@ -238,35 +300,82 @@ export default function SiteHeader() {
                                 />
                                 <span className="font-medium">CAD</span>
                             </div>
-                            <a
-                                href="/trips"
-                                className="text-sm text-gray-800 hover:text-primary transition-colors"
-                                onClick={() => setMobileOpen(false)}
-                            >
-                                My Trips
-                            </a>
-                            <div className="grid grid-cols-2 gap-3">
-                                {/* Mobile Sign In — opens dialog */}
-                                <Button
-                                    variant="ghost"
-                                    className="text-sm font-medium text-gray-700 justify-center"
-                                    onClick={() => {
-                                        setMobileOpen(false);
-                                        setTimeout(() => openSignIn(true), 200);
-                                    }}
-                                >
-                                    Sign In
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="rounded-lg border-primary text-primary"
-                                    asChild
-                                >
-                                    <Link href="/sign-up" onClick={() => setMobileOpen(false)}>
-                                        Sign Up
+
+                            {user ? (
+                                /* ── Authenticated mobile ── */
+                                <>
+                                    <div className="flex items-center gap-3 py-2">
+                                        <Avatar className="w-9 h-9 border-2 border-white shadow-sm" style={{ outline: "1.5px solid #1D4983" }}>
+                                            {user.avatar && <AvatarImage src={user.avatar} />}
+                                            <AvatarFallback className="font-bold text-xs text-white" style={{ backgroundColor: "#1D4983" }}>
+                                                {initials}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="min-w-0">
+                                            <p className="text-[13px] font-semibold text-gray-900 truncate">{user.name}</p>
+                                            <p className="text-[10px] text-gray-400 truncate">{user.email}</p>
+                                        </div>
+                                    </div>
+                                    <Link
+                                        href="/dashboard"
+                                        className="text-sm text-gray-800 hover:text-primary transition-colors"
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        Dashboard
                                     </Link>
-                                </Button>
-                            </div>
+                                    <Button
+                                        className="text-sm font-medium text-white bg-[#1D4983] hover:bg-[#163970] justify-center"
+                                        asChild
+                                    >
+                                        <Link href="/plan" onClick={() => setMobileOpen(false)}>
+                                            Plan Trip
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        className="text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 justify-center gap-2"
+                                        onClick={() => {
+                                            setMobileOpen(false);
+                                            handleSignOut();
+                                        }}
+                                    >
+                                        <LogOut className="w-3.5 h-3.5" />
+                                        Sign out
+                                    </Button>
+                                </>
+                            ) : (
+                                /* ── Not authenticated mobile ── */
+                                <>
+                                    <a
+                                        href="/trips"
+                                        className="text-sm text-gray-800 hover:text-primary transition-colors"
+                                        onClick={() => setMobileOpen(false)}
+                                    >
+                                        My Trips
+                                    </a>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Button
+                                            variant="ghost"
+                                            className="text-sm font-medium text-gray-700 justify-center"
+                                            onClick={() => {
+                                                setMobileOpen(false);
+                                                setTimeout(() => openSignIn(true), 200);
+                                            }}
+                                        >
+                                            Sign In
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            className="rounded-lg border-primary text-primary"
+                                            asChild
+                                        >
+                                            <Link href="/sign-up" onClick={() => setMobileOpen(false)}>
+                                                Sign Up
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </SheetContent>
                 </Sheet>

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import {
     MapPin, Calendar, Edit3, Camera, Plane, Star, ChevronRight,
@@ -9,7 +10,7 @@ import {
     Eye, EyeOff, Plus, Trash2, Lock, AlertCircle, Wifi,
     Cloud, Map, Bell,
     Crown,
-    Mountain,
+    Mountain, ImageOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,22 +22,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useAuth, type AuthUser } from "@/lib/auth-context";
 
 /* ─── Brand ───────────────────────────────────────────────────── */
 const NAVY = "#1D4983";
 const TEAL = "#0f9a8e";
 
 /* ─── Data ────────────────────────────────────────────────────── */
-const USER = {
-    name: "Aria Tehrani",
-    handle: "@aria.tehrani",
-    email: "aria.tehrani@gmail.com",
-    location: "Vancouver, BC",
-    joinDate: "March 2024",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&auto=format&fit=crop",
-    stats: { trips: 14, countries: 9, saved: 38, reviews: 22 },
-};
-
 const UPCOMING_TRIPS = [
     { id: 4, title: "Morocco Adventure", dates: "Jul 15 – Jul 25, 2026", img: "https://images.unsplash.com/photo-1539020140153-e479b8c22e70?w=400&auto=format&fit=crop", stops: 6 },
     { id: 5, title: "Kyoto in Autumn", dates: "Oct 5 – Oct 14, 2026", img: "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=400&auto=format&fit=crop", stops: 4 },
@@ -60,6 +52,8 @@ const BADGES = [
     { icon: <Mountain className="w-5 h-5" />, label: "Adventurer", desc: "3 continents", earned: false },
     { icon: <Crown className="w-5 h-5" />, label: "Legend", desc: "25+ trips", earned: false },
 ];
+
+const STATS = { trips: 14, countries: 9, saved: 38, reviews: 22 };
 
 const TAB_LIST = [
     { id: "trips", label: "Trips", icon: <Plane className="w-3.5 h-3.5" /> },
@@ -168,12 +162,51 @@ function CustomTabs({ active, onChange }: { active: TabId; onChange: (t: TabId) 
 /* ══════════════════════════════════════════════════════════════
    EDIT PROFILE DIALOG
 ══════════════════════════════════════════════════════════════ */
-function EditProfileDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-    const INITIAL = { name: USER.name, email: USER.email, location: USER.location, currency: "CAD", language: "en" };
-    const [form, setForm] = React.useState(INITIAL);
-    const isDirty = JSON.stringify(form) !== JSON.stringify(INITIAL);
+function EditProfileDialog({ open, onClose, user, onSave }: { open: boolean; onClose: () => void; user: AuthUser; onSave: (patch: Partial<AuthUser>) => void }) {
+    const [form, setForm] = React.useState({ name: user.name, email: user.email, location: user.location || "", currency: "CAD", language: "en" });
+    const [avatarPreview, setAvatarPreview] = React.useState<string | null>(user.avatar);
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-    React.useEffect(() => { if (!open) setForm(INITIAL); }, [open]); // eslint-disable-line
+    const INITIAL = React.useMemo(
+        () => ({ name: user.name, email: user.email, location: user.location || "", currency: "CAD", language: "en" }),
+        [user.name, user.email, user.location],
+    );
+    const isDirty = JSON.stringify(form) !== JSON.stringify(INITIAL) || avatarPreview !== user.avatar;
+
+    React.useEffect(() => {
+        if (open) {
+            setForm({ name: user.name, email: user.email, location: user.location || "", currency: "CAD", language: "en" });
+            setAvatarPreview(user.avatar);
+        }
+    }, [open, user]);
+
+    const initials = `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase();
+
+    function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            setAvatarPreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function handleSave() {
+        if (!isDirty) return;
+        const nameParts = form.name.trim().split(/\s+/);
+        const firstName = nameParts[0] || user.firstName;
+        const lastName = nameParts.slice(1).join(" ") || user.lastName;
+        onSave({
+            firstName,
+            lastName,
+            name: form.name,
+            email: form.email,
+            location: form.location,
+            avatar: avatarPreview,
+        });
+        onClose();
+    }
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -187,14 +220,38 @@ function EditProfileDialog({ open, onClose }: { open: boolean; onClose: () => vo
                     <div className="flex items-center gap-4">
                         <div className="relative shrink-0">
                             <Avatar className="w-16 h-16 border-[3px] border-white shadow-md" style={{ outline: `2px solid ${NAVY}` }}>
-                                <AvatarImage src={USER.avatar} />
-                                <AvatarFallback style={{ backgroundColor: NAVY, color: "#fff" }} className="font-bold text-lg">AT</AvatarFallback>
+                                {avatarPreview && <AvatarImage src={avatarPreview} />}
+                                <AvatarFallback style={{ backgroundColor: NAVY, color: "#fff" }} className="font-bold text-lg">{initials}</AvatarFallback>
                             </Avatar>
-                            <button className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full text-white flex items-center justify-center shadow-md border-2 border-white" style={{ backgroundColor: NAVY }}>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                className="hidden"
+                                onChange={handleAvatarChange}
+                            />
+                            <button
+                                onClick={() => fileInputRef.current?.click()}
+                                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full text-white flex items-center justify-center shadow-md border-2 border-white"
+                                style={{ backgroundColor: NAVY }}
+                            >
                                 <Camera className="w-3 h-3" />
                             </button>
                         </div>
-                        <div><p className="text-[13px] font-semibold text-gray-700">Profile photo</p><p className="text-[11px] text-gray-400">JPG, PNG · Max 5 MB</p></div>
+                        <div>
+                            <p className="text-[13px] font-semibold text-gray-700">Profile photo</p>
+                            <p className="text-[11px] text-gray-400">JPG, PNG · Max 5 MB</p>
+                            {avatarPreview && (
+                                <button
+                                    type="button"
+                                    onClick={() => setAvatarPreview(null)}
+                                    className="flex items-center gap-1 mt-1 text-[11px] font-medium text-red-500 hover:text-red-600 transition-colors"
+                                >
+                                    <ImageOff className="w-3 h-3" />
+                                    Remove photo
+                                </button>
+                            )}
+                        </div>
                     </div>
                     <div className="space-y-1.5">
                         <Label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Full name</Label>
@@ -240,7 +297,7 @@ function EditProfileDialog({ open, onClose }: { open: boolean; onClose: () => vo
                     <Button variant="outline" onClick={onClose} className="flex-1 h-10">Cancel</Button>
                     <Button
                         disabled={!isDirty}
-                        onClick={onClose}
+                        onClick={handleSave}
                         className={cn("flex-1 h-10 font-bold text-sm transition-all", isDirty ? "text-white" : "opacity-40 cursor-not-allowed")}
                         style={{ backgroundColor: isDirty ? NAVY : undefined }}
                     >
@@ -557,11 +614,31 @@ function BillingDialog({ open, onClose }: { open: boolean; onClose: () => void }
    MAIN PAGE
 ══════════════════════════════════════════════════════════════ */
 export default function ProfileDashboard() {
+    const { user, signOut, updateUser } = useAuth();
+    const router = useRouter();
     const [editOpen, setEditOpen] = React.useState(false);
     const [privacyOpen, setPrivacyOpen] = React.useState(false);
     const [billingOpen, setBillingOpen] = React.useState(false);
     const [activeTab, setActiveTab] = React.useState<TabId>("trips");
     const [prevTab, setPrevTab] = React.useState<TabId>("trips");
+    const [syncStates, setSyncStates] = React.useState({
+        googleCalendar: true, appleCalendar: false, outlookCalendar: false,
+        googleMail: true, appleMail: false,
+        phoneNotifications: true, tripReminders: true, dealAlerts: false,
+        spotifySync: false, googleMaps: true, appleMaps: false,
+        whatsapp: false, telegramBot: false, weatherAlerts: true,
+    });
+
+    // Protect route — redirect if not signed in
+    React.useEffect(() => {
+        if (!user) {
+            router.replace("/");
+        }
+    }, [user, router]);
+
+    if (!user) return null;
+
+    const initials = `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase();
 
     const dir = TAB_LIST.findIndex(t => t.id === activeTab) > TAB_LIST.findIndex(t => t.id === prevTab) ? 1 : -1;
 
@@ -570,13 +647,15 @@ export default function ProfileDashboard() {
         setActiveTab(t);
     }
 
-    const [syncStates, setSyncStates] = React.useState({
-        googleCalendar: true, appleCalendar: false, outlookCalendar: false,
-        googleMail: true, appleMail: false,
-        phoneNotifications: true, tripReminders: true, dealAlerts: false,
-        spotifySync: false, googleMaps: true, appleMaps: false,
-        whatsapp: false, telegramBot: false, weatherAlerts: true,
-    });
+    function handleSignOut() {
+        signOut();
+        router.push("/");
+    }
+
+    function handleProfileSave(patch: Partial<AuthUser>) {
+        updateUser(patch);
+    }
+
     const toggleSync = (k: keyof typeof syncStates) => setSyncStates(s => ({ ...s, [k]: !s[k] }));
 
     const SYNC_SECTIONS = [
@@ -604,7 +683,7 @@ export default function ProfileDashboard() {
 
     return (
         <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-10">
-            <EditProfileDialog open={editOpen} onClose={() => setEditOpen(false)} />
+            <EditProfileDialog open={editOpen} onClose={() => setEditOpen(false)} user={user} onSave={handleProfileSave} />
             <PrivacyDialog open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
             <BillingDialog open={billingOpen} onClose={() => setBillingOpen(false)} />
 
@@ -617,17 +696,21 @@ export default function ProfileDashboard() {
                         <div className="flex items-start gap-4">
                             <div className="relative shrink-0">
                                 <Avatar className="w-16 h-16 border-[3px] border-white shadow-md" style={{ outline: `2px solid ${NAVY}` }}>
-                                    <AvatarImage src={USER.avatar} />
-                                    <AvatarFallback className="font-bold text-lg" style={{ backgroundColor: NAVY, color: "#fff" }}>AT</AvatarFallback>
+                                    {user.avatar && <AvatarImage src={user.avatar} />}
+                                    <AvatarFallback className="font-bold text-lg" style={{ backgroundColor: NAVY, color: "#fff" }}>{initials}</AvatarFallback>
                                 </Avatar>
                             </div>
                             <div className="flex-1 min-w-0">
-                                <h1 className="font-bold text-gray-900 text-[18px] leading-tight font-heading">{USER.name}</h1>
-                                <p className="text-[12px] text-gray-400 mt-0.5">{USER.handle}</p>
+                                <h1 className="font-bold text-gray-900 text-[18px] leading-tight font-heading">{user.name}</h1>
+                                <p className="text-[12px] text-gray-400 mt-0.5">{user.handle}</p>
                                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
-                                    <span className="flex items-center gap-1 text-[12px] text-gray-500"><MapPin className="w-3 h-3 shrink-0" />{USER.location}</span>
-                                    <span className="text-gray-300">·</span>
-                                    <span className="flex items-center gap-1 text-[12px] text-gray-500"><Calendar className="w-3 h-3 shrink-0" />Joined {USER.joinDate}</span>
+                                    {user.location && (
+                                        <>
+                                            <span className="flex items-center gap-1 text-[12px] text-gray-500"><MapPin className="w-3 h-3 shrink-0" />{user.location}</span>
+                                            <span className="text-gray-300">·</span>
+                                        </>
+                                    )}
+                                    <span className="flex items-center gap-1 text-[12px] text-gray-500"><Calendar className="w-3 h-3 shrink-0" />Joined {user.joinDate}</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
@@ -642,7 +725,7 @@ export default function ProfileDashboard() {
                                         <DropdownMenuItem onClick={() => setPrivacyOpen(true)} className="flex items-center gap-2 text-sm cursor-pointer"><Shield className="w-3.5 h-3.5" />Privacy & security</DropdownMenuItem>
                                         <DropdownMenuItem onClick={() => setBillingOpen(true)} className="flex items-center gap-2 text-sm cursor-pointer"><CreditCard className="w-3.5 h-3.5" />Billing & payments</DropdownMenuItem>
                                         <Separator className="my-1" />
-                                        <DropdownMenuItem className="text-red-500 focus:text-red-500 focus:bg-red-50 gap-2 text-sm cursor-pointer"><LogOut className="w-3.5 h-3.5" />Sign out</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={handleSignOut} className="text-red-500 focus:text-red-500 focus:bg-red-50 gap-2 text-sm cursor-pointer"><LogOut className="w-3.5 h-3.5" />Sign out</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                             </div>
@@ -704,10 +787,10 @@ export default function ProfileDashboard() {
                     <Card>
                         <div className="grid grid-cols-2">
                             {[
-                                { icon: <Plane className="w-4 h-4" style={{ color: NAVY }} />, value: USER.stats.trips, label: "Trips", color: NAVY },
-                                { icon: <Globe className="w-4 h-4 text-amber-500" />, value: USER.stats.countries, label: "Countries", color: "#f59e0b" },
-                                { icon: <Bookmark className="w-4 h-4 text-red-400" />, value: USER.stats.saved, label: "Saved", color: "#f87171" },
-                                { icon: <Star className="w-4 h-4" style={{ color: "#06b6d4" }} />, value: USER.stats.reviews, label: "Reviews", color: "#06b6d4" },
+                                { icon: <Plane className="w-4 h-4" style={{ color: NAVY }} />, value: STATS.trips, label: "Trips", color: NAVY },
+                                { icon: <Globe className="w-4 h-4 text-amber-500" />, value: STATS.countries, label: "Countries", color: "#f59e0b" },
+                                { icon: <Bookmark className="w-4 h-4 text-red-400" />, value: STATS.saved, label: "Saved", color: "#f87171" },
+                                { icon: <Star className="w-4 h-4" style={{ color: "#06b6d4" }} />, value: STATS.reviews, label: "Reviews", color: "#06b6d4" },
                             ].map(({ icon, value, label, color }, i) => (
                                 <div key={label} className={cn("flex flex-col items-center py-5 px-3 gap-1", i % 2 === 0 && "border-r border-gray-100", i >= 2 && "border-t border-gray-100")}>
                                     <span className="text-[26px] font-bold text-gray-900 leading-none">{value}</span>

@@ -2,9 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import { Eye, EyeOff, X, Check, ChevronLeftIcon, Loader2 } from "lucide-react";
+import { Eye, EyeOff, X, Check, ChevronLeftIcon, Loader2, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth-context";
 
 import {
     Dialog,
@@ -47,6 +49,8 @@ type View = "signin" | "forgot" | "forgot_sent";
 /* ─── Main dialog ────────────────────────────────────────────── */
 function SignInDialog() {
     const { open, setOpen } = React.useContext(SignInDialogContext);
+    const { signIn } = useAuth();
+    const router = useRouter();
     const [view, setView] = React.useState<View>("signin");
     const [email, setEmail] = React.useState("");
     const [password, setPassword] = React.useState("");
@@ -54,6 +58,7 @@ function SignInDialog() {
     const [showPw, setShowPw] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const [direction, setDirection] = React.useState<1 | -1>(1);
+    const [error, setError] = React.useState("");
 
     // Reset state when dialog closes
     React.useEffect(() => {
@@ -65,6 +70,7 @@ function SignInDialog() {
                 setForgotEmail("");
                 setShowPw(false);
                 setLoading(false);
+                setError("");
             }, 300);
         }
     }, [open]);
@@ -78,11 +84,18 @@ function SignInDialog() {
         e.preventDefault();
         if (!email || !password) return;
         setLoading(true);
-        // Simulate auth — replace with real logic
+        setError("");
+        // Simulate brief delay for UX, then validate
         setTimeout(() => {
+            const result = signIn(email, password);
             setLoading(false);
-            setOpen(false);
-        }, 1200);
+            if (!result.ok) {
+                setError(result.error || "Invalid email or password.");
+            } else {
+                setOpen(false);
+                router.push("/dashboard");
+            }
+        }, 800);
     }
 
     function handleForgot(e: React.FormEvent) {
@@ -177,7 +190,7 @@ function SignInDialog() {
                                             type="email"
                                             placeholder="you@example.com"
                                             value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
+                                            onChange={(e) => { setEmail(e.target.value); setError(""); }}
                                             autoComplete="email"
                                             className="h-11 text-sm"
                                         />
@@ -202,7 +215,7 @@ function SignInDialog() {
                                                 type={showPw ? "text" : "password"}
                                                 placeholder="Your password"
                                                 value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
+                                                onChange={(e) => { setPassword(e.target.value); setError(""); }}
                                                 autoComplete="current-password"
                                                 className="h-11 text-sm pr-10"
                                             />
@@ -247,6 +260,17 @@ function SignInDialog() {
                                         </AnimatePresence>
                                     </Button>
                                 </form>
+
+                                {error && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -4 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="flex items-center gap-2 mt-3 px-3 py-2.5 rounded-lg bg-red-50 border border-red-100"
+                                    >
+                                        <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                                        <p className="text-[12px] text-red-600 font-medium">{error}</p>
+                                    </motion.div>
+                                )}
 
                                 <p className="text-center text-[11px] text-gray-400 mt-5">
                                     Don&apos;t have an account?{" "}
