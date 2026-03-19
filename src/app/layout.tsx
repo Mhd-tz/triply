@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Cabin, Hind, Heebo } from "next/font/google";
 import "@/theme/globals.css";
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 const cabin = Cabin({
   variable: "--font-cabin",

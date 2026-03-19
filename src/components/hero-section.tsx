@@ -33,10 +33,14 @@ import {
     Trash2,
     Edit2,
     Wand2,
-    ChevronDown
+    ChevronDown,
+    Calendar,
+    List,
+    Pencil
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import Link from "next/link";
 
 // --- Mock Planner Data ---
 const INITIAL_ITINERARY = [
@@ -770,14 +774,17 @@ export default function HeroSection() {
                                             </div>
 
                                             {/* Map Placeholder */}
-                                            <div className="w-full h-32 bg-slate-100 border border-gray-200 relative overflow-hidden flex items-center justify-center group cursor-pointer mt-2 rounded-md">
-                                                <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #829eb9 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
-                                                <div className="relative z-10 bg-white shadow-sm p-2.5 rounded-full transform transition-transform group-hover:scale-110 flex items-center gap-2">
-                                                    <MapIcon className="h-4 w-4 text-[#829eb9]" />
-                                                    <span className="text-xs font-bold text-gray-700 pr-1">View Map</span>
+                                            <Link
+                                                href="/map"
+                                            >
+                                                <div className="w-full h-32 bg-slate-100 border border-gray-200 relative overflow-hidden flex items-center justify-center group cursor-pointer mt-2 rounded-md">
+                                                    <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, #829eb9 1px, transparent 0)', backgroundSize: '16px 16px' }}></div>
+                                                    <div className="relative z-10 bg-white shadow-sm p-2.5 rounded-full transform transition-transform group-hover:scale-110 flex items-center gap-2">
+                                                        <MapIcon className="h-4 w-4 text-[#829eb9]" />
+                                                        <span className="text-xs font-bold text-gray-700 pr-1">View Map</span>
+                                                    </div>
                                                 </div>
-                                            </div>
-
+                                            </Link>
                                         </div>
                                     </div>
 
@@ -786,96 +793,98 @@ export default function HeroSection() {
                         )}
                     </AnimatePresence>
                 </motion.div>
-            </div>
+            </div >
 
             {/* --- Add Event Modal Overlay --- */}
             <AnimatePresence>
-                {isAddEventModalOpen && (
-                    <div
-                        className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-                        onClick={() => { setIsAddEventModalOpen(false); setAddEventStep("choose"); }}
-                    >
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
-                            onClick={(e) => e.stopPropagation()}
+                {
+                    isAddEventModalOpen && (
+                        <div
+                            className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+                            onClick={() => { setIsAddEventModalOpen(false); setAddEventStep("choose"); }}
                         >
-                            {/* Header */}
-                            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                                <h3 className="font-bold text-gray-900 text-lg">Add to Itinerary</h3>
-                                <Button onClick={() => { setIsAddEventModalOpen(false); setAddEventStep("choose"); }} variant='ghost' className="transition-colors">✕</Button>
-                            </div>
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {/* Header */}
+                                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                                    <h3 className="font-bold text-gray-900 text-lg">Add to Itinerary</h3>
+                                    <Button onClick={() => { setIsAddEventModalOpen(false); setAddEventStep("choose"); }} variant='ghost' className="transition-colors">✕</Button>
+                                </div>
 
-                            <div className="p-6">
-                                {addEventStep === "choose" && (
-                                    <div className="flex flex-col gap-4">
-                                        <button onClick={triggerAIAdd} className="w-full flex items-center justify-between p-4 rounded-2xl border border-secondary bg-secondary/5 hover:bg-secondary/10 transition-colors group">
-                                            <div className="flex items-center gap-4">
-                                                <div className="bg-secondary/10 p-2.5 text-secondary rounded-full"><Wand2 className="h-5 w-5" /></div>
-                                                <div className="text-left">
-                                                    <p className="font-bold text-secondary group-hover:text-secondary transition-colors">Magic Add (AI)</p>
-                                                    <p className="text-xs text-gray-500 mt-0.5">Let AI find the perfect next spot for you.</p>
+                                <div className="p-6">
+                                    {addEventStep === "choose" && (
+                                        <div className="flex flex-col gap-4">
+                                            <button onClick={triggerAIAdd} className="w-full flex items-center justify-between p-4 rounded-2xl border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors group">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="bg-purple-200 p-3 rounded-xl text-purple-700"><Wand2 className="h-6 w-6" /></div>
+                                                    <div className="text-left">
+                                                        <p className="font-bold text-gray-900 group-hover:text-purple-800">Magic Add (AI)</p>
+                                                        <p className="text-xs text-gray-500 mt-1">Let AI find the perfect next spot nearby.</p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <ArrowRight className="h-5 w-5 text-secondary/50 group-hover:text-secondary transition-colors" />
-                                        </button>
+                                                <ArrowRight className="h-5 w-5 text-purple-400 group-hover:text-purple-600" />
+                                            </button>
 
-                                        <button onClick={() => setAddEventStep("manual")} className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-200 hover:border-[#829eb9] hover:bg-gray-50 transition-colors group">
-                                            <div className="flex items-center gap-4">
-                                                <div className="bg-gray-100 group-hover:bg-[#829eb9]/10 p-2.5 text-gray-600 group-hover:text-[#829eb9] transition-colors rounded-full"><Edit2 className="h-5 w-5" /></div>
-                                                <div className="text-left">
-                                                    <p className="font-bold text-gray-900 group-hover:text-[#829eb9] transition-colors">Custom Entry</p>
-                                                    <p className="text-xs text-gray-500 mt-0.5">Type in an activity you&apos;ve already found.</p>
+                                            <button onClick={() => setAddEventStep("manual")} className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-200 hover:border-[#829eb9] hover:bg-gray-50 transition-colors group">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="bg-gray-100 group-hover:bg-blue-100 p-3 rounded-xl text-gray-600 group-hover:text-[#3b82f6] transition-colors"><Pencil className="h-6 w-6" /></div>
+                                                    <div className="text-left">
+                                                        <p className="font-bold text-gray-900 group-hover:text-[#3b82f6]">Manual Entry</p>
+                                                        <p className="text-xs text-gray-500 mt-1">Pinpoint a specific place you have in mind.</p>
+                                                    </div>
                                                 </div>
+                                                <ArrowRight className="h-5 w-5 text-gray-300 group-hover:text-[#829eb9] transition-colors" />
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {addEventStep === "ai_loading" && (
+                                        <div className="py-12 flex flex-col items-center justify-center text-center">
+                                            <Sparkles className="h-10 w-10 text-primary animate-pulse mb-4" />
+                                            <h4 className="font-bold text-gray-900 mb-1">Finding the perfect spot...</h4>
+                                            <p className="text-sm text-gray-500">Scanning local recommendations.</p>
+                                        </div>
+                                    )}
+
+                                    {addEventStep === "manual" && (
+                                        <div className="flex flex-col gap-5">
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Select Day</label>
+                                                <Select value={selectedDayIndex} onValueChange={setSelectedDayIndex}>
+                                                    <SelectTrigger className="w-full h-11 bg-gray-50 border-gray-200">
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {itinerary.map((day, idx) => (
+                                                            <SelectItem key={day.day} value={idx.toString()}>{day.date} - {day.theme}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
-                                            <ArrowRight className="h-5 w-5 text-gray-300 group-hover:text-[#829eb9] transition-colors" />
-                                        </button>
-                                    </div>
-                                )}
-
-                                {addEventStep === "ai_loading" && (
-                                    <div className="py-12 flex flex-col items-center justify-center text-center">
-                                        <Sparkles className="h-10 w-10 text-primary animate-pulse mb-4" />
-                                        <h4 className="font-bold text-gray-900 mb-1">Finding the perfect spot...</h4>
-                                        <p className="text-sm text-gray-500">Scanning local recommendations.</p>
-                                    </div>
-                                )}
-
-                                {addEventStep === "manual" && (
-                                    <div className="flex flex-col gap-5">
-                                        <div>
-                                            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Select Day</label>
-                                            <Select value={selectedDayIndex} onValueChange={setSelectedDayIndex}>
-                                                <SelectTrigger className="w-full h-11 bg-gray-50 border-gray-200">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {itinerary.map((day, idx) => (
-                                                        <SelectItem key={day.day} value={idx.toString()}>{day.date} - {day.theme}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Activity Name</label>
+                                                <Input autoFocus value={newEventName} onChange={(e) => setNewEventName(e.target.value)} placeholder="e.g. Coffee at Local Cafe" className="h-11 bg-gray-50 border-gray-200" />
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Start Time</label>
+                                                <Input type="time" value={newEventTime} onChange={(e) => setNewEventTime(e.target.value)} className="h-11 bg-gray-50 border-gray-200" />
+                                            </div>
+                                            <div className="mt-2 flex gap-3">
+                                                <Button variant="outline" onClick={() => setAddEventStep("choose")} className="flex-1 h-11 border-gray-200 text-gray-600 hover:bg-gray-50">Back</Button>
+                                                <Button onClick={triggerManualAdd} disabled={!newEventName} className="flex-2 h-11 shadow-md">Add to Itinerary</Button>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Activity Name</label>
-                                            <Input autoFocus value={newEventName} onChange={(e) => setNewEventName(e.target.value)} placeholder="e.g. Coffee at Local Cafe" className="h-11 bg-gray-50 border-gray-200" />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2 block">Start Time</label>
-                                            <Input type="time" value={newEventTime} onChange={(e) => setNewEventTime(e.target.value)} className="h-11 bg-gray-50 border-gray-200" />
-                                        </div>
-                                        <div className="mt-2 flex gap-3">
-                                            <Button variant="outline" onClick={() => setAddEventStep("choose")} className="flex-1 h-11 border-gray-200 text-gray-600 hover:bg-gray-50">Back</Button>
-                                            <Button onClick={triggerManualAdd} disabled={!newEventName} className="flex-2 h-11 shadow-md">Add to Itinerary</Button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-            </AnimatePresence>
-        </section>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </div>
+                    )
+                }
+            </AnimatePresence >
+        </section >
     );
 }
 
@@ -946,19 +955,29 @@ function DatePickerWidget({ dateMode, setDateMode, startDate, endDate, setStartD
         <div className="flex flex-col h-full min-h-0">
             {/* Top Toggle */}
             <div className="flex justify-center mb-5 shrink-0">
-                <div className="bg-[#f3f4f6] p-1 rounded-full flex gap-1">
-                    <button
-                        onClick={() => setDateMode("exact")}
-                        className={cn("px-6 py-2 rounded-full font-bold text-sm transition-all", dateMode === "exact" ? "bg-accent shadow-md text-white" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200")}
-                    >
-                        Date
-                    </button>
-                    <button
-                        onClick={() => setDateMode("flexible")}
-                        className={cn("px-6 py-2 rounded-full font-bold text-sm transition-all", dateMode === "flexible" ? "bg-accent shadow-md text-white" : "text-gray-600 hover:text-gray-900 hover:bg-gray-200")}
-                    >
-                        Flexible
-                    </button>
+                <div className="flex items-center bg-[#f3f4f6] rounded-full p-1 gap-0.5">
+                    {(["exact", "flexible"] as const).map((v) => (
+                        <button
+                            key={v}
+                            onClick={() => setDateMode(v)}
+                            className={cn(
+                                "relative flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-full transition-colors duration-150 capitalize",
+                                dateMode === v ? "text-white" : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            {dateMode === v && (
+                                <motion.div
+                                    layoutId="view-pill"
+                                    className="absolute inset-0 bg-primary shadow-md rounded-full"
+                                    transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                                />
+                            )}
+                            <span className="relative z-10 flex items-center gap-1.5 text-sm">
+                                {v === "exact" ? <Calendar className="h-3.5 w-3.5" /> : <List className="h-3.5 w-3.5" />}
+                                {v === "exact" ? "Date" : "Flexible"}
+                            </span>
+                        </button>
+                    ))}
                 </div>
             </div>
 
