@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 
-// --- Mock Planner Data ---
+// initial mock data
 const INITIAL_ITINERARY = [
     {
         day: 1,
@@ -110,25 +110,25 @@ const TRANSPORT_TABS: { id: TransportTab; label: string; Icon: React.ElementType
 ];
 
 export default function HeroSection() {
-    // UI State
+    // ui state
     const [appState, setAppState] = React.useState<AppState>("collapsed");
     const [loadingStep, setLoadingStep] = React.useState(0);
     const [activePanel, setActivePanel] = React.useState<ActivePanel>("none");
     const [showDatePicker, setShowDatePicker] = React.useState(false);
     const [activeMenuId, setActiveMenuId] = React.useState<string | null>(null);
 
-    // Form Data
+    // form data
     const [destination, setDestination] = React.useState("");
     const [travelers, setTravelers] = React.useState("2");
 
-    // Date State
+    // date state
     const [dateMode, setDateMode] = React.useState<DateMode>("exact");
     const [startDate, setStartDate] = React.useState<Date | null>(null);
     const [endDate, setEndDate] = React.useState<Date | null>(null);
     const [flexDays, setFlexDays] = React.useState("7 days");
     const [flexMonths, setFlexMonths] = React.useState<string[]>([]);
 
-    // Transport & Stay Form State
+    // transport and stay
     const [activeTransportTab, setActiveTransportTab] = React.useState<TransportTab>("flights");
     const [activeStayTab, setActiveStayTab] = React.useState<StayTab>("search");
     const [origin, setOrigin] = React.useState("Coquitlam, BC");
@@ -138,17 +138,17 @@ export default function HeroSection() {
     const [syncStayName, setSyncStayName] = React.useState("");
     const [guests, setGuests] = React.useState("2");
 
-    // Itinerary & Planner Selection State
+    // selections
     const [itinerary, setItinerary] = React.useState(INITIAL_ITINERARY);
     const [linkedTransport, setLinkedTransport] = React.useState<string | null>(null);
     const [linkedStay, setLinkedStay] = React.useState<string | null>(null);
 
-    // Add Event Modal State
+    // event modal
     const [isAddEventModalOpen, setIsAddEventModalOpen] = React.useState(false);
     const [addEventStep, setAddEventStep] = React.useState<"choose" | "manual" | "ai_loading">("choose");
     const [newEventName, setNewEventName] = React.useState("");
     const [newEventTime, setNewEventTime] = React.useState("12:00 PM");
-    const [selectedDayIndex, setSelectedDayIndex] = React.useState("0"); // Added Day Selection
+    const [selectedDayIndex, setSelectedDayIndex] = React.useState("0");
 
     const expand = () => setAppState("expanded");
     const collapse = () => {
@@ -213,7 +213,6 @@ export default function HeroSection() {
         }
     };
 
-    // --- IMMUTABLE STATE FIXES ---
     const triggerAIAdd = () => {
         setAddEventStep("ai_loading");
         setTimeout(() => {
@@ -231,7 +230,7 @@ export default function HeroSection() {
                 images: ["https://images.unsplash.com/photo-1515238152791-8226bb872b7a?q=80&w=400&auto=format&fit=crop"]
             };
 
-            // Strictly immutable update
+            // update state immutably
             setItinerary(prev => prev.map((day, idx) =>
                 idx === parseInt(selectedDayIndex)
                     ? { ...day, activities: [...day.activities, aiEvent] }
@@ -259,7 +258,7 @@ export default function HeroSection() {
             images: []
         };
 
-        // Strictly immutable update
+        // update state immutably
         setItinerary(prev => prev.map((day, idx) =>
             idx === parseInt(selectedDayIndex)
                 ? { ...day, activities: [...day.activities, manualEvent] }
@@ -284,7 +283,6 @@ export default function HeroSection() {
 
     return (
         <section className="relative w-full bg-background -mt-px pb-24 font-sans" style={{ overflowX: "clip", overflowY: "visible" }}>
-            {/* Banner Background */}
             <motion.div
                 layout
                 className="relative w-full"
@@ -294,10 +292,8 @@ export default function HeroSection() {
 
                 <div className="absolute inset-0 bg-[#e2e8f0]" />
 
-                {/* SVG Interactive Banner */}
                 <BannerSVG activeTab={activePanel === "transport" ? (activeTransportTab !== "sync" ? activeTransportTab : "flights") : "flights"} />
 
-                {/* Dynamic Scrim overlay */}
                 <motion.div
                     className="absolute inset-0 pointer-events-none z-0"
                     animate={{
@@ -307,7 +303,6 @@ export default function HeroSection() {
                     transition={{ duration: 0.6 }}
                 />
 
-                {/* Hero Headline */}
                 <AnimatePresence>
                     {(appState === "collapsed" || appState === "generating") && (
                         <motion.div
@@ -328,7 +323,6 @@ export default function HeroSection() {
                 </AnimatePresence>
             </motion.div>
 
-            {/* Interactive Widget Area */}
             <div className="relative z-10 w-full px-4 -mt-10 flex flex-col items-center">
 
                 <motion.div
@@ -345,7 +339,6 @@ export default function HeroSection() {
                 >
                     <AnimatePresence mode="wait">
 
-                        {/* 1. COLLAPSED STATE */}
                         {appState === "collapsed" && (
                             <motion.div
                                 key="collapsed"
@@ -368,7 +361,6 @@ export default function HeroSection() {
                             </motion.div>
                         )}
 
-                        {/* 2. EXPANDED SEARCH FORM */}
                         {appState === "expanded" && (
                             <motion.div
                                 key="expanded"
@@ -422,7 +414,7 @@ export default function HeroSection() {
                                     </div>
                                 </div>
 
-                                {/* Custom Calendar Popover (Click Outside Supported) */}
+                                {/* calendar popover */}
                                 <AnimatePresence>
                                     {showDatePicker && (
                                         <>
@@ -451,7 +443,6 @@ export default function HeroSection() {
                             </motion.div>
                         )}
 
-                        {/* 3. AI GENERATING SIMULATION */}
                         {appState === "generating" && (
                             <motion.div
                                 key="generating"
@@ -476,7 +467,6 @@ export default function HeroSection() {
                             </motion.div>
                         )}
 
-                        {/* 4. PLANNER RESULT */}
                         {appState === "result" && (
                             <motion.div
                                 key="result"
@@ -484,7 +474,6 @@ export default function HeroSection() {
                                 animate={{ opacity: 1 }}
                                 className="flex flex-col w-full bg-[#f9fafb]"
                             >
-                                {/* Top Summary & Action Bar */}
                                 <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 bg-white px-6 py-4 gap-4 relative z-20 shadow-sm">
                                     <div className="flex items-center gap-3">
                                         <button onClick={reset} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
@@ -509,7 +498,6 @@ export default function HeroSection() {
                                     </div>
                                 </div>
 
-                                {/* Dynamic Overlay Panels */}
                                 <AnimatePresence>
                                     {activePanel === "transport" && (
                                         <motion.div
@@ -579,10 +567,8 @@ export default function HeroSection() {
                                     )}
                                 </AnimatePresence>
 
-                                {/* Main Itinerary Area */}
                                 <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
 
-                                    {/* COLUMN 1: The Timeline (col-span-8) */}
                                     <div className="lg:col-span-8">
                                         <div className="flex items-center justify-between mb-8 px-4 sm:px-0">
                                             <h3 className="text-2xl font-bold text-gray-900">Itinerary</h3>
@@ -595,7 +581,6 @@ export default function HeroSection() {
                                             {itinerary.map((day, d_idx) => (
                                                 <div key={day.day} className="flex flex-col">
 
-                                                    {/* Day Header */}
                                                     <div className="flex items-stretch">
                                                         <div className="w-16 sm:w-24 shrink-0 flex flex-col items-center relative">
                                                             <div className="w-px bg-gray-200 absolute top-8 bottom-0" />
@@ -608,7 +593,6 @@ export default function HeroSection() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Transport Block (Only injected on Day 1 if linked) */}
                                                     {d_idx === 0 && linkedTransport && (
                                                         <div className="flex items-stretch">
                                                             <div className="w-16 sm:w-24 shrink-0 flex flex-col items-center relative">
@@ -629,12 +613,10 @@ export default function HeroSection() {
                                                         </div>
                                                     )}
 
-                                                    {/* Activities List */}
                                                     {day.activities.map((act, act_idx) => {
                                                         const timeParts = act.time.split(" ");
                                                         return (
                                                             <div key={act.id} className="flex items-stretch">
-                                                                {/* Timeline & Time */}
                                                                 <div className="w-16 sm:w-24 shrink-0 flex flex-col items-center relative">
                                                                     <div className={cn("w-px bg-gray-200 absolute top-0", act_idx === day.activities.length - 1 && d_idx === itinerary.length - 1 ? "bottom-1/2" : "bottom-0")} />
                                                                     <div className="bg-[#f9fafb] py-1 relative z-10 mt-5 text-center px-1">
@@ -643,11 +625,9 @@ export default function HeroSection() {
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Activity Card */}
                                                                 <div className="flex-1 pb-8 pr-2">
                                                                     <div className="bg-white rounded-2xl p-4 md:p-5 border border-gray-200 shadow-sm flex flex-col relative group">
 
-                                                                        {/* Header row */}
                                                                         <div className="flex items-start justify-between gap-4">
                                                                             <div className="flex items-center flex-wrap gap-2.5">
                                                                                 <h5 className="text-[18px] sm:text-xl font-bold text-gray-900">
@@ -660,7 +640,6 @@ export default function HeroSection() {
                                                                                 )}
                                                                             </div>
 
-                                                                            {/* 3-Dots Action Menu */}
                                                                             <div className="relative">
                                                                                 <button
                                                                                     onClick={() => setActiveMenuId(activeMenuId === act.id ? null : act.id)}
@@ -727,7 +706,6 @@ export default function HeroSection() {
                                         </div>
                                     </div>
 
-                                    {/* COLUMN 2: Shortlist / Details (col-span-4) */}
                                     <div className="lg:col-span-4 sticky top-6">
                                         <div className="bg-white rounded-[2rem] border border-gray-200 p-6 shadow-xl flex flex-col gap-6">
 
@@ -735,7 +713,6 @@ export default function HeroSection() {
                                                 Trip Overview
                                             </h3>
 
-                                            {/* Linked Logistics */}
                                             <div className="space-y-3">
                                                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Logistics</h4>
 
@@ -764,7 +741,6 @@ export default function HeroSection() {
                                                 )}
                                             </div>
 
-                                            {/* Cost Summary */}
                                             <div>
                                                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 mt-4">Activity Cost</h4>
                                                 <div className="flex justify-between items-center bg-gray-50 p-4 border border-gray-100 rounded-xs">
@@ -773,7 +749,6 @@ export default function HeroSection() {
                                                 </div>
                                             </div>
 
-                                            {/* Map Placeholder */}
                                             <Link
                                                 href="/map"
                                             >
@@ -795,7 +770,6 @@ export default function HeroSection() {
                 </motion.div>
             </div >
 
-            {/* --- Add Event Modal Overlay --- */}
             <AnimatePresence>
                 {
                     isAddEventModalOpen && (

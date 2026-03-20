@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-/* ─── Types ───────────────────────────────────────────────────── */
+// types
 export interface AuthUser {
     id: string;
     email: string;
@@ -39,7 +39,7 @@ const AuthContext = React.createContext<AuthContextValue>({
     updateUser: () => {},
 });
 
-/* ─── Helpers ─────────────────────────────────────────────────── */
+// context
 const USERS_KEY = "triply_users";
 const CURRENT_KEY = "triply_user";
 
@@ -80,16 +80,16 @@ function saveCurrent(user: AuthUser | null) {
     else localStorage.removeItem(CURRENT_KEY);
 }
 
-/* ─── Provider ────────────────────────────────────────────────── */
+// auth provider
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = React.useState<AuthUser | null>(null);
     const [hydrated, setHydrated] = React.useState(false);
 
-    // Hydrate from localStorage on mount
+    // mount hydration
     React.useEffect(() => {
         const stored = getStoredCurrent();
         if (stored) {
-            // Ensure user still exists in registry
+            // check registry
             const all = getStoredUsers();
             const found = all.find((u) => u.id === stored.id);
             if (found) setUser(found);
@@ -152,22 +152,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser((prev) => {
                 if (!prev) return prev;
                 const updated = { ...prev, ...patch };
-                // If first/last name changed, regenerate compound fields
+                // update multi-part fields
                 if (patch.firstName || patch.lastName) {
                     updated.name = `${updated.firstName} ${updated.lastName}`;
                     updated.handle = generateHandle(updated.firstName, updated.lastName);
                 }
                 saveCurrent(updated);
-                // Also update in the users registry
+                // update registry
                 const all = getStoredUsers().map((u) => (u.id === updated.id ? updated : u));
                 saveUsers(all);
+               // update state immutably
                 return updated;
             });
         },
         [],
     );
 
-    // Don't render children until hydrated to avoid flash
+    // wait for hydration
     if (!hydrated) return null;
 
     return (

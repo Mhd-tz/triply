@@ -38,7 +38,7 @@ export default function StayCard({
     return (
         <article className="group flex flex-col rounded-2xl bg-white border border-border overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 cursor-pointer">
 
-            {/* ── Image ─────────────────────────────────────────── */}
+            {/* image */}
             <div className="relative overflow-hidden aspect-16/10 bg-muted">
                 <Image
                     src={image}
@@ -64,21 +64,17 @@ export default function StayCard({
                 )}
             </div>
 
-            {/* ── Body ──────────────────────────────────────────── */}
             <div className="flex flex-col gap-3 p-4">
 
-                {/* 1st: Name — the most important element */}
                 <h3 className="font-subheading font-bold text-[19px] leading-tight text-foreground line-clamp-2">
                     {name}
                 </h3>
 
-                {/* 2nd: Location — where it is matters immediately after the name */}
                 <div className="flex items-center gap-1 text-sm text-muted-foreground -mt-1">
                     <MapPin className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">{location}</span>
                 </div>
 
-                {/* 3rd: Price — visually dominant, clear call-to-value */}
                 <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="text-[18px] font-bold text-foreground tracking-tight">
                         ${pricePerNight}
@@ -91,14 +87,12 @@ export default function StayCard({
                     )}
                 </div>
 
-                {/* 4th: Rating — social proof, secondary to price */}
                 <div className="flex items-center gap-1.5">
                     <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400 shrink-0" />
                     <span className="text-sm font-semibold text-gray-800">{rating.toFixed(1)}</span>
                     <span className="text-xs text-muted-foreground">({reviewCount.toLocaleString()} reviews)</span>
                 </div>
 
-                {/* 5th: Room/guest meta — tertiary details */}
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                         <DoorOpen className="h-3 w-3" />
@@ -111,7 +105,6 @@ export default function StayCard({
                     </span>
                 </div>
 
-                {/* 6th: Tags — contextual, lowest hierarchy */}
                 {(isReady || isFastDeal) && (
                     <div className="flex items-center gap-2">
                         {isReady && (

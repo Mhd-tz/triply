@@ -37,7 +37,7 @@ import { useSignInDialog } from "@/components/signin-dialog";
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 
-/* ── Nav data ─────────────────────────────────────────────── */
+// nav data
 const navItems = [
     {
         label: "Discover",
@@ -73,7 +73,7 @@ const navItems = [
     },
 ];
 
-/* ── Header ───────────────────────────────────────────────── */
+// site header
 export default function SiteHeader() {
     const [mobileOpen, setMobileOpen] = React.useState(false);
     const { setOpen: openSignIn } = useSignInDialog();
@@ -96,7 +96,6 @@ export default function SiteHeader() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: "easeOut" }}
         >
-            {/* ── Logo + Desktop Nav ── */}
             <div className="flex items-center gap-9">
                 <Link href="/" className="flex shrink-0 items-center">
                     <Image src={logo} alt="Triply Logo" className="h-9 w-auto" />
@@ -149,14 +148,12 @@ export default function SiteHeader() {
                 </NavigationMenu>
             </div>
 
-            {/* ── Desktop Right Actions ── */}
             <motion.div
                 className="hidden items-center gap-4 md:flex"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.15, duration: 0.3 }}
             >
-                {/* Currency */}
                 <Button variant="ghost" size="sm" className="flex items-center gap-1.5 -mr-1.5">
                     <span className="text-sm font-medium">CAD</span>
                     <Image
@@ -169,7 +166,6 @@ export default function SiteHeader() {
                 </Button>
 
                 {user ? (
-                    /* ── Authenticated state ── */
                     <>
                         <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                             <Button
@@ -209,7 +205,6 @@ export default function SiteHeader() {
                         </DropdownMenu>
                     </>
                 ) : (
-                    /* ── Not authenticated state ── */
                     <>
                         <Button variant="ghost" size="sm" className="text-sm" onClick={() => openSignIn(true)}>
                             Sign In
@@ -228,7 +223,6 @@ export default function SiteHeader() {
                 )}
             </motion.div>
 
-            {/* ── Mobile Sheet ── */}
             <div className="md:hidden">
                 <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
                     <SheetTrigger asChild>
@@ -289,7 +283,6 @@ export default function SiteHeader() {
                             )}
                         </Accordion>
 
-                        {/* Mobile actions */}
                         <div className="mt-6 flex flex-col gap-3 border-t border-border/50 px-4 pt-5">
                             <div className="flex items-center gap-2 text-sm text-gray-800">
                                 <Image
@@ -303,7 +296,6 @@ export default function SiteHeader() {
                             </div>
 
                             {user ? (
-                                /* ── Authenticated mobile ── */
                                 <>
                                     <div className="flex items-center gap-3 py-2">
                                         <Avatar className="w-9 h-9 border-2 border-white shadow-sm" style={{ outline: "1.5px solid #1D4983" }}>
@@ -345,7 +337,6 @@ export default function SiteHeader() {
                                     </Button>
                                 </>
                             ) : (
-                                /* ── Not authenticated mobile ── */
                                 <>
                                     <a
                                         href="/trips"
@@ -382,7 +373,6 @@ export default function SiteHeader() {
                 </Sheet>
             </div>
 
-            {/* ── Fading bottom divider ── */}
             <div
                 className="absolute bottom-0 left-0 h-px w-full"
                 style={{
@@ -393,7 +383,7 @@ export default function SiteHeader() {
     );
 }
 
-/* ── Reusable dropdown list item ──────────────────────────── */
+// dropdown item
 const ListItem = React.forwardRef<
     React.ElementRef<"a">,
     React.ComponentPropsWithoutRef<"a"> & { title: string }

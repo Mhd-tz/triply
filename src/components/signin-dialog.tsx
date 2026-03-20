@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 
-/* ─── Context ─────────────────────────────────────────────────── */
+// context
 interface SignInDialogContextValue {
     open: boolean;
     setOpen: (open: boolean) => void;
@@ -48,10 +48,10 @@ export function useSignInDialog() {
     return React.useContext(SignInDialogContext);
 }
 
-/* ─── Dialog view states ─────────────────────────────────────── */
+// view states
 type View = "signin" | "forgot" | "forgot_sent";
 
-/* ─── Main dialog ────────────────────────────────────────────── */
+// main dialog
 function SignInDialog() {
     const { open, setOpen, onSignInSuccess, setOnSignInSuccess } = React.useContext(SignInDialogContext);
     const { signIn } = useAuth();
@@ -65,7 +65,7 @@ function SignInDialog() {
     const [direction, setDirection] = React.useState<1 | -1>(1);
     const [error, setError] = React.useState("");
 
-    // Reset state when dialog closes
+    // reset on close
     React.useEffect(() => {
         if (!open) {
             setTimeout(() => {
@@ -90,7 +90,7 @@ function SignInDialog() {
         if (!email || !password) return;
         setLoading(true);
         setError("");
-        // Simulate brief delay for UX, then validate
+        // simulate delay
         setTimeout(() => {
             const result = signIn(email, password);
             setLoading(false);
@@ -132,7 +132,7 @@ function SignInDialog() {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent
                 className="sm:max-w-[420px] p-0 overflow-hidden gap-0 border border-gray-200 shadow-2xl rounded-2xl"
-                // Hide the default shadcn close button — we render our own
+                // hide default close
                 showCloseButton={false}
             >
                 <DialogTitle className="sr-only">Sign in to Triply</DialogTitle>
@@ -148,7 +148,6 @@ function SignInDialog() {
                 {/* Animated view container */}
                 <div className="overflow-hidden">
                     <AnimatePresence mode="wait" custom={direction}>
-                        {/* ── Sign in ── */}
                         {view === "signin" && (
                             <motion.div
                                 key="signin"
@@ -296,7 +295,6 @@ function SignInDialog() {
                             </motion.div>
                         )}
 
-                        {/* ── Forgot password ── */}
                         {view === "forgot" && (
                             <motion.div
                                 key="forgot"
@@ -374,7 +372,6 @@ function SignInDialog() {
                             </motion.div>
                         )}
 
-                        {/* ── Forgot sent ── */}
                         {view === "forgot_sent" && (
                             <motion.div
                                 key="forgot_sent"

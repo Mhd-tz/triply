@@ -60,7 +60,7 @@ export default function Footer() {
             <div className="w-[90%] mx-auto px-6 py-10">
                 <div className="flex flex-col lg:flex-row gap-10 lg:gap-6">
 
-                    {/* ── Link columns ──────────────────────────── */}
+                    {/* columns */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-8 flex-1">
                         {FOOTER_LINKS.map((col) => (
                             <div key={col.heading} className="flex flex-col gap-3">
@@ -83,10 +83,9 @@ export default function Footer() {
                         ))}
                     </div>
 
-                    {/* ── Divider (desktop) ─────────────────────── */}
                     <div className="hidden lg:block w-px bg-border shrink-0" />
 
-                    {/* ── Newsletter ────────────────────────────── */}
+                    {/* newsletter */}
                     <div className="flex flex-col gap-3 lg:w-[300px] shrink-0">
                         <p className="text-sm font-heading font-bold text-foreground">
                             Get the Newsletter
@@ -119,7 +118,6 @@ export default function Footer() {
                             </form>
                         )}
 
-                        {/* Social icons */}
                         <div className="flex items-center gap-3 mt-1">
                             {[
                                 {
@@ -163,7 +161,7 @@ export default function Footer() {
                     </div>
                 </div>
 
-                {/* ── Bottom bar ────────────────────────────────── */}
+                {/* bottom bar */}
                 <div className="mt-10 pt-6 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2">
                     <p className="text-xs text-muted-foreground">
                         © {new Date().getFullYear()} Triply Inc. All rights reserved.

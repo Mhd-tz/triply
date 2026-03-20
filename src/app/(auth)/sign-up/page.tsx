@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { useSignInDialog } from "@/components/signin-dialog";
 import { useAuth } from "@/lib/auth-context";
 
-/* ─── Types ──────────────────────────────────────────────────── */
+// types
 type Step = 1 | 2 | 3;
 
 interface FormData {
@@ -29,7 +29,7 @@ interface FormData {
     receiveEmails: boolean;
 }
 
-/* ─── Password strength ──────────────────────────────────────── */
+// password strength
 function getStrength(pw: string) {
     if (!pw) return { score: 0, label: "", color: "", checks: { length: false, lower: false, upper: false, number: false, symbol: false } };
     const checks = {
@@ -51,7 +51,7 @@ function getStrength(pw: string) {
     return { score, checks, ...map[score] };
 }
 
-/* ─── Left panel destinations ────────────────────────────────── */
+// destinations
 const CARDS = [
     { city: "Tokyo", country: "Japan", img: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=500&auto=format&fit=crop", tag: "Cherry Blossom", pos: "top-[10%] left-[5%] rotate-[-3deg]", delay: 0.2 },
     { city: "Santorini", country: "Greece", img: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=500&auto=format&fit=crop", tag: "Sunset Views", pos: "top-[20%] right-[3%] rotate-[2deg]", delay: 0.85 },
@@ -67,7 +67,7 @@ const STEPS = [
     { num: 3, label: "Done" },
 ];
 
-/* ─── Main ───────────────────────────────────────────────────── */
+// main signup
 export default function SignUpPage() {
     const { setOpen: openSignIn } = useSignInDialog();
     const { signUp, user } = useAuth();
@@ -136,7 +136,6 @@ export default function SignUpPage() {
     return (
         <div className="min-h-screen flex bg-white overflow-hidden">
 
-            {/* ── Left visual panel ─────────────────────────────────── */}
             <motion.div
                 initial={{ x: -60, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -179,7 +178,6 @@ export default function SignUpPage() {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="relative z-10 px-10 pb-8 mt-auto h-24" />
             </motion.div>
 
-            {/* ── Right form panel ──────────────────────────────────── */}
             <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 sm:px-10 md:px-14 lg:px-16 bg-white">
 
                 <div className="lg:hidden mb-8 self-start">
@@ -188,7 +186,6 @@ export default function SignUpPage() {
 
                 <div className="w-full max-w-[420px]">
 
-                    {/* ── Step progress ── */}
                     <div className="flex items-center justify-center mb-8">
                         {STEPS.map((s, i) => (
                             <React.Fragment key={s.num}>
@@ -229,7 +226,6 @@ export default function SignUpPage() {
                         ))}
                     </div>
 
-                    {/* ── Step heading ── */}
                     <AnimatePresence mode="wait" custom={direction}>
                         <motion.div
                             key={`heading-${step}`}
@@ -254,7 +250,6 @@ export default function SignUpPage() {
                         </motion.div>
                     </AnimatePresence>
 
-                    {/* ── Step content ── */}
                     <AnimatePresence mode="wait" custom={direction}>
                         <motion.div
                             key={`step-${step}`}
@@ -265,7 +260,6 @@ export default function SignUpPage() {
                             exit="exit"
                             transition={{ duration: 0.28, ease: "easeInOut" }}
                         >
-                            {/* ── Step 1 ── */}
                             {step === 1 && (
                                 <div className="flex flex-col gap-5">
                                     <Button
@@ -391,7 +385,6 @@ export default function SignUpPage() {
                                 </div>
                             )}
 
-                            {/* ── Step 2 ── */}
                             {step === 2 && (
                                 <div className="flex flex-col gap-5">
                                     <div className="grid grid-cols-2 gap-3">
@@ -454,7 +447,6 @@ export default function SignUpPage() {
                                 </div>
                             )}
 
-                            {/* ── Step 3: Success ── */}
                             {step === 3 && (
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.95 }}

@@ -49,17 +49,10 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ─────────────────────────────────────────────────────────────
-   Triply Brand Palette → oklch conversions
-   #1D4983  navy    → oklch(0.37 0.12 248)
-   #4173B4  blue    → oklch(0.52 0.13 248)
-   #53D8FB  sky     → oklch(0.83 0.12 210)
-   #FFD29C  peach   → oklch(0.87 0.09 70)
-   #FF5964  coral   → oklch(0.65 0.22 18)
-───────────────────────────────────────────────────────────── */
+/* brand palette */
 
 :root {
-  /* ── Surfaces ──────────────────────────────────────────── */
+  /* surfaces */
   --background: oklch(1 0 0);
   --foreground: oklch(0.15 0.03 240); /* near-black, cool tint */
 
@@ -69,46 +62,42 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0.03 240);
 
-  /* ── Primary — Navy #1D4983 ────────────────────────────── */
+  /* primary — navy #1D4983 */
   --primary: oklch(0.37 0.12 248);
   --primary-foreground: oklch(0.99 0 0);
 
-  /* ── Secondary — Sky #53D8FB (Gemini's choice, converted) ─ */
-  /* Stays in the blue family, great for secondary buttons,   */
-  /* badges, chips — more cohesive than peach would be here.  */
+  /* secondary — sky #53D8FB */
   --secondary: oklch(0.83 0.12 210);
   --secondary-foreground: oklch(0.2 0.08 240);
 
-  /* ── Muted ─────────────────────────────────────────────── */
+  /* muted */
   --muted: oklch(0.96 0.01 230);
   --muted-foreground: oklch(0.52 0.04 240);
 
-  /* ── Accent — Peach #FFD29C (Gemini's choice, converted) ── */
-  /* Warm highlight for hover states, tags, decorative uses.  */
-  /* Not a button color — expressive only.                    */
+  /* accent — peach #FFD29C */
   --accent: oklch(76.439% 0.11976 67.437);
   --accent-foreground: oklch(0.25 0.06 50);
 
-  /* ── Destructive — Coral #FF5964 ───────────────────────── */
+  /* destructive — coral #FF5964 */
   --destructive: oklch(0.65 0.22 18);
   --destructive-foreground: oklch(0.99 0 0);
 
-  /* ── Borders & Inputs ──────────────────────────────────── */
+  /* borders & inputs */
   --border: oklch(0.91 0.02 230);
   --input: oklch(0.91 0.02 230);
   --ring: oklch(0.37 0.12 248);
 
-  /* ── Radius ────────────────────────────────────────────── */
+  /* radius */
   --radius: 0.625rem;
 
-  /* ── Charts ────────────────────────────────────────────── */
+  /* charts */
   --chart-1: oklch(0.37 0.12 248); /* navy   #1D4983 */
   --chart-2: oklch(0.52 0.13 248); /* blue   #4173B4 */
   --chart-3: oklch(0.83 0.12 210); /* sky    #53D8FB */
   --chart-4: oklch(0.87 0.09 70); /* peach  #FFD29C */
   --chart-5: oklch(0.65 0.22 18); /* coral  #FF5964 */
 
-  /* ── Sidebar — Navy ────────────────────────────────────── */
+  /* sidebar — navy */
   --sidebar: oklch(0.37 0.12 248);
   --sidebar-foreground: oklch(0.97 0 0);
   --sidebar-primary: oklch(0.83 0.12 210);
@@ -119,7 +108,7 @@
   --sidebar-ring: oklch(0.83 0.12 210);
 }
 
-/* Dark mode — minimal stub to keep tokens valid */
+/* dark mode tokens */
 .dark {
   --background: oklch(0.14 0.04 248);
   --foreground: oklch(0.95 0.01 220);
@@ -174,21 +163,16 @@
   }
 }
 
-/* 1. Define the initial state of the banner (hidden) */
+/* banner fade animations */
 .banner {
   opacity: 0; /* Fully transparent */
   visibility: hidden; /* Element is hidden from view and interaction */
 
-  /* 2. Set up the smooth transition effect */
   transition:
     opacity 1s ease-in-out,
     visibility 1s ease-in-out;
-  /* '1s' is the duration of the fade (1 second). 
-    'ease-in-out' makes the animation start slow, speed up, and then slow down for a natural feel. 
-  */
 }
 
-/* 3. Define the visible state using a modifier class */
 .banner.is-visible {
   opacity: 1; /* Fully opaque (visible) */
   visibility: visible; /* Element is visible */

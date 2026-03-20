@@ -3,7 +3,7 @@
 import { ArrowRight } from "lucide-react";
 import StayCard, { type StayCardProps } from "@/components/stay-card";
 
-// ── Mock data — replace with your real API/props ───────────────
+// mock data
 const FEATURED_STAYS: StayCardProps[] = [
     {
         image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop",
@@ -56,7 +56,6 @@ export default function FeaturedStays() {
     return (
         <section className="w-[90%] mx-auto px-4 py-6 pt-14">
 
-            {/* ── Header ──────────────────────────────────────── */}
             <div className="flex items-end justify-between mb-5">
                 <div>
                     <p className="text-[11px] font-semibold font-subheading tracking-[0.12em] uppercase text-primary/60 mb-0.5">
@@ -72,7 +71,6 @@ export default function FeaturedStays() {
                 </button>
             </div>
 
-            {/* ── Grid ────────────────────────────────────────── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {FEATURED_STAYS.map((stay) => (
                     <StayCard key={stay.name} {...stay} />

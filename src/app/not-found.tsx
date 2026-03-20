@@ -6,11 +6,10 @@ import { motion } from "motion/react";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-/* ─── Animated compass needle ─────────────────────────────────── */
+// compass component
 function CompassRose() {
     return (
         <div className="relative w-28 h-28 mx-auto mb-8">
-            {/* Outer ring */}
             <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 28, repeat: Infinity, ease: "linear" }}
@@ -19,7 +18,6 @@ function CompassRose() {
                     background: "conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.04) 90deg, transparent 180deg, rgba(255,255,255,0.04) 270deg)",
                 }}
             />
-            {/* Cardinal letters */}
             {[
                 { label: "N", angle: -90 },
                 { label: "E", angle: 0 },
@@ -37,14 +35,12 @@ function CompassRose() {
                     </span>
                 </div>
             ))}
-            {/* Needle */}
             <motion.div
                 className="absolute inset-0 flex items-center justify-center"
                 animate={{ rotate: [0, 25, -18, 35, -8, 20, -30, 5, 0] }}
                 transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", repeatDelay: 1.5 }}
             >
                 <div className="relative flex flex-col items-center" style={{ height: 60 }}>
-                    {/* North tip — red */}
                     <div
                         className="w-0 h-0"
                         style={{
@@ -53,9 +49,7 @@ function CompassRose() {
                             borderBottom: "26px solid #ef4444",
                         }}
                     />
-                    {/* Center dot */}
                     <div className="w-3 h-3 rounded-full bg-white/90 border-2 border-gray-300 -mt-0.5 -mb-0.5 z-10 shrink-0" />
-                    {/* South tip — white */}
                     <div
                         className="w-0 h-0"
                         style={{
@@ -70,11 +64,10 @@ function CompassRose() {
     );
 }
 
-/* ─── Grid background ─────────────────────────────────────────── */
+// grid background
 function MapGrid() {
     return (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            {/* Grid lines */}
             <div
                 className="absolute inset-0 opacity-[0.06]"
                 style={{
@@ -82,7 +75,6 @@ function MapGrid() {
                     backgroundSize: "64px 64px",
                 }}
             />
-            {/* Faint dotted cross-hairs */}
             <svg className="absolute inset-0 w-full h-full opacity-[0.035]" xmlns="http://www.w3.org/2000/svg">
                 <defs>
                     <pattern id="crosshair" x="0" y="0" width="128" height="128" patternUnits="userSpaceOnUse">
@@ -93,7 +85,6 @@ function MapGrid() {
                 </defs>
                 <rect width="100%" height="100%" fill="url(#crosshair)" />
             </svg>
-            {/* Radial fade overlay */}
             <div
                 className="absolute inset-0"
                 style={{
@@ -104,7 +95,7 @@ function MapGrid() {
     );
 }
 
-/* ─── Main page ───────────────────────────────────────────────── */
+// 404 page
 export default function NotFound() {
 
     return (
@@ -114,10 +105,8 @@ export default function NotFound() {
         >
             <MapGrid />
 
-            {/* Center content */}
             <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-lg">
 
-                {/* Compass */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.6 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -125,7 +114,6 @@ export default function NotFound() {
                     <CompassRose />
                 </motion.div>
 
-                {/* 404 */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -146,7 +134,6 @@ export default function NotFound() {
                     </span>
                 </motion.div>
 
-                {/* Headline */}
                 <motion.h1
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -156,7 +143,6 @@ export default function NotFound() {
                     You&apos;ve wandered off the map
                 </motion.h1>
 
-                {/* Sub */}
                 <motion.p
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -166,7 +152,6 @@ export default function NotFound() {
                     The page you&apos;re looking for doesn&apos;t exist. It may have moved, been deleted, or you may have taken a wrong turn somewhere.
                 </motion.p>
 
-                {/* CTAs */}
                 <motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -194,7 +179,6 @@ export default function NotFound() {
                     </Button>
                 </motion.div>
 
-                {/* Quick links */}
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

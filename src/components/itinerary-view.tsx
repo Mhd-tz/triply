@@ -13,7 +13,7 @@ import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type D
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-/* ─── Types (mirrors page.tsx) ───────────────────────────────── */
+// types
 export type TransportMode = "drive" | "transit" | "walk";
 
 export interface EventItem {
@@ -74,7 +74,7 @@ interface ItineraryViewProps {
     onReorder?: (newPlaceEvents: EventItem[]) => void;
 }
 
-/* ─── Colors ─────────────────────────────────────────────────── */
+// colors
 const COLORS = {
     meal: "#e8820c",
     activity: "#1D4983",
@@ -95,7 +95,7 @@ const TYPE_LABELS: Record<string, string> = {
     note: "Note",
 };
 
-/* ─── Star renderer ──────────────────────────────────────────── */
+// components
 function StarRating({ rating }: { rating: number }) {
     return (
         <div className="flex items-center gap-0.5">
@@ -114,7 +114,7 @@ function StarRating({ rating }: { rating: number }) {
     );
 }
 
-/* ─── Transit Row ────────────────────────────────────────────── */
+// transit row
 function TransitRow({
     event,
     transportMode,
@@ -195,7 +195,7 @@ function TransitRow({
     );
 }
 
-/* ─── Sortable Place Row ────────────────────────────────────── */
+// place row
 function PlaceRow({
     event,
     isExpanded,
@@ -230,12 +230,10 @@ function PlaceRow({
             transition={{ delay: index * 0.04, duration: 0.25 }}
             className="flex group"
         >
-            {/* Time */}
             <div className="w-[52px] shrink-0 pt-[13px] pr-2 text-right">
                 <span className="text-[11px] font-bold text-gray-500">{event.time}</span>
             </div>
 
-            {/* Spine */}
             <div className="w-7 shrink-0 flex flex-col items-center relative">
                 {!isLast && (
                     <div
@@ -249,7 +247,6 @@ function PlaceRow({
                 />
             </div>
 
-            {/* Card */}
             <div className="flex-1 pb-4 pl-3">
                 <div
                     className={cn(
@@ -260,7 +257,6 @@ function PlaceRow({
                     style={{ borderColor: isExpanded ? event.color : `${event.color}25` }}
                     onClick={onClick}
                 >
-                    {/* Header */}
                     <div
                         className="flex items-center justify-between px-4 py-3"
                         style={{ backgroundColor: event.color }}
@@ -288,7 +284,6 @@ function PlaceRow({
                         </div>
                     </div>
 
-                    {/* Expanded body */}
                     <AnimatePresence initial={false}>
                         {isExpanded && (
                             <motion.div
@@ -308,7 +303,6 @@ function PlaceRow({
                                 )}
 
                                 <div className="p-4">
-                                    {/* Meta chips */}
                                     <div className="flex flex-wrap items-center gap-2 mb-3">
                                         <span className="flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg">
                                             <Clock className="w-3 h-3" />
@@ -384,7 +378,6 @@ function PlaceRow({
     );
 }
 
-/* ─── Legend ─────────────────────────────────────────────────── */
 function Legend({ transportMode }: { transportMode: TransportMode }) {
     return (
         <div className="shrink-0 border-t border-gray-100 bg-white/95 backdrop-blur-sm px-4 py-3 flex items-center justify-center gap-5 flex-wrap">
@@ -401,7 +394,6 @@ function Legend({ transportMode }: { transportMode: TransportMode }) {
     );
 }
 
-/* ─── Right Panel Search Bar ─────────────────────────────────── */
 function RightPanelSearch({
     searchResults,
     onSearchResultClick,
@@ -416,7 +408,6 @@ function RightPanelSearch({
 
     return (
         <div className="relative">
-            {/* Input */}
             <div className="flex items-center gap-2 bg-white rounded-full shadow-sm border border-gray-200 px-4 h-11">
                 <Search className="h-4 w-4 text-gray-400 shrink-0" />
                 <input
@@ -433,7 +424,6 @@ function RightPanelSearch({
                 )}
             </div>
 
-            {/* Dropdown results */}
             <AnimatePresence>
                 {query.trim().length > 0 && (
                     <motion.div
@@ -484,7 +474,6 @@ function RightPanelSearch({
     );
 }
 
-/* ─── Day Summary Panel ──────────────────────────────────────── */
 function DaySummaryPanel({
     day,
     expandedEvent,
@@ -505,12 +494,10 @@ function DaySummaryPanel({
     return (
         <div className="flex-1 overflow-y-auto p-5 space-y-5" style={{ scrollbarWidth: "none" }}>
 
-            {/* Search bar */}
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
                 <RightPanelSearch searchResults={searchResults} onSearchResultClick={onSearchResultClick} />
             </motion.div>
 
-            {/* Summary stat cards */}
             {/* <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -554,7 +541,6 @@ function DaySummaryPanel({
                 ))}
             </motion.div> */}
 
-            {/* Day breakdown bar */}
             <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -590,7 +576,6 @@ function DaySummaryPanel({
                 </div>
             </motion.div>
 
-            {/* Notes & details */}
             {placeEvents.filter((p) => p.desc).length > 0 && (
                 <motion.div
                     initial={{ opacity: 0, y: 12 }}
@@ -624,7 +609,6 @@ function DaySummaryPanel({
     );
 }
 
-/* ─── Main ItineraryView ─────────────────────────────────────── */
 export default function ItineraryView({
     day,
     tripData,
@@ -660,14 +644,12 @@ export default function ItineraryView({
             exit={{ opacity: 0 }}
             className="absolute inset-0 flex overflow-hidden bg-[#f0f4fa]"
         >
-            {/* ── Left: Timeline ─────────────────────────────────────── */}
             <motion.div
                 initial={{ x: -30, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ ease: "easeOut", duration: 0.3 }}
                 className="w-[420px] shrink-0 flex flex-col bg-white border-r border-gray-200 shadow-sm overflow-hidden"
             >
-                {/* Panel header */}
                 <div className="shrink-0 px-5 py-4 border-b border-gray-100">
                     <div className="flex items-center justify-between mb-3">
                         <span className="font-bold text-gray-900 text-[16px]">Day {day.day} Timeline</span>
@@ -698,7 +680,6 @@ export default function ItineraryView({
                     </div>
                 </div>
 
-                {/* Timeline scroll — Sortable */}
                 <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2" style={{ scrollbarWidth: "none" }}>
                     {day.events.length === 0 && (
                         <div className="h-full flex items-center justify-center text-gray-400 text-sm italic py-10">
@@ -758,14 +739,12 @@ export default function ItineraryView({
                 <Legend transportMode={transportMode} />
             </motion.div>
 
-            {/* ── Right: Summary panel ───────────────────────────────── */}
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.15 }}
                 className="flex-1 flex flex-col overflow-hidden"
             >
-                {/* Right panel header */}
                 <div className="shrink-0 px-5 py-4 bg-white border-b border-gray-100 flex items-center justify-between">
                     <div>
                         <h2 className="font-bold text-gray-900 text-[16px]">{day.date}</h2>

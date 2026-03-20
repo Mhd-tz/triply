@@ -59,7 +59,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from "@dnd-kit/utilities";
 import { useTripStore } from "@/lib/trip-store";
 
-// --- Mock Planner Data ---
+// initial mock data
 const INITIAL_ITINERARY = [
     {
         day: 1,
@@ -177,30 +177,30 @@ const MOCK_HOTELS = [
 const ALL_AMENITIES = ["Free WiFi", "Pool", "Spa", "Gym", "Restaurant", "Parking"];
 
 export default function HeroSection() {
-    // Auth & Navigation
+    // auth and nav
     const { user } = useAuth();
     const { setOpen: openSignIn, setOnSignInSuccess } = useSignInDialog();
     const router = useRouter();
 
-    // UI State
+    // general ui state
     const [appState, setAppState] = React.useState<AppState>("collapsed");
     const [loadingStep, setLoadingStep] = React.useState(0);
     const [activePanel, setActivePanel] = React.useState<ActivePanel>("none");
     const [showDatePicker, setShowDatePicker] = React.useState(false);
     const [activeMenuId, setActiveMenuId] = React.useState<string | null>(null);
 
-    // Form Data
+    // search form
     const [destination, setDestination] = React.useState("");
     const [travelers, setTravelers] = React.useState("2");
 
-    // Date State
+    // date selection
     const [dateMode, setDateMode] = React.useState<DateMode>("exact");
     const [startDate, setStartDate] = React.useState<Date | null>(null);
     const [endDate, setEndDate] = React.useState<Date | null>(null);
     const [flexDays, setFlexDays] = React.useState("7 days");
     const [flexMonths, setFlexMonths] = React.useState<string[]>([]);
 
-    // Transport & Stay Form State
+    // transport and stay
     const [activeTransportTab, setActiveTransportTab] = React.useState<TransportTab>("flights");
     const [activeStayTab, setActiveStayTab] = React.useState<StayTab>("search");
     const [origin, setOrigin] = React.useState("Coquitlam, BC");
@@ -210,19 +210,19 @@ export default function HeroSection() {
     const [syncStayName, setSyncStayName] = React.useState("");
     const [guests, setGuests] = React.useState("2");
 
-    // Itinerary & Planner Selection State
+    // itinerary and selections
     const [itinerary, setItinerary] = React.useState(INITIAL_ITINERARY);
     const [linkedTransport, setLinkedTransport] = React.useState<string | null>(null);
     const [linkedStay, setLinkedStay] = React.useState<string | null>(null);
 
-    // Add Event Modal State
+    // event modal
     const [isAddEventModalOpen, setIsAddEventModalOpen] = React.useState(false);
     const [addEventStep, setAddEventStep] = React.useState<"choose" | "manual" | "ai_loading">("choose");
     const [newEventName, setNewEventName] = React.useState("");
     const [newEventTime, setNewEventTime] = React.useState("12:00 PM");
     const [selectedDayIndex, setSelectedDayIndex] = React.useState("0");
 
-    // Transport Search State
+    // transport search
     const [transportSearched, setTransportSearched] = React.useState(false);
     const [selectedFlightId, setSelectedFlightId] = React.useState<string | null>(null);
     const [selectedCarId, setSelectedCarId] = React.useState<string | null>(null);
@@ -232,7 +232,7 @@ export default function HeroSection() {
     const [flightMaxPrice, setFlightMaxPrice] = React.useState(3000);
     const [flightSortBy, setFlightSortBy] = React.useState("price");
 
-    // Stay Search State
+    // stay search
     const [staySearched, setStaySearched] = React.useState(false);
     const [selectedHotelId, setSelectedHotelId] = React.useState<string | null>(null);
     const [stayMaxPrice, setStayMaxPrice] = React.useState(800);
@@ -240,7 +240,7 @@ export default function HeroSection() {
     const [stayAmenityFilter, setStayAmenityFilter] = React.useState<string[]>([]);
     const [staySortBy, setStaySortBy] = React.useState("price");
 
-    // Filtered results
+    // derived filtered results
     const filteredFlights = React.useMemo(() => {
         let results = [...MOCK_FLIGHTS];
         if (flightStopFilter.length > 0) results = results.filter(f => flightStopFilter.includes(f.stops));
@@ -261,7 +261,7 @@ export default function HeroSection() {
         return results;
     }, [stayStarFilter, stayMaxPrice, stayAmenityFilter, staySortBy]);
 
-    // Sync Modal State
+    // sync modal
     type SyncPhase = "idle" | "syncing" | "complete" | "done";
     const [syncPhase, setSyncPhase] = React.useState<SyncPhase>("idle");
 
@@ -275,7 +275,7 @@ export default function HeroSection() {
             startSyncFlow();
         } else {
             setOnSignInSuccess(() => () => {
-                // Runs after successful sign-in
+                // callback after sign in
                 setTimeout(() => startSyncFlow(), 400);
             });
             openSignIn(true);
@@ -356,11 +356,11 @@ export default function HeroSection() {
     const handleTransportSearch = () => setTransportSearched(true);
     const handleStaySearch = () => setStaySearched(true);
 
-    // Zustand store sync helpers
+    // sync to zustand
     const storeSetTransport = useTripStore((s) => s.setLinkedTransport);
     const storeSetStay = useTripStore((s) => s.setLinkedStay);
 
-    // Drag sensors for itinerary
+    // dnd sensors
     const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
     const [activeDragId, setActiveDragId] = React.useState<string | null>(null);
 
@@ -372,10 +372,10 @@ export default function HeroSection() {
             const oldIndex = day.activities.findIndex(a => a.id === active.id);
             const newIndex = day.activities.findIndex(a => a.id === (over.id as string));
             if (oldIndex === -1 || newIndex === -1) return day;
-            // Preserve original time slots — capture times before reorder
+            // capture times before reordering
             const originalTimes = day.activities.map(a => a.time);
             const reordered = arrayMove([...day.activities], oldIndex, newIndex);
-            // Re-assign the original time slots to the reordered items
+            // keep original time slots on new items
             const withSwappedTimes = reordered.map((act, i) => ({ ...act, time: originalTimes[i] }));
             return { ...day, activities: withSwappedTimes };
         }));
@@ -416,7 +416,6 @@ export default function HeroSection() {
         }
     };
 
-    // --- IMMUTABLE STATE FIXES ---
     const triggerAIAdd = () => {
         setAddEventStep("ai_loading");
         setTimeout(() => {
@@ -434,7 +433,7 @@ export default function HeroSection() {
                 images: ["https://images.unsplash.com/photo-1515238152791-8226bb872b7a?q=80&w=400&auto=format&fit=crop"]
             };
 
-            // Strictly immutable update
+            // update state immutably
             setItinerary(prev => prev.map((day, idx) =>
                 idx === parseInt(selectedDayIndex)
                     ? { ...day, activities: [...day.activities, aiEvent] }
@@ -462,7 +461,7 @@ export default function HeroSection() {
             images: []
         };
 
-        // Strictly immutable update
+        // update state immutably
         setItinerary(prev => prev.map((day, idx) =>
             idx === parseInt(selectedDayIndex)
                 ? { ...day, activities: [...day.activities, manualEvent] }
@@ -487,7 +486,6 @@ export default function HeroSection() {
 
     return (
         <section className="relative w-full bg-background -mt-px pb-24 font-sans" style={{ overflowX: "clip", overflowY: "visible" }}>
-            {/* Banner Background */}
             <motion.div
                 layout
                 className="relative w-full"
@@ -497,10 +495,8 @@ export default function HeroSection() {
 
                 <div className="absolute inset-0 bg-[#e2e8f0]" />
 
-                {/* SVG Interactive Banner */}
                 <BannerSVG activeTab={activePanel === "transport" ? (activeTransportTab !== "sync" ? activeTransportTab : "flights") : "flights"} />
 
-                {/* Dynamic Scrim overlay */}
                 <motion.div
                     className="absolute inset-0 pointer-events-none z-0"
                     animate={{
@@ -510,7 +506,6 @@ export default function HeroSection() {
                     transition={{ duration: 0.6 }}
                 />
 
-                {/* Hero Headline */}
                 <AnimatePresence>
                     {(appState === "collapsed" || appState === "generating") && (
                         <motion.div
@@ -531,7 +526,6 @@ export default function HeroSection() {
                 </AnimatePresence>
             </motion.div>
 
-            {/* Interactive Widget Area */}
             <div className="relative z-10 w-full px-4 -mt-10 flex flex-col items-center">
 
                 <motion.div
@@ -548,7 +542,6 @@ export default function HeroSection() {
                 >
                     <AnimatePresence mode="wait">
 
-                        {/* 1. COLLAPSED STATE */}
                         {appState === "collapsed" && (
                             <motion.div
                                 key="collapsed"
@@ -571,7 +564,6 @@ export default function HeroSection() {
                             </motion.div>
                         )}
 
-                        {/* 2. EXPANDED SEARCH FORM */}
                         {appState === "expanded" && (
                             <motion.div
                                 key="expanded"
@@ -625,7 +617,7 @@ export default function HeroSection() {
                                     </div>
                                 </div>
 
-                                {/* Custom Calendar Popover (Click Outside Supported) */}
+                                {/* calendar popover */}
                                 <AnimatePresence>
                                     {showDatePicker && (
                                         <>
@@ -654,7 +646,6 @@ export default function HeroSection() {
                             </motion.div>
                         )}
 
-                        {/* 3. AI GENERATING SIMULATION */}
                         {appState === "generating" && (
                             <motion.div
                                 key="generating"
@@ -679,7 +670,6 @@ export default function HeroSection() {
                             </motion.div>
                         )}
 
-                        {/* 4. PLANNER RESULT */}
                         {appState === "result" && (
                             <motion.div
                                 key="result"
@@ -687,7 +677,6 @@ export default function HeroSection() {
                                 animate={{ opacity: 1 }}
                                 className="flex flex-col w-full bg-[#f9fafb]"
                             >
-                                {/* Top Summary & Action Bar */}
                                 <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-gray-100 bg-white px-6 py-4 gap-4 relative z-20 shadow-sm">
                                     <div className="flex items-center gap-3">
                                         <button onClick={reset} className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500 transition-colors">
@@ -712,7 +701,6 @@ export default function HeroSection() {
                                     </div>
                                 </div>
 
-                                {/* Dynamic Overlay Panels */}
                                 <AnimatePresence>
                                     {activePanel === "transport" && (
                                         <motion.div
@@ -755,7 +743,6 @@ export default function HeroSection() {
 
                                                         {activeTransportTab === "flights" && (
                                                             <div className="flex flex-col lg:flex-row gap-6">
-                                                                {/* Flight Filter Sidebar */}
                                                                 <div className="lg:w-[220px] shrink-0 space-y-5 bg-gray-50/50 rounded-xl p-4 border border-gray-100">
                                                                     <div className="flex items-center justify-between">
                                                                         <h4 className="font-bold text-sm text-gray-900 flex items-center gap-1.5"><SlidersHorizontal className="h-3.5 w-3.5" /> Filters</h4>
@@ -790,7 +777,6 @@ export default function HeroSection() {
                                                                         </Select>
                                                                     </div>
                                                                 </div>
-                                                                {/* Flight Cards */}
                                                                 <div className="flex-1">
                                                                     <p className="text-xs font-semibold text-gray-500 mb-3">{filteredFlights.length} flights found</p>
                                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -953,7 +939,6 @@ export default function HeroSection() {
                                                         </div>
 
                                                         <div className="flex flex-col lg:flex-row gap-6">
-                                                            {/* Hotel Filter Sidebar */}
                                                             <div className="lg:w-[220px] shrink-0 space-y-5 bg-gray-50/50 rounded-xl p-4 border border-gray-100">
                                                                 <div className="flex items-center justify-between">
                                                                     <h4 className="font-bold text-sm text-gray-900 flex items-center gap-1.5"><SlidersHorizontal className="h-3.5 w-3.5" /> Hotel Filter</h4>
@@ -1002,7 +987,6 @@ export default function HeroSection() {
                                                                     </Select>
                                                                 </div>
                                                             </div>
-                                                            {/* Hotel Results */}
                                                             <div className="flex-1">
                                                                 <p className="text-xs font-semibold text-gray-500 mb-3">{filteredHotels.length} stays found</p>
                                                                 <div className="space-y-3">
@@ -1042,10 +1026,8 @@ export default function HeroSection() {
                                     )}
                                 </AnimatePresence>
 
-                                {/* Main Itinerary Area */}
                                 <div className="p-6 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
 
-                                    {/* COLUMN 1: The Timeline (col-span-8) */}
                                     <div className="lg:col-span-8">
                                         <div className="flex items-center justify-between mb-8 px-4 sm:px-0">
                                             <h3 className="text-2xl font-bold text-gray-900">Itinerary</h3>
@@ -1058,7 +1040,6 @@ export default function HeroSection() {
                                             {itinerary.map((day, d_idx) => (
                                                 <div key={day.day} className="flex flex-col">
 
-                                                    {/* Day Header */}
                                                     <div className="flex items-stretch">
                                                         <div className="w-16 sm:w-24 shrink-0 flex flex-col items-center relative">
                                                             <div className="w-px bg-gray-200 absolute top-8 bottom-0" />
@@ -1071,7 +1052,6 @@ export default function HeroSection() {
                                                         </div>
                                                     </div>
 
-                                                    {/* Transport Block (Only injected on Day 1 if linked) */}
                                                     {d_idx === 0 && linkedTransport && (
                                                         <div className="flex items-stretch">
                                                             <div className="w-16 sm:w-24 shrink-0 flex flex-col items-center relative">
@@ -1092,7 +1072,6 @@ export default function HeroSection() {
                                                         </div>
                                                     )}
 
-                                                    {/* Activities List — Drag-and-drop sortable */}
                                                     <DndContext
                                                         sensors={dndSensors}
                                                         collisionDetection={closestCenter}
@@ -1136,7 +1115,6 @@ export default function HeroSection() {
                                         </div>
                                     </div>
 
-                                    {/* COLUMN 2: Shortlist / Details (col-span-4) */}
                                     <div className="lg:col-span-4 sticky top-6">
                                         <div className="bg-white rounded-[2rem] border border-gray-200 p-6 shadow-xl flex flex-col gap-6">
 
@@ -1144,7 +1122,6 @@ export default function HeroSection() {
                                                 Trip Overview
                                             </h3>
 
-                                            {/* Linked Logistics */}
                                             <div className="space-y-3">
                                                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Logistics</h4>
 
@@ -1173,7 +1150,6 @@ export default function HeroSection() {
                                                 )}
                                             </div>
 
-                                            {/* Cost Summary */}
                                             <div>
                                                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3 mt-4">Activity Cost</h4>
                                                 <div className="flex justify-between items-center bg-gray-50 p-4 border border-gray-100 rounded-xs">
@@ -1182,7 +1158,6 @@ export default function HeroSection() {
                                                 </div>
                                             </div>
 
-                                            {/* Live Mini-Map */}
                                             <div className="mt-2">
                                                 <Link href="/map">
                                                     <div className="w-full h-[180px] rounded-xl overflow-hidden border border-gray-200 relative group cursor-pointer">
@@ -1214,7 +1189,6 @@ export default function HeroSection() {
                                                                     ))
                                                             )}
                                                         </MapGL>
-                                                        {/* Hover overlay */}
                                                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
                                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5">
                                                                 <MapIcon className="h-3.5 w-3.5 text-[#1D4983]" />
@@ -1225,7 +1199,6 @@ export default function HeroSection() {
                                                 </Link>
                                             </div>
 
-                                            {/* Confirm & Sync Button */}
                                             <motion.div
                                                 initial={{ opacity: 0, y: 8 }}
                                                 animate={{ opacity: 1, y: 0 }}
@@ -1262,7 +1235,6 @@ export default function HeroSection() {
                 </motion.div>
             </div >
 
-            {/* --- Add Event Modal Overlay --- */}
             <AnimatePresence>
                 {
                     isAddEventModalOpen && (
@@ -1352,7 +1324,6 @@ export default function HeroSection() {
                 }
             </AnimatePresence>
 
-            {/* ── Sync Modal Overlay ── */}
             <AnimatePresence>
                 {syncPhase !== "idle" && (
                     <motion.div
@@ -1415,7 +1386,7 @@ export default function HeroSection() {
                                         </motion.div>
                                     )}
 
-                                    {/* Phase 2: Complete */}
+                                    {/* sync complete */}
                                     {syncPhase === "complete" && (
                                         <motion.div
                                             key="complete"
@@ -1424,7 +1395,6 @@ export default function HeroSection() {
                                             exit={{ opacity: 0, y: -10 }}
                                             className="flex flex-col items-center"
                                         >
-                                            {/* Animated checkmark */}
                                             <motion.div
                                                 initial={{ scale: 0 }}
                                                 animate={{ scale: 1 }}
@@ -1435,7 +1405,6 @@ export default function HeroSection() {
                                                 <Check className="w-8 h-8 text-white stroke-[2.5]" />
                                             </motion.div>
 
-                                            {/* Confetti particles */}
                                             {[...Array(8)].map((_, i) => (
                                                 <motion.div
                                                     key={i}
@@ -1537,7 +1506,6 @@ function SortableActivityCard({ act, actIdx, dIdx, isLastActivity, isLastDay, ac
                             )}
                         </div>
 
-                        {/* 3-Dots Action Menu */}
                         <div className="relative">
                             <button
                                 onClick={() => setActiveMenuId(activeMenuId === act.id ? null : act.id)}
@@ -1600,13 +1568,13 @@ function SortableActivityCard({ act, actIdx, dIdx, isLastActivity, isLastDay, ac
     );
 }
 
-// --- Date Picker Widget ---
+// date picker widget
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function DatePickerWidget({ dateMode, setDateMode, startDate, endDate, setStartDate, setEndDate, flexDays, setFlexDays, flexMonths, setFlexMonths, onClose }: any) {
 
-    // Toggle logic for exact dates
+    // toggle exact dates
     const handleExactSelect = (day: number, monthOffset: number) => {
-        const d = new Date(2026, 2 + monthOffset, day); // Base: March 2026
+        const d = new Date(2026, 2 + monthOffset, day);
         if (!startDate || (startDate && endDate)) {
             setStartDate(d);
             setEndDate(null);
@@ -1665,7 +1633,6 @@ function DatePickerWidget({ dateMode, setDateMode, startDate, endDate, setStartD
 
     return (
         <div className="flex flex-col h-full min-h-0">
-            {/* Top Toggle */}
             <div className="flex justify-center mb-5 shrink-0">
                 <div className="flex items-center bg-[#f3f4f6] rounded-full p-1 gap-0.5">
                     {(["exact", "flexible"] as const).map((v) => (
@@ -1693,20 +1660,18 @@ function DatePickerWidget({ dateMode, setDateMode, startDate, endDate, setStartD
                 </div>
             </div>
 
-            {/* Content Area */}
             <div className="flex-1 overflow-hidden min-h-0 scrollbar-none pb-2">
                 {dateMode === "exact" ? (
                     <div className="flex flex-col md:flex-row gap-8 relative pb-4">
                         <button className="absolute left-0 top-0 h-8 w-8 flex items-center justify-center text-gray-400 hover:bg-gray-50 rounded-full"><ChevronLeft className="h-5 w-5" /></button>
                         <button className="absolute right-0 top-0 h-8 w-8 flex items-center justify-center text-gray-400 hover:bg-gray-50 rounded-full"><ChevronLeft className="h-5 w-5 rotate-180" /></button>
 
-                        {renderExactMonth("March", 31, 0, 0)}  {/* March 2026 -> Sun(0) */}
+                        {renderExactMonth("March", 31, 0, 0)}
                         <div className="hidden md:block w-px bg-border" />
-                        <div className="hidden md:block flex-1">{renderExactMonth("April", 30, 3, 1)}</div> {/* April 2026 -> Wed(3) */}
+                        <div className="hidden md:block flex-1">{renderExactMonth("April", 30, 3, 1)}</div>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-8 pb-4 animate-in fade-in zoom-in-95 duration-200">
-                        {/* Flexible Days Row */}
                         <div>
                             <div className="flex justify-between items-center mb-4">
                                 <h4 className="font-bold text-gray-900 text-lg">Days</h4>
@@ -1723,7 +1688,6 @@ function DatePickerWidget({ dateMode, setDateMode, startDate, endDate, setStartD
                             </div>
                         </div>
 
-                        {/* Flexible Months Grid */}
                         <div>
                             <h4 className="font-bold text-gray-900 text-lg mb-4">Month</h4>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1744,7 +1708,6 @@ function DatePickerWidget({ dateMode, setDateMode, startDate, endDate, setStartD
                 )}
             </div>
 
-            {/* Footer */}
             <div className="flex justify-between items-center pt-4 border-t border-border shrink-0">
                 <span className="text-sm font-semibold text-gray-600">
                     {dateMode === "exact"

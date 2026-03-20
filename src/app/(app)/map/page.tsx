@@ -65,7 +65,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from "@dnd-kit/utilities";
 import { useRouter } from "next/navigation";
 
-/* ─── Types ──────────────────────────────────────────────────── */
+// types
 type ViewMode = "itinerary" | "map";
 type TransportMode = "drive" | "transit" | "walk";
 type ActionMode = "view" | "edit" | "remove";
@@ -115,7 +115,7 @@ interface SearchResult {
     reviews?: { author: string; text: string; rating: number }[];
 }
 
-/* ─── Transit Calculation ────────────────────────────────────── */
+// calculations
 function haversineKm(
     lat1: number,
     lng1: number,
@@ -197,7 +197,7 @@ function rebuildTransits(
     return result;
 }
 
-/* ─── Bezier route ───────────────────────────────────────────── */
+// route curves
 function getCurvedRoute(
     start: [number, number],
     end: [number, number]
@@ -222,7 +222,7 @@ const generateId = (prefix: string) =>
         .toString(36)
         .slice(2, 7)}`;
 
-/* ─── Colors ─────────────────────────────────────────────────── */
+// colors
 const COLORS = {
     meal: "#e8820c",
     activity: "#1D4983",
@@ -233,7 +233,7 @@ const COLORS = {
     walk: "#7c3aed",
 };
 
-/* ─── Search data ────────────────────────────────────────────── */
+// mock search results
 const DUMMY_SEARCH_RESULTS: SearchResult[] = [
     {
         id: "s1",
@@ -355,7 +355,7 @@ const DUMMY_SEARCH_RESULTS: SearchResult[] = [
     },
 ];
 
-/* ─── Seed data ───────────────────────────────────────────────── */
+// trip seed data
 const RAW_SEED: DayPlan[] = [
     {
         day: 1,
@@ -539,7 +539,7 @@ const INITIAL_TRIP_DATA: DayPlan[] = RAW_SEED.map((d) => ({
     events: rebuildTransits(d.events, "transit"),
 }));
 
-/* ─── Main Page ──────────────────────────────────────────────── */
+// map page
 export default function TripMapPage() {
     const router = useRouter();
     const [view, setView] = React.useState<ViewMode>("map");
@@ -559,7 +559,7 @@ export default function TripMapPage() {
     const day = tripData[activeDay];
     const savingRef = React.useRef(false);
 
-    /* Rebuild transits when transport mode changes */
+    /* rebuild transits on transport mode change */
     React.useEffect(() => {
         setTripData((prev) =>
             prev.map((d) => ({ ...d, events: rebuildTransits(d.events, transportMode) }))
@@ -609,7 +609,7 @@ export default function TripMapPage() {
         setModalConfig({ isOpen: false, mode: "add" });
     };
 
-    /* Zustand store — read linked transport + stay from hero */
+    /* linked logistics from hero */
     const linkedTransport = useTripStore((s) => s.linkedTransport);
     const linkedStay = useTripStore((s) => s.linkedStay);
 
@@ -635,7 +635,7 @@ export default function TripMapPage() {
         }
     };
 
-    /* Reorder handler for itinerary view */
+    /* itinerary reorder */
     const handleReorder = React.useCallback(
         (newPlaceEvents: EventItem[]) => {
             setTripData((prev) => {
@@ -656,7 +656,6 @@ export default function TripMapPage() {
                 }}
             />
 
-            {/* Header */}
             <header className="shrink-0 h-14 bg-white border-b border-gray-200 flex items-center justify-between px-5 z-20 shadow-sm">
                 <div className="flex items-center gap-3">
                     <button className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
@@ -700,7 +699,6 @@ export default function TripMapPage() {
                 </Link>
             </header>
 
-            {/* Day tabs */}
             <div className="px-5 bg-white border-b border-gray-200 flex items-center justify-between">
                 <div className="shrink-0 h-12 flex items-center gap-1 overflow-x-auto z-10">
                     {tripData.map((d, i) => (
@@ -734,7 +732,6 @@ export default function TripMapPage() {
                         </button>
                     ))}
                 </div>
-                {/* Confirm & Sync Button */}
                 <Button
                     onClick={handleConfirmSync}
                     variant="outline"
@@ -748,7 +745,6 @@ export default function TripMapPage() {
                 </Button>
             </div>
 
-            {/* Logistics Panel — linked transport + stay from hero */}
             {(linkedTransport || linkedStay) && (
                 <motion.div
                     initial={{ opacity: 0, height: 0 }}
@@ -775,7 +771,6 @@ export default function TripMapPage() {
                 </motion.div>
             )}
 
-            {/* Content */}
             <div className="flex-1 w-full relative overflow-hidden bg-[#e2e8f0]">
                 <AnimatePresence mode="wait">
                     {view === "itinerary" ? (
@@ -849,7 +844,6 @@ export default function TripMapPage() {
                 activeDayIndex={activeDay}
             />
 
-            {/* Sync Overlay */}
             <AnimatePresence>
                 {syncPhase !== "idle" && (
                     <motion.div
@@ -875,7 +869,6 @@ export default function TripMapPage() {
                                     exit={{ opacity: 0, y: -10 }}
                                     className="flex flex-col items-center"
                                 >
-                                    {/* Phone icon with pulsing ring */}
                                     <div className="relative mb-6">
                                         <motion.div
                                             className="absolute inset-0 rounded-full bg-[#1D4983]/15"
@@ -899,7 +892,6 @@ export default function TripMapPage() {
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                         <span className="text-xs font-semibold">Please wait</span>
                                     </div>
-                                    {/* Progress bar */}
                                     <div className="w-full h-1.5 bg-gray-100 rounded-full mt-5 overflow-hidden">
                                         <motion.div
                                             className="h-full bg-linear-to-r from-[#1D4983] to-[#4a98f7] rounded-full"
@@ -918,7 +910,6 @@ export default function TripMapPage() {
                                     exit={{ opacity: 0, y: -10 }}
                                     className="flex flex-col items-center"
                                 >
-                                    {/* Animated checkmark */}
                                     <motion.div
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
@@ -929,7 +920,6 @@ export default function TripMapPage() {
                                         <Check className="w-8 h-8 text-white stroke-[2.5]" />
                                     </motion.div>
 
-                                    {/* Confetti particles */}
                                     {[...Array(8)].map((_, i) => (
                                         <motion.div
                                             key={i}
@@ -983,7 +973,7 @@ export default function TripMapPage() {
     );
 }
 
-/* ─── Search Result Drawer ───────────────────────────────────── */
+// search results
 function SearchResultDrawer({
     result,
     onClose,
@@ -1164,7 +1154,7 @@ function SearchResultDrawer({
     );
 }
 
-/* ─── Map View ───────────────────────────────────────────────── */
+// map view
 function MapView({
     day,
     expandedEvent,
@@ -1252,7 +1242,6 @@ function MapView({
             exit={{ opacity: 0 }}
             className="absolute inset-0 w-full h-full"
         >
-            {/* MAP */}
             <div className="absolute inset-0 z-0">
                 <Map
                     ref={mapRef}
@@ -1522,7 +1511,6 @@ function MapView({
                 </Map>
             </div>
 
-            {/* SEARCH */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4 pointer-events-auto flex flex-col gap-2">
                 <div className="flex items-center gap-2 bg-white/95 backdrop-blur-md rounded-full shadow-lg border border-gray-200 px-4 h-12 relative z-30">
                     <Search className="h-5 w-5 text-gray-400 shrink-0" />
@@ -1595,7 +1583,6 @@ function MapView({
                 </AnimatePresence>
             </div>
 
-            {/* SIDEBAR */}
             <motion.div
                 initial={{ x: -350, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -1761,7 +1748,7 @@ function MapView({
     }
 }
 
-/* ─── Map Sidebar Transit Row ────────────────────────────────── */
+// transit row
 function TransitRow({
     event,
     transportMode,
@@ -1855,7 +1842,7 @@ function TransitRow({
     );
 }
 
-/* ─── Map Sidebar Place Row ──────────────────────────────────── */
+// place row
 // function PlaceRow({
 //     event,
 //     isSelected,
@@ -1948,7 +1935,7 @@ function TransitRow({
 //     );
 // }
 
-/* ─── Sortable Map Sidebar Place Row ───────────────────── */
+// sortable place row
 function SortablePlaceRow(props: {
     event: EventItem;
     isSelected: boolean;
@@ -2058,7 +2045,7 @@ function SortablePlaceRow(props: {
     );
 }
 
-/* ─── Helpers ────────────────────────────────────────────────── */
+// helpers
 const LegendItem = ({ color, label }: { color: string; label: string }) => (
     <div className="flex items-center gap-1.5">
         <span
@@ -2090,7 +2077,7 @@ const ToolbarButton = ({ icon, isActive, onClick, tooltip }: any) => (
     </div>
 );
 
-/* ─── Action Modal ───────────────────────────────────────────── */
+// action modal
 function ActionModal({
     config,
     tripData,
@@ -2152,7 +2139,7 @@ function ActionModal({
     );
 }
 
-/* ─── Form Modal ─────────────────────────────────────────────── */
+// form modal
 function FormModal({
     config,
     event,
@@ -2442,7 +2429,7 @@ function FormModal({
     );
 }
 
-/* ─── Day Selector ───────────────────────────────────────────── */
+// day selector
 function DaySelector({
     tripData,
     targetDay,

@@ -24,11 +24,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useAuth, type AuthUser } from "@/lib/auth-context";
 
-/* ─── Brand ───────────────────────────────────────────────────── */
+// brand colors
 const NAVY = "#1D4983";
 const TEAL = "#0f9a8e";
 
-/* ─── Data ────────────────────────────────────────────────────── */
+// mock data
 const UPCOMING_TRIPS = [
     { id: 4, title: "Morocco Adventure", dates: "Jul 15 – Jul 25, 2026", img: "https://images.unsplash.com/photo-1539020140153-e479b8c22e70?w=400&auto=format&fit=crop", stops: 6 },
     { id: 5, title: "Kyoto in Autumn", dates: "Oct 5 – Oct 14, 2026", img: "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=400&auto=format&fit=crop", stops: 4 },
@@ -55,7 +55,7 @@ const BADGES = [
 
 const STATS = { trips: 14, countries: 9, saved: 38, reviews: 22 };
 
-/* ─── Trip Itineraries (dummy data) ──────────────────────────── */
+// itineraries
 const EVENT_COLORS: Record<string, string> = {
     activity: "#3b82f6",
     meal: "#f59e0b",
@@ -150,12 +150,12 @@ const TAB_LIST = [
 ] as const;
 type TabId = typeof TAB_LIST[number]["id"];
 
-/* ─── Card wrapper ────────────────────────────────────────────── */
+// card wrapper
 function Card({ children, className }: { children: React.ReactNode; className?: string }) {
     return <div className={cn("bg-white rounded-2xl border border-gray-200 shadow-sm", className)}>{children}</div>;
 }
 
-/* ─── Section label ───────────────────────────────────────────── */
+// section label
 function SectionLabel({ color, children }: { color: string; children: React.ReactNode }) {
     return (
         <p className="text-[10px] font-bold uppercase tracking-[0.08em] mb-2 flex items-center gap-1.5 px-1" style={{ color: "#9ca3af" }}>
@@ -165,7 +165,7 @@ function SectionLabel({ color, children }: { color: string; children: React.Reac
     );
 }
 
-/* ─── Row helpers ─────────────────────────────────────────────── */
+// row helpers
 function TripRow({ trip, upcoming, onClick, isSelected }: { trip: typeof PAST_TRIPS[0]; upcoming?: boolean; onClick?: () => void; isSelected?: boolean }) {
     return (
         <div
@@ -199,7 +199,7 @@ function TripRow({ trip, upcoming, onClick, isSelected }: { trip: typeof PAST_TR
     );
 }
 
-/* ─── Trip Detail View ─────────────────────────────────────────── */
+// trip details
 function TripDetailView({ itinerary }: { itinerary: typeof TRIP_ITINERARIES[number] }) {
     const [activeDay, setActiveDay] = React.useState(0);
     const days = itinerary;
@@ -214,7 +214,6 @@ function TripDetailView({ itinerary }: { itinerary: typeof TRIP_ITINERARIES[numb
             className="overflow-hidden"
         >
             <div className="mt-2 mb-3 mx-1 bg-linear-to-br from-gray-50 to-blue-50/40 border border-gray-200/80 rounded-2xl p-4 shadow-inner">
-                {/* Day Tabs */}
                 <div className="flex items-center gap-1.5 mb-4 overflow-x-auto scrollbar-none">
                     {days.map((d, i) => (
                         <button
@@ -232,13 +231,11 @@ function TripDetailView({ itinerary }: { itinerary: typeof TRIP_ITINERARIES[numb
                     ))}
                 </div>
 
-                {/* Day Theme */}
                 <div className="flex items-center gap-2 mb-3">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Theme</span>
                     <span className="text-[12px] font-semibold text-gray-700 bg-white px-2 py-0.5 rounded-md border border-gray-100">{current.theme}</span>
                 </div>
 
-                {/* Events Timeline */}
                 <div className="space-y-0">
                     {current.events.map((evt, i) => {
                         const color = EVENT_COLORS[evt.type] || "#6b7280";
@@ -349,9 +346,7 @@ function CustomTabs({ active, onChange }: { active: TabId; onChange: (t: TabId) 
     );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   EDIT PROFILE DIALOG
-══════════════════════════════════════════════════════════════ */
+// edit profile dialog
 function EditProfileDialog({ open, onClose, user, onSave }: { open: boolean; onClose: () => void; user: AuthUser; onSave: (patch: Partial<AuthUser>) => void }) {
     const [form, setForm] = React.useState({ name: user.name, email: user.email, location: user.location || "", currency: "CAD", language: "en" });
     const [avatarPreview, setAvatarPreview] = React.useState<string | null>(user.avatar);
@@ -499,9 +494,7 @@ function EditProfileDialog({ open, onClose, user, onSave }: { open: boolean; onC
     );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   PRIVACY & SECURITY 
-══════════════════════════════════════════════════════════════ */
+// privacy dialog
 function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const [view, setView] = React.useState<"main" | "password">("main");
     const [settings, setSettings] = React.useState({ profileVisible: true, tripsVisible: false, savedVisible: false, twoFactor: false });
@@ -644,9 +637,7 @@ function PrivacyDialog({ open, onClose }: { open: boolean; onClose: () => void }
     );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   BILLING
-══════════════════════════════════════════════════════════════ */
+// billing dialog
 function BillingDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const [view, setView] = React.useState<"main" | "addCard">("main");
     const [card, setCard] = React.useState({ number: "", name: "", expiry: "", cvv: "" });
@@ -800,9 +791,7 @@ function BillingDialog({ open, onClose }: { open: boolean; onClose: () => void }
     );
 }
 
-/* ══════════════════════════════════════════════════════════════
-   MAIN PAGE
-══════════════════════════════════════════════════════════════ */
+// main page
 export default function ProfileDashboard() {
     const { user, signOut, updateUser } = useAuth();
     const router = useRouter();

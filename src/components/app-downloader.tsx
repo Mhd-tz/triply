@@ -7,16 +7,14 @@ export default function AppDownloadBanner() {
         <section className="w-[95%] sm:w-[80%] mx-auto px-4 py-4 pt-10">
             <div className="relative overflow-hidden rounded-3xl border border-primary/80 px-6 py-8 sm:px-8 sm:py-8 flex flex-col sm:flex-row items-center justify-between gap-8 sm:gap-6 min-h-[180px]">
 
-                {/* ── Background decorative circles ─────────────── */}
+                {/* background decorations */}
                 <div className="absolute -top-12 -left-12 h-48 w-48 rounded-full bg-primary/5 pointer-events-none" />
                 <div className="absolute -bottom-16 left-24 h-56 w-56 rounded-full bg-primary/5 pointer-events-none" />
                 <div className="absolute top-4 right-[340px] h-24 w-24 rounded-full bg-primary/5 pointer-events-none hidden sm:block" />
                 <div className="absolute top-10 right-[300px] h-24 w-24 rounded-full bg-primary/5 pointer-events-none hidden sm:block" />
 
-                {/* ── Left: QR + text ───────────────────────────── */}
                 <div className="flex flex-col sm:flex-row items-center gap-6 z-10 flex-1 min-w-0 w-full">
 
-                    {/* QR placeholder slot - Hidden on mobile */}
                     <div className="shrink-0 hidden sm:flex flex-col items-center gap-2">
                         <div className="h-[100px] w-[100px] rounded-2xl bg-white flex items-center justify-center border-4 border-white shadow-lg overflow-hidden">
                             {/* Replace this div's contents with your <img src="..." /> QR code */}
@@ -31,10 +29,8 @@ export default function AppDownloadBanner() {
                         </p>
                     </div>
 
-                    {/* Divider - Hidden on mobile */}
                     <div className="w-px h-35 bg-primary/50 shrink-0 hidden sm:block" />
 
-                    {/* Text */}
                     <div className="flex flex-col gap-3 min-w-0 items-center sm:items-start text-center sm:text-left">
 
                         <h2 className="font-heading font-bold text-black text-xl sm:text-2xl leading-tight">
@@ -45,7 +41,6 @@ export default function AppDownloadBanner() {
                             Get real-time flight updates, hotel check-in reminders, and your full itinerary, even offline!
                         </p>
 
-                        {/* Store buttons */}
                         <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-2">
                             <a
                                 href="#"
@@ -69,11 +64,9 @@ export default function AppDownloadBanner() {
                     </div>
                 </div>
 
-                {/* ── Right: Phone mockups ──────────────────────── */}
+                {/* mockups */}
                 <div className="relative shrink-0 w-[200px] h-[150px] hidden sm:block lg:w-[220px] lg:h-[160px]">
-                    {/* Back phone */}
                     <PhoneMockup className="absolute right-0 top-0 w-[110px] lg:w-[120px] opacity-60 rotate-6 translate-x-4 -translate-y-2" />
-                    {/* Front phone */}
                     <PhoneMockup className="absolute right-10 bottom-0 w-[120px] lg:w-[130px] -rotate-3" />
                 </div>
             </div>
@@ -81,7 +74,7 @@ export default function AppDownloadBanner() {
     );
 }
 
-/* ── Inline SVG phone mockup ─────────────────────────────────── */
+// phone mockup
 function PhoneMockup({ className }: { className?: string }) {
     return (
         <svg
