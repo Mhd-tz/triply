@@ -694,9 +694,19 @@ export default function TripMapPage() {
                         </button>
                     ))}
                 </div>
+                {/* <div className="flex items-center gap-3"> */}
+                {/* <Button asChild
+                        variant="outline"
+                        size='sm'
+                    >
+                        <Link href="/">
+                            Plan New Trip
+                        </Link>
+                    </Button> */}
                 <Link href="/">
                     <Image src={Logo} alt="Triply Logo" className="w-auto h-9" />
                 </Link>
+                {/* </div> */}
             </header>
 
             <div className="px-5 bg-white border-b border-gray-200 flex items-center justify-between">

@@ -1203,7 +1203,7 @@ export default function HeroSection() {
                                                 initial={{ opacity: 0, y: 8 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: 0.3, duration: 0.4 }}
-                                                className="mt-1"
+                                            // className="mt-1"
                                             >
                                                 {user ? (
                                                     <Button
@@ -1224,6 +1224,21 @@ export default function HeroSection() {
                                                         Sign in to confirm
                                                     </motion.button>
                                                 )}
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 8 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: 0.3, duration: 0.4 }}
+                                                    className="mt-3"
+                                                >
+                                                    <Button asChild
+                                                        variant="outline"
+                                                        className="w-full h-12 hover:bg-gray-100 hover:text-gray-900"
+                                                    >
+                                                        <Link href="/map">
+                                                            Open Full Itinerary Map
+                                                        </Link>
+                                                    </Button>
+                                                </motion.div>
                                             </motion.div>
                                         </div>
                                     </div>
