@@ -81,6 +81,7 @@ export default function HeroSection() {
         window.scrollTo({ top: 0, behavior: "smooth" });
         setAppState("collapsed");
         setShowDatePicker(false);
+        setDestination("");
     };
 
     const handleDateInputClick = () => {
@@ -289,7 +290,7 @@ export default function HeroSection() {
                                             disabled={!destination}
                                             className="w-full md:w-auto h-11 px-8 font-semibold"
                                         >
-                                            Search
+                                            Plan
                                         </Button>
                                     </div>
                                 </div>
