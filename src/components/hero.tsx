@@ -438,13 +438,6 @@ function DestinationAutocomplete({
         }
     };
 
-    // Country code → flag emoji
-    const flagEmoji = (cc?: string) => {
-        if (!cc) return "📍";
-        return cc.toUpperCase().replace(/./g, (c) =>
-            String.fromCodePoint(127397 + c.charCodeAt(0))
-        );
-    };
 
 
     return (
@@ -487,8 +480,8 @@ function DestinationAutocomplete({
                     >
                         {suggestions.map((f, i) => {
                             const { primary, secondary } = formatLabel(f);
-                            const flag = flagEmoji(f.properties.country_code);
                             const isActive = i === activeIndex;
+                            const countryCode = f.properties.country_code;
                             return (
                                 <li
                                     key={f.properties.place_id}
@@ -499,7 +492,16 @@ function DestinationAutocomplete({
                                         isActive ? "bg-primary/5" : "hover:bg-gray-50"
                                     )}
                                 >
-                                    <span className="text-[18px] leading-none shrink-0">{flag}</span>
+                                    {countryCode ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={`https://flagsapi.com/${countryCode.toUpperCase()}/flat/64.png`}
+                                            alt={countryCode}
+                                            className="w-5 h-4 object-cover rounded-[2px] shadow-sm shrink-0"
+                                        />
+                                    ) : (
+                                        <span className="text-[18px] leading-none shrink-0">📍</span>
+                                    )}
                                     <div className="flex flex-col min-w-0">
                                         <span className={cn(
                                             "text-[14px] font-semibold truncate",
@@ -527,14 +529,14 @@ function DestinationAutocomplete({
 
 // --- Destination Chips ---
 const DESTINATIONS = [
-    { label: "Tokyo", emoji: "🇯🇵" },
-    { label: "Paris", emoji: "🇫🇷" },
-    { label: "Bali", emoji: "🇮🇩" },
-    { label: "New York", emoji: "🇺🇸" },
-    { label: "Santorini", emoji: "🇬🇷" },
-    { label: "Bangkok", emoji: "🇹🇭" },
-    { label: "London", emoji: "🇬🇧" },
-    { label: "Dubai", emoji: "🇦🇪" },
+    { label: "Tokyo", cc: "JP" },
+    { label: "Paris", cc: "FR" },
+    { label: "Bali", cc: "ID" },
+    { label: "New York", cc: "US" },
+    { label: "Santorini", cc: "GR" },
+    { label: "Bangkok", cc: "TH" },
+    { label: "London", cc: "GB" },
+    { label: "Dubai", cc: "AE" },
 ];
 
 function DestinationChips({ onSelect }: { onSelect: (dest: string) => void }) {
@@ -555,10 +557,15 @@ function DestinationChips({ onSelect }: { onSelect: (dest: string) => void }) {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.1 + i * 0.04, duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
                     onClick={() => onSelect(dest.label)}
-                    className="group flex items-center gap-1.5 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:border-primary hover:bg-primary/5 transition-all duration-150 cursor-pointer"
+                    className="group flex items-center gap-2 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:border-primary hover:bg-primary/5 transition-all duration-150 cursor-pointer"
                 >
-                    <span className="text-[13px] leading-none">{dest.emoji}</span>
-                    <span className="text-[12px] font-semibold text-gray-600 group-hover:text-primary transition-colors">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={`https://flagsapi.com/${dest.cc}/flat/64.png`}
+                        alt={dest.label}
+                        className="w-4 h-3.5 object-cover rounded-[2px] shadow-sm shrink-0 border border-gray-100"
+                    />
+                    <span className="text-[12px] font-bold text-gray-600 group-hover:text-primary transition-colors">
                         {dest.label}
                     </span>
                 </motion.button>
@@ -640,7 +647,7 @@ function DatePickerWidget({
         const blanks = Array.from({ length: firstDay });
         const todayNorm = startOfDay(today);
 
-        // Effective end for range highlight (use hover if no endDate yet)
+        // Effective end for range highlight
         const effectiveEnd = endDate ?? (startDate && hoverDate && hoverDate > startDate ? hoverDate : null);
 
         return (
