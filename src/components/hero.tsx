@@ -170,7 +170,7 @@ export default function HeroSection() {
                             transition={{ duration: 0.45 }}
                         >
                             <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-white/80 drop-shadow-md">
-                                AI-Powered Trip Planner
+                                Your next adventure awaits
                             </p>
                             <h1 className="text-center text-white leading-tight font-serif italic text-3xl md:text-4xl drop-shadow-lg">
                                 Where do you want{" "}
@@ -214,7 +214,7 @@ export default function HeroSection() {
                                         value={destination}
                                         onChange={(e) => setDestination(e.target.value)}
                                         onClick={expand}
-                                        placeholder="Where do you wanna go?"
+                                        placeholder="Search destinations..."
                                         className="w-full h-12 border-[1.5px] border-gray-200 pl-11 pr-14 text-[16px] font-medium text-gray-800 placeholder:text-gray-400 outline-none focus:border-primary transition-colors cursor-text rounded-lg"
                                     />
                                 </div>
