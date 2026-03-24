@@ -25,6 +25,7 @@ import {
     DestinationChips,
     DatePickerWidget
 } from "@/components/search-bar-components";
+import { formatDateToYYYYMMDD } from "@/lib/utils";
 
 type AppState = "collapsed" | "expanded";
 
@@ -271,6 +272,15 @@ export default function HeroSection() {
                                                 if (travelers) params.set("travelers", travelers);
                                                 params.set("dateSummary", renderSummaryDate());
                                                 params.set("dateMode", dateMode);
+                                                
+                                                if (dateMode === "exact") {
+                                                    if (startDate) params.set("start", formatDateToYYYYMMDD(startDate));
+                                                    if (endDate) params.set("end", formatDateToYYYYMMDD(endDate));
+                                                } else {
+                                                    params.set("flexDays", flexDays);
+                                                    if (flexMonths.length > 0) params.set("flexMonths", flexMonths.join(","));
+                                                }
+
                                                 router.push(`/planner?${params.toString()}`);
                                             }}
                                             className="w-full md:w-auto h-11 px-8 font-semibold"

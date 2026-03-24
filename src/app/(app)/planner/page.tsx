@@ -50,6 +50,7 @@ import {
     Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { parseYYYYMMDD } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
@@ -378,10 +379,8 @@ export default function TripMapPage() {
         let daysInfo: { day: number; date: string }[] = [];
 
         if (dateMode === "exact" && startStr && endStr) {
-            const start = new Date(startStr);
-            const end = new Date(endStr);
-            start.setHours(0, 0, 0, 0);
-            end.setHours(0, 0, 0, 0);
+            const start = parseYYYYMMDD(startStr);
+            const end = parseYYYYMMDD(endStr);
             const diffTime = end.getTime() - start.getTime();
             const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
             const days = Math.max(1, isNaN(diffDays) ? 1 : diffDays);

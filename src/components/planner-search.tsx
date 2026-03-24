@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatDateToYYYYMMDD, parseYYYYMMDD } from "@/lib/utils";
 
 import {
     DateMode,
@@ -31,8 +32,8 @@ export default function PlannerSearch() {
     const initialDateMode = (searchParams.get("dateMode") as DateMode) || "exact";
     
     // Parse exact dates
-    const initialStart = searchParams.get("start") ? new Date(searchParams.get("start") as string) : null;
-    const initialEnd = searchParams.get("end") ? new Date(searchParams.get("end") as string) : null;
+    const initialStart = searchParams.get("start") ? parseYYYYMMDD(searchParams.get("start") as string) : null;
+    const initialEnd = searchParams.get("end") ? parseYYYYMMDD(searchParams.get("end") as string) : null;
     
     // Parse flexible dates
     const initialFlexDays = searchParams.get("flexDays") || "7 days";
@@ -85,9 +86,9 @@ export default function PlannerSearch() {
         params.set("dateMode", dateMode);
         
         if (dateMode === "exact") {
-            if (startDate) params.set("start", startDate.toISOString());
+            if (startDate) params.set("start", formatDateToYYYYMMDD(startDate));
             else params.delete("start");
-            if (endDate) params.set("end", endDate.toISOString());
+            if (endDate) params.set("end", formatDateToYYYYMMDD(endDate));
             else params.delete("end");
             params.delete("flexDays");
             params.delete("flexMonths");
