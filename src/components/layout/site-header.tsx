@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useSignInDialog } from "@/components/signin-dialog";
 import { useAuth } from "@/lib/auth-context";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 // nav data
 const navItems = [
@@ -79,6 +79,11 @@ export default function SiteHeader() {
     const { setOpen: openSignIn } = useSignInDialog();
     const { user, signOut } = useAuth();
     const router = useRouter();
+    const pathname = usePathname();
+
+    const isMainOrPlan = pathname === "/" || pathname === "/plan";
+    const actionButtonText = isMainOrPlan ? "My Trips" : "Plan Trip";
+    const actionButtonHref = isMainOrPlan ? "/trips" : "/plan";
 
     function handleSignOut() {
         signOut();
@@ -171,10 +176,23 @@ export default function SiteHeader() {
                             <Button
                                 size="sm"
                                 variant='outline'
-                                className="px-5"
+                                className="w-[102px] px-0 overflow-hidden"
                                 asChild
                             >
-                                <Link href="/">Plan Trip</Link>
+                                <Link href={actionButtonHref} className="flex items-center justify-center">
+                                    <AnimatePresence mode="popLayout" initial={false}>
+                                        <motion.span
+                                            key={actionButtonText}
+                                            initial={{ y: 15, opacity: 0, filter: "blur(2px)" }}
+                                            animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
+                                            exit={{ y: -15, opacity: 0, filter: "blur(2px)", position: "absolute" }}
+                                            transition={{ duration: 0.25, ease: "easeOut" }}
+                                            className="inline-block"
+                                        >
+                                            {actionButtonText}
+                                        </motion.span>
+                                    </AnimatePresence>
+                                </Link>
                             </Button>
                         </motion.div>
 
@@ -320,8 +338,8 @@ export default function SiteHeader() {
                                         className="text-sm font-medium text-white bg-[#1D4983] hover:bg-[#163970] justify-center"
                                         asChild
                                     >
-                                        <Link href="/plan" onClick={() => setMobileOpen(false)}>
-                                            Plan Trip
+                                        <Link href={actionButtonHref} onClick={() => setMobileOpen(false)}>
+                                            {actionButtonText}
                                         </Link>
                                     </Button>
                                     <Button

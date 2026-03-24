@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
     Select,
@@ -55,6 +56,7 @@ function startOfDay(d: Date) {
 }
 
 export default function HeroSection() {
+    const router = useRouter();
     const [appState, setAppState] = React.useState<AppState>("collapsed");
     const [destination, setDestination] = React.useState("");
     const [travelers, setTravelers] = React.useState("2");
@@ -186,6 +188,7 @@ export default function HeroSection() {
                 <motion.div
                     ref={cardRef}
                     layout
+                    layoutId="search-container"
                     className={cn(
                         "relative z-10 bg-white origin-top mx-auto",
                         appState === "collapsed"
@@ -288,6 +291,14 @@ export default function HeroSection() {
                                     <div className="w-full md:w-auto mt-2 md:mt-0">
                                         <Button
                                             disabled={!destination}
+                                            onClick={() => {
+                                                const params = new URLSearchParams();
+                                                if (destination) params.set("dest", destination);
+                                                if (travelers) params.set("travelers", travelers);
+                                                params.set("dateSummary", renderSummaryDate());
+                                                params.set("dateMode", dateMode);
+                                                router.push(`/plan?${params.toString()}`);
+                                            }}
                                             className="w-full md:w-auto h-11 px-8 font-semibold"
                                         >
                                             Plan
