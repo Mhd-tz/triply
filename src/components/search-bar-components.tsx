@@ -1,0 +1,576 @@
+"use client";
+
+import * as React from "react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+    MapPin,
+    ChevronLeft,
+    ChevronRight,
+    Calendar,
+    List,
+    Loader2,
+    MapPinPlus
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
+export type GeoapifyFeature = {
+    properties: {
+        place_id: string;
+        formatted: string;
+        city?: string;
+        country?: string;
+        country_code?: string;
+        result_type: string;
+    };
+};
+
+export type DateMode = "exact" | "flexible";
+
+export function getDaysInMonth(year: number, month: number) {
+    return new Date(year, month + 1, 0).getDate();
+}
+
+export function getFirstDayOfWeek(year: number, month: number) {
+    return new Date(year, month, 1).getDay();
+}
+
+export function isSameDay(a: Date, b: Date) {
+    return a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate();
+}
+
+export function startOfDay(d: Date) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+export function formatLabel(f: GeoapifyFeature) {
+    const { city, country, formatted } = f.properties;
+    if (city && country) return { primary: city, secondary: country };
+    const parts = formatted.split(",");
+    return {
+        primary: parts[0]?.trim() ?? formatted,
+        secondary: parts.slice(1).join(",").trim(),
+    };
+}
+
+// --- Destination Autocomplete ---
+export function DestinationAutocomplete({
+    value,
+    onChange,
+    autoFocus = false,
+    className,
+}: {
+    value: string;
+    onChange: (val: string) => void;
+    autoFocus?: boolean;
+    className?: string;
+}) {
+    const [suggestions, setSuggestions] = React.useState<GeoapifyFeature[]>([]);
+    const [open, setOpen] = React.useState(false);
+    const [loading, setLoading] = React.useState(false);
+    const [activeIndex, setActiveIndex] = React.useState(-1);
+    const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const listRef = React.useRef<HTMLUListElement>(null);
+
+    const fetchSuggestions = React.useCallback(async (query: string) => {
+        if (query.length < 2) { setSuggestions([]); setOpen(false); return; }
+        setLoading(true);
+        try {
+            const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(query)}&type=city&limit=10&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            const features: GeoapifyFeature[] = data.features ?? [];
+
+            // Filter duplicates based on primary and secondary labels
+            const seen = new Set<string>();
+            const filteredFeatures = features.filter((f) => {
+                const { primary, secondary } = formatLabel(f);
+                const label = `${primary}-${secondary}`;
+                if (seen.has(label)) return false;
+                seen.add(label);
+                return true;
+            }).slice(0, 6);
+
+            setSuggestions(filteredFeatures);
+            setOpen(filteredFeatures.length > 0);
+            setActiveIndex(-1);
+        } catch {
+            setSuggestions([]); setOpen(false);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        onChange(val);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => fetchSuggestions(val), 280);
+    };
+
+    const handleSelect = (feature: GeoapifyFeature) => {
+        const { city, formatted } = feature.properties;
+        onChange(city ?? formatted);
+        setSuggestions([]);
+        setOpen(false);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (!open) return;
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActiveIndex((i) => Math.max(i - 1, 0));
+        } else if (e.key === "Enter" && activeIndex >= 0) {
+            e.preventDefault();
+            handleSelect(suggestions[activeIndex]);
+        } else if (e.key === "Escape") {
+            setOpen(false);
+        }
+    };
+
+    return (
+        <div className="relative w-full">
+            <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none z-10" />
+            <input
+                ref={inputRef}
+                autoFocus={autoFocus}
+                autoComplete="off"
+                value={value}
+                onChange={handleChange}
+                onKeyDown={handleKeyDown}
+                onFocus={() => suggestions.length > 0 && setOpen(true)}
+                onBlur={() => setTimeout(() => setOpen(false), 150)}
+                placeholder="Destination"
+                className={cn(
+                    "w-full h-11 pl-10 pr-9 text-[14px] font-medium text-gray-800 placeholder:text-gray-400",
+                    "border border-gray-200 rounded-lg outline-none shadow-xs",
+                    "focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
+                    className
+                )}
+            />
+
+            {/* Loading spinner */}
+            {loading && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    <Loader2 className="animate-spin h-4 w-4 text-gray-400" />
+                </div>
+            )}
+
+            {/* Dropdown */}
+            <AnimatePresence>
+                {open && suggestions.length > 0 && (
+                    <motion.ul
+                        ref={listRef}
+                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                        transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                        className="absolute top-[calc(100%+6px)] left-0 right-0 z-50 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1"
+                    >
+                        {suggestions.map((f, i) => {
+                            const { primary, secondary } = formatLabel(f);
+                            const isActive = i === activeIndex;
+                            const countryCode = f.properties.country_code;
+                            return (
+                                <li
+                                    key={f.properties.place_id}
+                                    onMouseDown={() => handleSelect(f)}
+                                    onMouseEnter={() => setActiveIndex(i)}
+                                    className={cn(
+                                        "flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors",
+                                        isActive ? "bg-primary/5" : "hover:bg-gray-50"
+                                    )}
+                                >
+                                    {countryCode ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={`https://flagsapi.com/${countryCode.toUpperCase()}/flat/64.png`}
+                                            alt={countryCode}
+                                            className="w-5 h-4 object-cover rounded-[2px] shadow-sm shrink-0"
+                                        />
+                                    ) : (
+                                        <span className="text-[18px] leading-none shrink-0">📍</span>
+                                    )}
+                                    <div className="flex flex-col min-w-0">
+                                        <span className={cn(
+                                            "text-[14px] font-semibold truncate",
+                                            isActive ? "text-primary" : "text-gray-800"
+                                        )}>
+                                            {primary}
+                                        </span>
+                                        {secondary && (
+                                            <span className="text-[12px] text-gray-400 truncate">{secondary}</span>
+                                        )}
+                                    </div>
+                                    <MapPinPlus className={cn(
+                                        "h-3.5 w-3.5 ml-auto shrink-0 transition-opacity",
+                                        isActive ? "opacity-100 text-primary" : "opacity-0"
+                                    )} />
+                                </li>
+                            );
+                        })}
+                    </motion.ul>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
+
+// --- Destination Chips ---
+export const DESTINATIONS = [
+    { label: "Tokyo", cc: "JP" },
+    { label: "Paris", cc: "FR" },
+    { label: "Bali", cc: "ID" },
+    { label: "New York", cc: "US" },
+    { label: "Santorini", cc: "GR" },
+    { label: "Bangkok", cc: "TH" },
+    { label: "London", cc: "GB" },
+    { label: "Dubai", cc: "AE" },
+];
+
+export function DestinationChips({ onSelect }: { onSelect: (dest: string) => void }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            className="flex items-center gap-1.5 px-1 pt-2.5 pb-1 overflow-x-auto scrollbar-none"
+        >
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap shrink-0 mr-0.5">
+                Popular
+            </span>
+            {DESTINATIONS.map((dest, i) => (
+                <motion.button
+                    key={dest.label}
+                    initial={{ opacity: 0, scale: 0.88 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1 + i * 0.04, duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                    onClick={() => onSelect(dest.label)}
+                    className="group flex items-center gap-2 whitespace-nowrap shrink-0 px-3 py-1.5 rounded-full border border-gray-200 bg-white hover:border-primary hover:bg-primary/5 transition-all duration-150 cursor-pointer"
+                >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={`https://flagsapi.com/${dest.cc}/flat/64.png`}
+                        alt={dest.label}
+                        className="w-4 h-3.5 object-cover rounded-[2px] shadow-sm shrink-0 border border-gray-100"
+                    />
+                    <span className="text-[12px] font-bold text-gray-600 group-hover:text-primary transition-colors">
+                        {dest.label}
+                    </span>
+                </motion.button>
+            ))}
+        </motion.div>
+    );
+}
+
+export function DatePickerWidget({
+    today,
+    dateMode, setDateMode,
+    startDate, endDate, setStartDate, setEndDate,
+    flexDays, setFlexDays,
+    flexMonths, setFlexMonths,
+    onClose,
+    calendarYear, calendarMonth,
+    rightYear, rightMonth,
+    onPrev, onNext, canGoPrev,
+}: {
+    today: Date;
+    dateMode: DateMode;
+    setDateMode: (m: DateMode) => void;
+    startDate: Date | null;
+    endDate: Date | null;
+    setStartDate: (d: Date | null) => void;
+    setEndDate: (d: Date | null) => void;
+    flexDays: string;
+    setFlexDays: (d: string) => void;
+    flexMonths: string[];
+    setFlexMonths: (m: string[]) => void;
+    onClose: () => void;
+    calendarYear: number;
+    calendarMonth: number;
+    rightYear: number;
+    rightMonth: number;
+    onPrev: () => void;
+    onNext: () => void;
+    canGoPrev: boolean;
+}) {
+    const [hoverDate, setHoverDate] = React.useState<Date | null>(null);
+
+    const handleDayClick = (d: Date) => {
+        const tod = startOfDay(today);
+        if (d < tod) return; // past day, ignore
+        if (!startDate || (startDate && endDate)) {
+            setStartDate(d);
+            setEndDate(null);
+        } else if (d < startDate) {
+            setStartDate(d);
+            setEndDate(null);
+        } else if (isSameDay(d, startDate)) {
+            setStartDate(null);
+            setEndDate(null);
+        } else {
+            setEndDate(d);
+        }
+    };
+
+    const toggleFlexMonth = (m: string) => {
+        if (flexMonths.includes(m)) {
+            setFlexMonths(flexMonths.filter((mo) => mo !== m));
+        } else {
+            setFlexMonths([...flexMonths, m]);
+        }
+    };
+
+    const DAYS_OPTIONS = ["1 day", "2 days", "3 days", "4 days", "5 days", "6 days", "7 days"];
+    const MONTH_OPTIONS = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    ];
+    const MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"];
+
+    const renderMonth = (year: number, month: number) => {
+        const daysInMonth = getDaysInMonth(year, month);
+        const firstDay = getFirstDayOfWeek(year, month);
+        const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+        const blanks = Array.from({ length: firstDay });
+        const todayNorm = startOfDay(today);
+
+        // Effective end for range highlight
+        const effectiveEnd = endDate ?? (startDate && hoverDate && hoverDate > startDate ? hoverDate : null);
+
+        return (
+            <div className="flex-1 min-w-0">
+                <div className="text-center font-bold text-[17px] text-gray-900 mb-4">
+                    {MONTH_NAMES[month]} {year}
+                </div>
+                <div className="grid grid-cols-7 gap-y-1 text-center text-[12px] font-semibold mb-2">
+                    {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d, i) => (
+                        <span key={d} className={i === 0 || i === 6 ? "text-gray-300" : "text-gray-400"}>{d}</span>
+                    ))}
+                </div>
+                <div className="grid grid-cols-7 gap-y-1 text-center">
+                    {blanks.map((_, i) => <div key={`b${i}`} />)}
+                    {days.map((d) => {
+                        const current = new Date(year, month, d);
+                        const isPast = current < todayNorm;
+                        const isToday = isSameDay(current, todayNorm);
+                        const isStart = startDate ? isSameDay(current, startDate) : false;
+                        const isEnd = endDate ? isSameDay(current, endDate) : false;
+                        const inRange = startDate && effectiveEnd
+                            ? current > startDate && current < effectiveEnd
+                            : false;
+                        const isWeekend = current.getDay() === 0 || current.getDay() === 6;
+
+                        // Range caps: left/right halves
+                        const isRangeStart = isStart && effectiveEnd;
+                        const isRangeEnd = isEnd && startDate;
+
+                        return (
+                            <div
+                                key={d}
+                                className={cn(
+                                    "relative h-10 flex items-center justify-center",
+                                    inRange ? "bg-blue-50" : "",
+                                    // connect range
+                                )}
+                                onMouseEnter={() => !isPast && setHoverDate(current)}
+                                onMouseLeave={() => setHoverDate(null)}
+                                onClick={() => handleDayClick(current)}
+                            >
+                                {/* Range left/right connectors */}
+                                {isRangeStart && (
+                                    <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-blue-50" />
+                                )}
+                                {isRangeEnd && (
+                                    <div className="absolute left-0 top-0 bottom-0 w-1/2 bg-blue-50" />
+                                )}
+
+                                {isToday && (
+                                    <AnimatePresence>
+                                        {hoverDate && isSameDay(hoverDate, current) && (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.8, y: 4 }}
+                                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                exit={{ opacity: 0, scale: 0.8, y: 4 }}
+                                                className="absolute -top-10 left-1/2 -translate-x-1/2 z-50 px-2.5 py-1.5 bg-gray-900 text-white text-[10px] font-bold rounded-lg shadow-xl whitespace-nowrap pointer-events-none"
+                                            >
+                                                Today
+                                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-x-[5px] border-x-transparent border-t-[5px] border-t-gray-900" />
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                )}
+
+                                <div
+                                    className={cn(
+                                        "relative z-10 w-9 h-9 flex items-center justify-center rounded-full text-[14px] font-semibold transition-all select-none",
+                                        isPast
+                                            ? "text-gray-200 cursor-not-allowed"
+                                            : "cursor-pointer",
+                                        isToday && !isStart && !isEnd
+                                            ? "border-2 border-primary text-primary font-bold"
+                                            : "",
+                                        (isStart || isEnd)
+                                            ? "bg-primary text-white shadow-md"
+                                            : "",
+                                        !isPast && !isStart && !isEnd
+                                            ? isWeekend
+                                                ? "text-gray-400 hover:bg-gray-100"
+                                                : "text-gray-800 hover:bg-gray-100"
+                                            : "",
+                                    )}
+                                >
+                                    {d}
+                                    {/* Today dot */}
+                                    {isToday && !isStart && !isEnd && (
+                                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="flex flex-col h-full min-h-0">
+            {/* Mode toggle */}
+            <div className="flex justify-center mb-4 shrink-0">
+                <div className="flex items-center bg-[#f3f4f6] rounded-full p-1 gap-0.5">
+                    {(["exact", "flexible"] as const).map((v) => (
+                        <button
+                            key={v}
+                            onClick={() => setDateMode(v)}
+                            className={cn(
+                                "relative flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-full transition-colors duration-150 capitalize",
+                                dateMode === v ? "text-white" : "text-muted-foreground hover:text-foreground"
+                            )}
+                        >
+                            {dateMode === v && (
+                                <motion.div
+                                    layoutId="view-pill"
+                                    className="absolute inset-0 bg-primary shadow-md rounded-full"
+                                    transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                                />
+                            )}
+                            <span className="relative z-10 flex items-center gap-1.5 text-sm">
+                                {v === "exact" ? <Calendar className="h-3.5 w-3.5" /> : <List className="h-3.5 w-3.5" />}
+                                {v === "exact" ? "Date" : "Flexible"}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto min-h-0 scrollbar-none pb-2">
+                {dateMode === "exact" ? (
+                    <div className="flex flex-col md:flex-row gap-8 relative pb-4 px-1">
+                        {/* Prev button */}
+                        <button
+                            onClick={onPrev}
+                            disabled={!canGoPrev}
+                            className={cn(
+                                "absolute left-0 top-0 h-8 w-8 flex items-center justify-center rounded-full transition-colors z-10",
+                                canGoPrev
+                                    ? "text-gray-600 hover:bg-gray-100 cursor-pointer"
+                                    : "text-gray-200 cursor-not-allowed"
+                            )}
+                        >
+                            <ChevronLeft className="h-5 w-5" />
+                        </button>
+
+                        {/* Next button */}
+                        <button
+                            onClick={onNext}
+                            className="absolute right-0 top-0 h-8 w-8 flex items-center justify-center text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-10 cursor-pointer"
+                        >
+                            <ChevronRight className="h-5 w-5" />
+                        </button>
+
+                        <div className="pt-0 px-6 w-full md:w-auto md:flex-1">
+                            {renderMonth(calendarYear, calendarMonth)}
+                        </div>
+                        <div className="hidden md:block w-px bg-border shrink-0" />
+                        <div className="hidden md:flex md:flex-1 px-6">
+                            {renderMonth(rightYear, rightMonth)}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-5 pb-2 px-2 animate-in fade-in zoom-in-95 duration-200">
+                        <div>
+                            <h4 className="font-bold text-gray-900 text-base mb-3">Days</h4>
+                            <div className="flex flex-wrap gap-2">
+                                {DAYS_OPTIONS.map((day) => (
+                                    <button
+                                        key={day}
+                                        onClick={() => setFlexDays(day)}
+                                        className={cn(
+                                            "px-5 py-2 rounded-full border text-[14px] font-semibold transition-colors",
+                                            flexDays === day
+                                                ? "border-2 border-primary text-primary bg-blue-50"
+                                                : "border-gray-200 text-gray-600 hover:border-gray-400"
+                                        )}
+                                    >
+                                        {day}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-gray-900 text-base mb-3">Month</h4>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                                {MONTH_OPTIONS.map((month) => {
+                                    const isSelected = flexMonths.includes(month);
+                                    return (
+                                        <button
+                                            key={month}
+                                            onClick={() => toggleFlexMonth(month)}
+                                            className={cn(
+                                                "py-2.5 rounded-xl border text-[14px] font-semibold transition-all flex flex-col items-center justify-center",
+                                                isSelected
+                                                    ? "border-2 border-primary text-primary bg-blue-50"
+                                                    : "border-gray-200 text-gray-600 hover:border-gray-400"
+                                            )}
+                                        >
+                                            {month}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex justify-between items-center pt-3 border-t border-border shrink-0">
+                <span className="text-sm font-semibold text-gray-600">
+                    {dateMode === "exact"
+                        ? (startDate && endDate
+                            ? `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${endDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
+                            : startDate
+                                ? `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – pick end date`
+                                : "Select exact dates")
+                        : `${flexDays} in ${flexMonths.length > 0 ? flexMonths.join(", ") : "anytime"}`
+                    }
+                </span>
+                <Button
+                    onClick={onClose}
+                    className="px-6 font-bold h-11"
+                    disabled={dateMode === "exact" ? !startDate || !endDate : !flexDays || flexMonths.length === 0}
+                >
+                    Confirm
+                </Button>
+            </div>
+        </div>
+    );
+}

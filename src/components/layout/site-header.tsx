@@ -81,9 +81,9 @@ export default function SiteHeader() {
     const router = useRouter();
     const pathname = usePathname();
 
-    const isMainOrPlan = pathname === "/" || pathname === "/plan";
+    const isMainOrPlan = pathname === "/" || pathname === "/planner";
     const actionButtonText = isMainOrPlan ? "My Trips" : "Plan Trip";
-    const actionButtonHref = isMainOrPlan ? "/trips" : "/plan";
+    const actionButtonHref = isMainOrPlan ? "/trips" : "/planner";
 
     function handleSignOut() {
         signOut();
