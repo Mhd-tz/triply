@@ -62,8 +62,9 @@ import { useTripStore } from "@/lib/trip-store";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import PlannerSearch from "@/components/planner-search";
+import PlannerSidebar from "@/components/planner-sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { LayoutDashboard, LogOut } from "lucide-react";
@@ -360,194 +361,70 @@ const DUMMY_SEARCH_RESULTS: SearchResult[] = [
 ];
 
 // trip seed data
-const RAW_SEED: DayPlan[] = [
-    {
-        day: 1,
-        date: "April 24, 2026",
-        events: [
-            {
-                id: "d1-1",
-                time: "08:00",
-                title: "Breakfast at Tsukiji",
-                type: "meal",
-                color: COLORS.meal,
-                lat: 35.6655,
-                lng: 139.7707,
-                desc: "Fresh sushi breakfast to start the day. Try the tamagoyaki!",
-                images: ["https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop"],
-                rating: 4.7,
-                reviewCount: 8402,
-                reviews: [
-                    { author: "David K.", rating: 5, text: "The freshest seafood I've ever had. Go early to beat the crowds!" },
-                    { author: "Sarah M.", rating: 4, text: "Amazing food, but finding a place to sit can be tricky." },
-                ],
-            },
-            {
-                id: "d1-3",
-                time: "09:30",
-                title: "Shibuya Crossing",
-                type: "location",
-                color: COLORS.location,
-                lat: 35.6595,
-                lng: 139.7004,
-                desc: "Experience the world's busiest pedestrian crossing.",
-                images: ["https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1200"],
-                rating: 4.8,
-                reviewCount: 15420,
-            },
-            {
-                id: "d1-4",
-                time: "11:00",
-                title: "Yoyogi Hachimangu Shrine",
-                type: "activity",
-                color: COLORS.activity,
-                lat: 35.6715,
-                lng: 139.6962,
-                desc: "A peaceful and historic Shinto shrine hidden in the city.",
-                images: [
-                    "https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=400&auto=format&fit=crop",
-                    "https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=400&auto=format&fit=crop",
-                ],
-                rating: 4.5,
-                reviewCount: 2764,
-                url: "https://example.com",
-                reviews: [
-                    { author: "Jane D.", rating: 5, text: "Incredibly peaceful escape from the busy city." },
-                    { author: "Mark T.", rating: 4, text: "Beautiful architecture, highly recommend arriving early." },
-                ],
-            },
-            {
-                id: "d1-5",
-                time: "13:00",
-                title: "Lunch in Harajuku",
-                type: "meal",
-                color: COLORS.meal,
-                lat: 35.67,
-                lng: 139.702,
-                desc: "Grab some crepes and explore Takeshita Street.",
-            },
-            {
-                id: "d1-6",
-                time: "14:30",
-                title: "Meiji Jingu",
-                type: "activity",
-                color: COLORS.activity,
-                lat: 35.6764,
-                lng: 139.6993,
-                desc: "Dedicated to the deified spirits of Emperor Meiji and his wife.",
-                images: ["https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=400&auto=format&fit=crop"],
-                rating: 4.9,
-                reviewCount: 21300,
-                url: "https://example.com",
-                reviews: [
-                    { author: "Jane D.", rating: 5, text: "Incredibly peaceful escape from the busy city." },
-                    { author: "Mark T.", rating: 4, text: "Beautiful architecture, highly recommend arriving early." },
-                ],
-            },
-        ],
-    },
-    {
-        day: 2,
-        date: "April 25, 2026",
-        events: [
-            {
-                id: "d2-1",
-                time: "09:00",
-                title: "Senso-ji Temple",
-                type: "activity",
-                color: COLORS.activity,
-                lat: 35.7148,
-                lng: 139.7967,
-                images: ["https://images.unsplash.com/photo-1583845019058-20202720d29b?w=400&auto=format&fit=crop"],
-                desc: "Tokyo's oldest and most significant Buddhist temple.",
-                rating: 4.7,
-                reviewCount: 32014,
-            },
-            {
-                id: "d2-2",
-                time: "11:30",
-                title: "Nakamise Shopping Street",
-                type: "location",
-                color: COLORS.location,
-                lat: 35.7111,
-                lng: 139.7965,
-                desc: "Historic shopping street leading to the temple.",
-            },
-            {
-                id: "d2-3",
-                time: "13:00",
-                title: "Lunch in Asakusa",
-                type: "meal",
-                color: COLORS.meal,
-                lat: 35.712,
-                lng: 139.795,
-                desc: "Traditional tempura or soba noodles.",
-            },
-            {
-                id: "d2-4",
-                time: "15:00",
-                title: "Tokyo Skytree",
-                type: "location",
-                color: COLORS.location,
-                lat: 35.71,
-                lng: 139.8107,
-                images: ["https://images.unsplash.com/photo-1536640751915-770ceaf3e717?w=400&auto=format&fit=crop"],
-                desc: "Amazing panoramic views of the entire city.",
-                rating: 4.6,
-                reviewCount: 45112,
-            },
-        ],
-    },
-    {
-        day: 3,
-        date: "April 26, 2026",
-        events: [
-            {
-                id: "d3-1",
-                time: "10:00",
-                title: "Imperial Palace",
-                type: "activity",
-                color: COLORS.activity,
-                lat: 35.6852,
-                lng: 139.7528,
-                desc: "Primary residence of the Emperor of Japan.",
-                images: ["https://images.unsplash.com/photo-1624253321171-1be53e12f5f4?w=400&auto=format&fit=crop"],
-            },
-            {
-                id: "d3-2",
-                time: "12:30",
-                title: "Lunch in Ginza",
-                type: "meal",
-                color: COLORS.meal,
-                lat: 35.6712,
-                lng: 139.7652,
-                desc: "High-end dining and shopping district.",
-            },
-            {
-                id: "d3-3",
-                time: "14:00",
-                title: "teamLab Planets",
-                type: "activity",
-                color: COLORS.activity,
-                lat: 35.6399,
-                lng: 139.7938,
-                desc: "Immersive digital art museum.",
-                images: ["https://images.unsplash.com/photo-1551244072-5d12893278ab?w=400&auto=format&fit=crop"],
-            },
-        ],
-    },
-];
-
-const INITIAL_TRIP_DATA: DayPlan[] = RAW_SEED.map((d) => ({
-    ...d,
-    events: rebuildTransits(d.events, "transit"),
-}));
+const INITIAL_TRIP_DATA: DayPlan[] = [];
 
 // map page
 export default function TripMapPage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const initialTripData = React.useMemo(() => {
+        const dateMode = searchParams.get("dateMode") || "exact";
+        const startStr = searchParams.get("start");
+        const endStr = searchParams.get("end");
+        const flexDaysStr = searchParams.get("flexDays") || "7";
+        const flexMonths = searchParams.get("flexMonths") ? searchParams.get("flexMonths")!.split(",") : [];
+
+        let daysInfo: { day: number; date: string }[] = [];
+
+        if (dateMode === "exact" && startStr && endStr) {
+            const start = new Date(startStr);
+            const end = new Date(endStr);
+            start.setHours(0, 0, 0, 0);
+            end.setHours(0, 0, 0, 0);
+            const diffTime = end.getTime() - start.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+            const days = Math.max(1, isNaN(diffDays) ? 1 : diffDays);
+
+            daysInfo = Array.from({ length: days }).map((_, i) => {
+                const date = new Date(start);
+                date.setDate(date.getDate() + i);
+                return {
+                    day: i + 1,
+                    date: date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                };
+            });
+        } else if (dateMode === "flexible") {
+            const numDays = parseInt(flexDaysStr) || 7;
+            const monthTxt = flexMonths.length > 0 ? ` in ${flexMonths.join(", ")}` : "";
+            daysInfo = Array.from({ length: Math.max(1, numDays) }).map((_, i) => ({
+                day: i + 1,
+                date: `Flexible${monthTxt}`
+            }));
+        } else {
+            const start = new Date();
+            daysInfo = Array.from({ length: 4 }).map((_, i) => {
+                const date = new Date(start);
+                date.setDate(date.getDate() + i);
+                return {
+                    day: i + 1,
+                    date: date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                };
+            });
+        }
+
+        return daysInfo.map((info, i) => {
+            const existing = INITIAL_TRIP_DATA[i];
+            return {
+                day: info.day,
+                date: info.date,
+                events: existing ? existing.events : [],
+            };
+        });
+    }, [searchParams]);
+
     const [view, setView] = React.useState<ViewMode>("map");
-    const [tripData, setTripData] = React.useState<DayPlan[]>(INITIAL_TRIP_DATA);
+    const [tripData, setTripData] = React.useState<DayPlan[]>(initialTripData);
     const [activeDay, setActiveDay] = React.useState(0);
     const [expandedEvent, setExpandedEvent] = React.useState<string | null>(null);
     const [transportMode, setTransportMode] = React.useState<TransportMode>("transit");
@@ -559,6 +436,12 @@ export default function TripMapPage() {
         eventId?: string;
         prefillFromSearch?: SearchResult;
     }>({ isOpen: false, mode: "add" });
+
+    React.useEffect(() => {
+        setTripData(initialTripData);
+        setActiveDay(0);
+        setExpandedEvent(null);
+    }, [initialTripData]);
 
     const pathname = usePathname();
     const isMainOrPlan = pathname === "/" || pathname === "/planner";
@@ -628,8 +511,35 @@ export default function TripMapPage() {
     };
 
     /* linked logistics from hero */
-    const linkedTransport = useTripStore((s) => s.linkedTransport);
     const linkedStay = useTripStore((s) => s.linkedStay);
+    const plannerFlightsAll = useTripStore((s) => s.plannerFlights);
+    const removePlannerFlight = useTripStore((s) => s.removePlannerFlight);
+
+    /* sync plannerFlights into day timelines */
+    React.useEffect(() => {
+        setTripData(prev => {
+            return prev.map((dayPlan, dayIdx) => {
+                const dayNum = dayIdx + 1;
+                // Remove old flight events
+                const nonFlightEvents = dayPlan.events.filter(e => !e.id.startsWith("flight-"));
+                // Add flight events for this day
+                const flightEvents: EventItem[] = plannerFlightsAll
+                    .filter(f => f.dayNum === dayNum)
+                    .map(f => ({
+                        id: `flight-${f.id}`,
+                        time: f.departTime && f.departTime !== "—" ? f.departTime.replace(/\s?(AM|PM)/i, (_, m) => ` ${m}`) : "TBD",
+                        title: `✈ ${f.from.split(",")[0]} → ${f.to.split(",")[0]}`,
+                        type: "transit" as const,
+                        duration: f.duration || "",
+                        color: "#3b82f6",
+                        desc: f.alreadyBooked
+                            ? `Booking Ref: ${f.bookingRef}`
+                            : `${f.airline} ${f.flightNo}${f.price && f.price !== "0" ? ` · $${f.price}` : ""}`,
+                    }));
+                return { ...dayPlan, events: [...flightEvents, ...nonFlightEvents] };
+            });
+        });
+    }, [plannerFlightsAll]);
 
     const { setOpen: openSignIn, setOnSignInSuccess } = useSignInDialog();
     type SyncPhase = "idle" | "syncing" | "complete";
@@ -770,8 +680,8 @@ export default function TripMapPage() {
                 </div> */}
             </header>
 
-            <div className="px-5 bg-white border-b border-gray-200 flex items-center justify-between">
-                <div className="shrink-0 h-12 flex items-center gap-1 overflow-x-auto z-10">
+            <div className="px-5 bg-white border-b border-gray-200 flex items-center justify-between h-14 relative w-full overflow-hidden">
+                <div className="flex-1 min-w-0 h-full flex items-center gap-1 overflow-x-auto scrollbar-none z-10 pr-4 mask-[linear-gradient(to_right,white_calc(100%-24px),transparent)] mr-2">
                     {tripData.map((d, i) => (
                         <button
                             key={d.day}
@@ -786,7 +696,7 @@ export default function TripMapPage() {
                         >
                             <span
                                 className={cn(
-                                    "flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold",
+                                    "flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold shrink-0",
                                     activeDay === i ? "bg-accent text-white" : "bg-gray-200 text-gray-500"
                                 )}
                             >
@@ -797,42 +707,61 @@ export default function TripMapPage() {
                             {activeDay === i && (
                                 <motion.div
                                     layoutId="day-underline"
-                                    className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent rounded-t"
+                                    className="absolute bottom-0 left-0 right-0 h-[3px] bg-accent rounded-t-sm"
                                 />
                             )}
                         </button>
                     ))}
                 </div>
-                <Button
-                    onClick={handleConfirmSync}
-                    variant="outline"
-                    disabled
-                // disabled={!user || syncPhase === "syncing" || syncPhase === "complete" \\}
-                // className="rounded-xl h-9 px-5 bg-primary hover:bg-primary/80 text-white font-bold text-[12px] gap-2 shadow-sm"
-                >
-                    {user ? (
-                        <><Check className="h-3.5 w-3.5" /> Confirm & Sync</>
-                    ) : (
-                        <><LogIn className="h-3.5 w-3.5" /> Sign in to Confirm</>
-                    )}
-                </Button>
+                <div className="shrink-0 flex items-center z-20 pl-2 border-l border-gray-100 bg-white h-full">
+                    <Button
+                        onClick={handleConfirmSync}
+                        variant="outline"
+                        disabled
+                    // disabled={!user || syncPhase === "syncing" || syncPhase === "complete" }
+                    // className="rounded-xl h-9 px-5 bg-primary hover:bg-primary/80 text-white font-bold text-[12px] gap-2 shadow-sm"
+                    >
+                        {user ? (
+                            <><Check className="h-3.5 w-3.5" /> Confirm & Sync</>
+                        ) : (
+                            <><LogIn className="h-3.5 w-3.5" /> Sign in to Confirm</>
+                        )}
+                    </Button>
+                </div>
             </div>
 
-            {(linkedTransport || linkedStay) && (
+            {/* {(plannerFlightsAll.length > 0 || linkedStay) && (
                 <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     className="shrink-0 bg-white border-b border-gray-200 px-5 py-3"
-                >
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Linked Logistics</p>
-                    <div className="flex flex-wrap gap-3">
-                        {linkedTransport && (
-                            <div className="flex items-center gap-2.5 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
-                                <Plane className="h-4 w-4 text-blue-500" />
-                                <span className="text-[12px] font-semibold text-blue-800 truncate max-w-[260px]">{linkedTransport}</span>
-                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                > */}
+            {/* <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Linked Logistics</p> */}
+            {/* <div className="flex flex-wrap gap-2">
+                        {plannerFlightsAll.map((flight) => (
+                            <div key={flight.id} className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 group">
+                                <Plane className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-[10px] font-semibold text-blue-800 truncate max-w-[200px] flex items-center gap-1">
+                                        {flight.from.split(",")[0]}
+                                        <ArrowRight className="h-3 w-3 text-blue-700 shrink-0" />
+                                        {flight.to.split(",")[0]}
+                                    </span>
+                                    <span className="text-[9.5px] text-blue-600/70 truncate"> */}
+            {/* {flight.alreadyBooked ? `Ref: ${flight.bookingRef}` : `${flight.airline} ${flight.flightNo}`} */}
+            {/* {flight.dayNum ? `Day ${flight.dayNum}` : ""}
+                                        {flight.date ? ` · ${flight.date}` : ""}
+                                    </span>
+                                </div> */}
+            {/* <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" /> */}
+            {/* <button
+                                    onClick={() => removePlannerFlight(flight.id)}
+                                    className="p-0.5 rounded hover:bg-red-100 text-gray-500 hover:text-red-500 transition-colors shrink-0"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
                             </div>
-                        )}
+                        ))}
                         {linkedStay && (
                             <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
                                 <Bed className="h-4 w-4 text-amber-600" />
@@ -842,48 +771,51 @@ export default function TripMapPage() {
                         )}
                     </div>
                 </motion.div>
-            )}
+            )} */}
 
-            <div className="flex-1 w-full relative overflow-hidden bg-[#e2e8f0]">
-                <AnimatePresence mode="wait">
-                    {view === "itinerary" ? (
-                        <ItineraryView
-                            key="itinerary"
-                            day={day}
-                            tripData={tripData}
-                            expandedEvent={expandedEvent}
-                            setExpandedEvent={setExpandedEvent}
-                            transportMode={transportMode}
-                            setTransportMode={setTransportMode}
-                            onOpenModal={(mode, eventId) =>
-                                setModalConfig({ isOpen: true, mode, eventId })
-                            }
-                            searchResults={DUMMY_SEARCH_RESULTS}
-                            onSearchResultClick={(r) => { setSelectedSearchResult(r); }}
-                            onReorder={handleReorder}
-                        />
-                    ) : (
-                        <MapView
-                            key="map"
-                            day={day}
-                            tripData={tripData}
-                            expandedEvent={expandedEvent}
-                            setExpandedEvent={setExpandedEvent}
-                            transportMode={transportMode}
-                            setTransportMode={setTransportMode}
-                            searchQuery={searchQuery}
-                            setSearchQuery={setSearchQuery}
-                            onSearchResultClick={(r: SearchResult) => {
-                                setSelectedSearchResult(r);
-                                setSearchQuery("");
-                            }}
-                            onOpenModal={(mode: ActionMode, eventId?: string) =>
-                                setModalConfig({ isOpen: true, mode: mode as any, eventId })
-                            }
-                            onReorder={handleReorder}
-                        />
-                    )}
-                </AnimatePresence>
+            <div className="flex-1 w-full relative overflow-hidden bg-[#e2e8f0] flex">
+                <PlannerSidebar />
+                <div className="flex-1 w-full relative overflow-hidden h-full">
+                    <AnimatePresence mode="wait">
+                        {view === "itinerary" ? (
+                            <ItineraryView
+                                key="itinerary"
+                                day={day}
+                                tripData={tripData}
+                                expandedEvent={expandedEvent}
+                                setExpandedEvent={setExpandedEvent}
+                                transportMode={transportMode}
+                                setTransportMode={setTransportMode}
+                                onOpenModal={(mode, eventId) =>
+                                    setModalConfig({ isOpen: true, mode, eventId })
+                                }
+                                searchResults={DUMMY_SEARCH_RESULTS}
+                                onSearchResultClick={(r) => { setSelectedSearchResult(r); }}
+                                onReorder={handleReorder}
+                            />
+                        ) : (
+                            <MapView
+                                key="map"
+                                day={day}
+                                tripData={tripData}
+                                expandedEvent={expandedEvent}
+                                setExpandedEvent={setExpandedEvent}
+                                transportMode={transportMode}
+                                setTransportMode={setTransportMode}
+                                searchQuery={searchQuery}
+                                setSearchQuery={setSearchQuery}
+                                onSearchResultClick={(r: SearchResult) => {
+                                    setSelectedSearchResult(r);
+                                    setSearchQuery("");
+                                }}
+                                onOpenModal={(mode: ActionMode, eventId?: string) =>
+                                    setModalConfig({ isOpen: true, mode: mode as any, eventId })
+                                }
+                                onReorder={handleReorder}
+                            />
+                        )}
+                    </AnimatePresence>
+                </div>
             </div>
 
             <AnimatePresence>
@@ -1246,6 +1178,164 @@ function MapView({
     const [activeSidebarDragId, setActiveSidebarDragId] = React.useState<string | null>(null);
     const sidebarDndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
+    // Flight arcs from store
+    const plannerFlights = useTripStore((s) => s.plannerFlights);
+    const plannerOrigin = useTripStore((s) => s.plannerOrigin);
+
+    const flightsWithCoords = plannerFlights.filter(f => f.fromCoords && f.toCoords);
+
+    // Build arc (geodesic-style curve)
+    const buildFlightArc = React.useCallback((from: [number, number], to: [number, number], n = 80): [number, number][] => {
+        return Array.from({ length: n + 1 }, (_, i) => {
+            const t = i / n;
+            return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t + Math.sin(Math.PI * t) * 7] as [number, number];
+        });
+    }, []);
+
+    const flightArcs = React.useMemo(() => ({
+        type: "FeatureCollection" as const,
+        features: flightsWithCoords.map(f => ({
+            type: "Feature" as const,
+            properties: {},
+            geometry: { type: "LineString" as const, coordinates: buildFlightArc(f.fromCoords!, f.toCoords!) },
+        })),
+    }), [flightsWithCoords, buildFlightArc]);
+
+    // Animation
+    const [flightAnimProgress, setFlightAnimProgress] = React.useState(0);
+    React.useEffect(() => {
+        if (flightsWithCoords.length === 0) return;
+        let frameId: number;
+        const duration = 2800;
+        const start = performance.now();
+        const loop = (time: number) => {
+            setFlightAnimProgress(((time - start) % duration) / duration);
+            frameId = requestAnimationFrame(loop);
+        };
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [flightsWithCoords.length]);
+
+    const ARC_N = 80;
+    const TAIL_FRAC = 0.22;
+
+    const flightArcsAnimated = React.useMemo(() => ({
+        type: "FeatureCollection" as const,
+        features: flightsWithCoords.flatMap(f => {
+            const arc = buildFlightArc(f.fromCoords!, f.toCoords!, ARC_N);
+            const head = flightAnimProgress * (1 + TAIL_FRAC * 2) - TAIL_FRAC;
+            const tail = head - TAIL_FRAC;
+            const startIdx = Math.max(0, Math.round(tail * ARC_N));
+            const endIdx = Math.min(ARC_N, Math.round(head * ARC_N));
+            if (endIdx - startIdx < 1) return [];
+            return [{
+                type: "Feature" as const,
+                properties: {},
+                geometry: { type: "LineString" as const, coordinates: arc.slice(startIdx, endIdx + 1) },
+            }];
+        }),
+    }), [flightsWithCoords, flightAnimProgress, buildFlightArc]);
+
+    // Flight map points
+    const flightMapPoints = React.useMemo<{
+        origin: { coords: [number, number]; label: string } | null;
+        destinations: { id: string; coords: [number, number]; label: string }[];
+    }>(() => {
+        let origin: { coords: [number, number]; label: string } | null = null;
+        const destinations: { id: string; coords: [number, number]; label: string }[] = [];
+        const seen = new Set<string>();
+
+        plannerFlights.forEach(f => {
+            if (f.from === plannerOrigin && f.fromCoords && !seen.has(f.from)) {
+                origin = { coords: f.fromCoords, label: f.from.split(",")[0] };
+                seen.add(f.from);
+            } else if (f.fromCoords && !seen.has(f.from)) {
+                destinations.push({ id: `${f.id}-from`, coords: f.fromCoords, label: f.from.split(",")[0] });
+                seen.add(f.from);
+            }
+            if (f.toCoords && !seen.has(f.to)) {
+                destinations.push({ id: `${f.id}-to`, coords: f.toCoords, label: f.to.split(",")[0] });
+                seen.add(f.to);
+            }
+        });
+
+        return { origin, destinations };
+    }, [plannerFlights, plannerOrigin]);
+
+    // Fly to flight points when they appear
+    React.useEffect(() => {
+        if (!mapRef.current || flightsWithCoords.length === 0) return;
+        const map = mapRef.current.getMap();
+        if (!map) return;
+
+        const pts = flightsWithCoords.flatMap(f => [f.fromCoords, f.toCoords].filter(Boolean) as [number, number][]);
+        if (pts.length >= 2) {
+            const lngs = pts.map(p => p[0]);
+            const lats = pts.map(p => p[1]);
+            const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+            const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+            const lngSpan = (Math.max(...lngs) - Math.min(...lngs)) + 30;
+            const latSpan = (Math.max(...lats) - Math.min(...lats)) + 20;
+            const zoom = Math.min(Math.log2(360 / lngSpan), Math.log2(180 / latSpan), 5);
+            map.flyTo({ center: [centerLng, centerLat], zoom: Math.max(1.2, zoom), duration: 1200, essential: true, offset: [200, 0] });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [flightsWithCoords.map(f => f.id).join(',')]);
+
+    // Initial camera: geocode destination from URL and fly to show it + origin
+    const searchParamsMap = useSearchParams();
+    const initialFlyDone = React.useRef(false);
+    React.useEffect(() => {
+        if (initialFlyDone.current || !mapRef.current) return;
+        const dest = searchParamsMap.get("dest") || searchParamsMap.get("q");
+        if (!dest) return;
+
+        initialFlyDone.current = true;
+        const flyToDestination = async () => {
+            try {
+                const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(dest)}&format=json&limit=1&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`;
+                const r = await fetch(url);
+                const d = await r.json();
+                const destResult = d.results?.[0];
+                if (!destResult || !mapRef.current) return;
+
+                const destLon = destResult.lon;
+                const destLat = destResult.lat;
+                const map = mapRef.current.getMap();
+                if (!map) return;
+
+                // If we also have origin, fit both
+                if (plannerOrigin) {
+                    try {
+                        const or = await fetch(`https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(plannerOrigin)}&format=json&limit=1&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`);
+                        const od = await or.json();
+                        const originResult = od.results?.[0];
+                        if (originResult) {
+                            const pts = [[originResult.lon, originResult.lat], [destLon, destLat]];
+                            const lngs = pts.map(p => p[0]);
+                            const lats = pts.map(p => p[1]);
+                            const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+                            const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+                            const lngSpan = (Math.max(...lngs) - Math.min(...lngs)) + 30;
+                            const latSpan = (Math.max(...lats) - Math.min(...lats)) + 20;
+                            const zoom = Math.min(Math.log2(360 / lngSpan), Math.log2(180 / latSpan), 5);
+                            map.flyTo({ center: [centerLng, centerLat], zoom: Math.max(1.5, zoom), duration: 1500, essential: true, offset: [200, 0] });
+                            return;
+                        }
+                    } catch { /* fall through to just destination */ }
+                }
+
+                // Just fly to destination
+                map.flyTo({ center: [destLon, destLat], zoom: 5, duration: 1500, essential: true, offset: [200, 0] });
+            } catch (e) {
+                console.error("Initial geocode failed", e);
+            }
+        };
+
+        // Small delay to let map initialize
+        setTimeout(flyToDestination, 300);
+    }, [searchParamsMap, plannerOrigin]);
+
     const placeEvents: EventItem[] = day.events.filter(
         (e: EventItem) => e.type !== "transit" && e.lat && e.lng
     );
@@ -1261,13 +1351,7 @@ function MapView({
                 duration: 1200,
                 offset: [0, 250],
             });
-        else
-            mapRef.current.flyTo({
-                center: [139.7016, 35.672],
-                zoom: 12,
-                pitch: 0,
-                duration: 1200,
-            });
+        // Don't fly anywhere when deselecting — camera stays in place
     }, [expandedEvent, selectedEventObj]);
 
     const routesGeoJson = React.useMemo(() => {
@@ -1319,15 +1403,63 @@ function MapView({
                 <Map
                     ref={mapRef}
                     initialViewState={{
-                        longitude: 139.7016,
-                        latitude: 35.672,
-                        zoom: 12,
+                        longitude: 30,
+                        latitude: 25,
+                        zoom: 1.8,
                         pitch: 0,
                     }}
                     style={{ width: "100%", height: "100%" }}
                     mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
                 >
                     <NavigationControl position="bottom-right" />
+
+                    {/* Flight arcs */}
+                    {flightsWithCoords.length > 0 && (
+                        <>
+                            <Source id="flight-arcs" type="geojson" data={flightArcs}>
+                                <Layer id="flight-arc-bg" type="line" paint={{ "line-color": "#94a3b8", "line-width": 2, "line-opacity": 0.35, "line-dasharray": [4, 3] }} />
+                            </Source>
+                            <Source id="flight-arcs-animated" type="geojson" data={flightArcsAnimated}>
+                                <Layer id="flight-arc-active" type="line" paint={{ "line-color": "hsl(216, 62%, 50%)", "line-width": 4, "line-opacity": 0.95, "line-blur": 1 }} />
+                            </Source>
+
+                            {/* Origin marker */}
+                            {flightMapPoints.origin && (
+                                <Marker longitude={flightMapPoints.origin.coords[0]} latitude={flightMapPoints.origin.coords[1]} anchor="center">
+                                    <div className="relative flex items-center justify-center" style={{ zIndex: 100 }}>
+                                        <div className="w-3.5 h-3.5 rounded-full bg-gray-900 border-2 border-white shadow-sm relative z-10">
+                                            <div className="w-[4px] h-[4px] rounded-full bg-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                        </div>
+                                        <div className="absolute top-[calc(100%+3px)] left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[9px] font-bold px-1.5 pb-px rounded shadow-md whitespace-nowrap">
+                                            Your Location
+                                        </div>
+                                    </div>
+                                </Marker>
+                            )}
+
+                            {/* Destination markers */}
+                            {flightMapPoints.destinations.map((dest) => (
+                                <Marker
+                                    key={`flight-dest-${dest.id}`}
+                                    longitude={dest.coords[0]}
+                                    latitude={dest.coords[1]}
+                                    anchor="center"
+                                    style={{ zIndex: 50 }}
+                                >
+                                    <div className="relative flex items-center justify-center">
+                                        <div className="w-3.5 h-3.5 bg-gray-900 border-2 border-white shadow-sm relative z-10">
+                                            <div className="w-[4px] h-[4px] bg-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                        </div>
+                                        <div className="absolute top-[calc(100%+3px)] left-1/2 -translate-x-1/2 bg-white text-gray-900 text-[10px] font-bold px-1.5 pb-px rounded border border-gray-200 shadow-md whitespace-nowrap">
+                                            {dest.label}
+                                        </div>
+                                    </div>
+                                </Marker>
+                            ))}
+                        </>
+                    )}
+
+                    {/* Itinerary routes */}
                     {routesGeoJson && (
                         <Source id="routes" type="geojson" data={routesGeoJson as any}>
                             <Layer

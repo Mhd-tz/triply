@@ -61,11 +61,13 @@ export function DestinationAutocomplete({
     onChange,
     autoFocus = false,
     className,
+    placeholder,
 }: {
     value: string;
     onChange: (val: string) => void;
     autoFocus?: boolean;
     className?: string;
+    placeholder?: string;
 }) {
     const [suggestions, setSuggestions] = React.useState<GeoapifyFeature[]>([]);
     const [open, setOpen] = React.useState(false);
@@ -146,7 +148,7 @@ export function DestinationAutocomplete({
                 onKeyDown={handleKeyDown}
                 onFocus={() => suggestions.length > 0 && setOpen(true)}
                 onBlur={() => setTimeout(() => setOpen(false), 150)}
-                placeholder="Destination"
+                placeholder={placeholder || "Destination"}
                 className={cn(
                     "w-full h-11 pl-10 pr-9 text-[14px] font-medium text-gray-800 placeholder:text-gray-400",
                     "border border-gray-200 rounded-lg outline-none shadow-xs",

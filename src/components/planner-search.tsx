@@ -29,20 +29,28 @@ export default function PlannerSearch() {
     const initialDest = searchParams.get("dest") || "";
     const initialTravelers = searchParams.get("travelers") || "2";
     const initialDateMode = (searchParams.get("dateMode") as DateMode) || "exact";
+    
+    // Parse exact dates
+    const initialStart = searchParams.get("start") ? new Date(searchParams.get("start") as string) : null;
+    const initialEnd = searchParams.get("end") ? new Date(searchParams.get("end") as string) : null;
+    
+    // Parse flexible dates
+    const initialFlexDays = searchParams.get("flexDays") || "7 days";
+    const initialFlexMonths = searchParams.get("flexMonths") ? searchParams.get("flexMonths")!.split(",") : [];
 
     const [destination, setDestination] = React.useState(initialDest);
     const [travelers, setTravelers] = React.useState(initialTravelers);
     const [dateMode, setDateMode] = React.useState<DateMode>(initialDateMode);
 
     const [showDatePicker, setShowDatePicker] = React.useState(false);
-    const [startDate, setStartDate] = React.useState<Date | null>(null);
-    const [endDate, setEndDate] = React.useState<Date | null>(null);
-    const [flexDays, setFlexDays] = React.useState("7 days");
-    const [flexMonths, setFlexMonths] = React.useState<string[]>([]);
+    const [startDate, setStartDate] = React.useState<Date | null>(initialStart);
+    const [endDate, setEndDate] = React.useState<Date | null>(initialEnd);
+    const [flexDays, setFlexDays] = React.useState(initialFlexDays);
+    const [flexMonths, setFlexMonths] = React.useState<string[]>(initialFlexMonths);
 
     const today = React.useMemo(() => startOfDay(new Date()), []);
-    const [calendarYear, setCalendarYear] = React.useState(today.getFullYear());
-    const [calendarMonth, setCalendarMonth] = React.useState(today.getMonth());
+    const [calendarYear, setCalendarYear] = React.useState(initialStart ? initialStart.getFullYear() : today.getFullYear());
+    const [calendarMonth, setCalendarMonth] = React.useState(initialStart ? initialStart.getMonth() : today.getMonth());
 
     const datePickerRef = React.useRef<HTMLDivElement>(null);
 
@@ -61,7 +69,10 @@ export default function PlannerSearch() {
         destination !== initialDest ||
         travelers !== initialTravelers ||
         dateMode !== initialDateMode ||
-        searchParams.get("dateSummary") !== renderSummaryDate();
+        startDate?.toISOString() !== initialStart?.toISOString() ||
+        endDate?.toISOString() !== initialEnd?.toISOString() ||
+        flexDays !== initialFlexDays ||
+        flexMonths.join(",") !== initialFlexMonths.join(",");
 
     const handleSearch = () => {
         const params = new URLSearchParams(searchParams.toString());
@@ -72,7 +83,21 @@ export default function PlannerSearch() {
         else params.delete("travelers");
 
         params.set("dateMode", dateMode);
-        params.set("dateSummary", renderSummaryDate());
+        
+        if (dateMode === "exact") {
+            if (startDate) params.set("start", startDate.toISOString());
+            else params.delete("start");
+            if (endDate) params.set("end", endDate.toISOString());
+            else params.delete("end");
+            params.delete("flexDays");
+            params.delete("flexMonths");
+        } else {
+            params.set("flexDays", flexDays);
+            if (flexMonths.length > 0) params.set("flexMonths", flexMonths.join(","));
+            else params.delete("flexMonths");
+            params.delete("start");
+            params.delete("end");
+        }
 
         router.replace(`/planner?${params.toString()}`, { scroll: false });
         setShowDatePicker(false);
