@@ -30,9 +30,9 @@ async function geocodeFlight(q: string): Promise<[number, number] | null> {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () => void }) {
-    const { 
+    const {
         setLinkedTransport,
-        plannerOrigin, setPlannerOrigin, 
+        plannerOrigin, setPlannerOrigin,
         plannerDestinations, setPlannerDestinations,
         plannerFlights, addPlannerFlight, removePlannerFlight,
     } = useTripStore();
@@ -77,7 +77,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         }
         return { type: "any" as const, days: anyDays };
     }, [searchParams]);
-    
+
     React.useEffect(() => {
         if (!plannerOrigin) {
             const detect = async () => {
@@ -175,15 +175,15 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
     const handleSearch = async () => {
         const fromCityName = manualFrom || (legs[selectedLegIdx]?.from);
         const toCityName = manualTo || (legs[selectedLegIdx]?.to);
-        
+
         if (!fromCityName || !toCityName) return;
-        
+
         setSearching(true);
         setMode("search");
 
         const fromArg = fromCityName.split(",")[0].trim();
         const toArg = toCityName.split(",")[0].trim();
-        
+
         try {
             const res = await searchAviationstackFlights(fromArg, toArg);
             const flightsData = res?.error ? MOCK_FLIGHTS_DB : (res?.flights || MOCK_FLIGHTS_DB);
@@ -199,7 +199,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
     const handleSelectFlight = async (f: Record<string, string>) => {
         const fromCity = manualFrom || legs[selectedLegIdx]?.from || "";
         const toCity = manualTo || legs[selectedLegIdx]?.to || "";
-        
+
         const dayLabel = selectedDay && dateOptions.days.length > 0
             ? dateOptions.days.find(d => d.dayNum === selectedDay)?.label
             : undefined;
@@ -240,7 +240,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
 
     const handleSyncBooking = async () => {
         if (!bookingRef.trim()) return;
-        
+
         const fromCity = manualFrom || legs[selectedLegIdx]?.from || "";
         const toCity = manualTo || legs[selectedLegIdx]?.to || "";
 
@@ -322,7 +322,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                         className="h-11"
                     />
                 </div>
-                
+
                 {/* Date Selector - Day chips from URL range */}
                 <div className="space-y-1">
                     <label className="text-xs font-semibold text-gray-500 uppercase">Travel Date</label>
@@ -441,7 +441,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                             Sync Flight
                         </Button>
                     </div>
-                    <button 
+                    <button
                         onClick={() => setMode("idle")}
                         className="text-xs font-semibold text-gray-500 hover:text-gray-900 w-full text-center"
                     >

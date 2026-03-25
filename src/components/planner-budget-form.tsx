@@ -1,29 +1,26 @@
 "use client";
 
 import * as React from "react";
-import { DollarSign, Plus, X, ArrowRight } from "lucide-react";
+import { DollarSign, Plus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTripStore } from "@/lib/trip-store";
 import { DestinationAutocomplete } from "./search-bar-components";
-import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 
 const CURRENCIES = ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"];
-const VIBES = ["Relaxed", "Adventure", "Culture", "Nightlife", "Foodie", "Nature", "Romance", "Family"];
 
 function uid() {
     return Math.random().toString(36).substring(2, 9);
 }
 
-export default function PlannerBudgetForm({ onNext }: { onNext: () => void }) {
-    const { 
+export default function PlannerBudgetForm() {
+    const {
         plannerDestinations, setPlannerDestinations,
         plannerBudget, setPlannerBudget,
         plannerCurrency, setPlannerCurrency,
-        plannerVibe, setPlannerVibe,
         plannerNotes, setPlannerNotes,
     } = useTripStore();
     const searchParams = useSearchParams();
@@ -56,19 +53,15 @@ export default function PlannerBudgetForm({ onNext }: { onNext: () => void }) {
         setPlannerDestinations(plannerDestinations.filter(d => d.id !== id));
     };
 
-    const toggleVibe = (v: string) => {
-        setPlannerVibe(
-            plannerVibe.includes(v) ? plannerVibe.filter(x => x !== v) : [...plannerVibe, v]
-        );
-    };
-
     return (
         <div className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
                 {/* Destinations */}
                 <div className="space-y-3">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Destinations</p>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Destination
+                        {plannerDestinations.length > 1 && ("s")}
+                    </p>
                     {plannerDestinations.map((dest, i) => (
                         <div key={dest.id} className="flex items-center gap-2">
                             <span className="text-[10px] font-bold text-gray-400 uppercase w-5 shrink-0 text-center">
@@ -92,9 +85,9 @@ export default function PlannerBudgetForm({ onNext }: { onNext: () => void }) {
                             )}
                         </div>
                     ))}
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
+                    <Button
+                        variant="ghost"
+                        size="sm"
                         className="h-8 px-2 text-xs text-primary gap-1.5"
                         onClick={addDestination}
                     >
@@ -131,29 +124,6 @@ export default function PlannerBudgetForm({ onNext }: { onNext: () => void }) {
                     </div>
                 </div>
 
-                {/* Vibe */}
-                <div className="space-y-2">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                        Trip Vibe <span className="font-normal normal-case text-gray-400">(pick all that apply)</span>
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                        {VIBES.map(v => {
-                            const active = plannerVibe.includes(v);
-                            return (
-                                <button key={v} onClick={() => toggleVibe(v)}
-                                    className={cn(
-                                        "px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150",
-                                        active
-                                            ? "bg-primary text-white border-primary"
-                                            : "border-gray-200 text-gray-500 hover:border-primary hover:text-primary bg-white"
-                                    )}>
-                                    {v}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-
                 {/* Notes */}
                 <div className="space-y-2">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Notes & Constraints</p>
@@ -167,15 +137,6 @@ export default function PlannerBudgetForm({ onNext }: { onNext: () => void }) {
                 </div>
             </div>
 
-            {/* Sticky Next Button */}
-            <div className="shrink-0 p-4 border-t border-gray-100 bg-white">
-                <Button
-                    onClick={onNext}
-                    className="w-full h-11 rounded-xl font-bold text-sm gap-2"
-                >
-                    Next: Flights <ArrowRight className="w-4 h-4" />
-                </Button>
-            </div>
         </div>
     );
 }
