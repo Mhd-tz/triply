@@ -154,12 +154,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         }
     }, [legs, selectedLegIdx]);
 
-    // Auto-select first day for first leg, subsequent days for subsequent legs
-    React.useEffect(() => {
-        if (dateOptions.days.length > 0 && selectedDay === null) {
-            setSelectedDay(Math.min(selectedLegIdx + 1, dateOptions.days.length));
-        }
-    }, [dateOptions.days.length, selectedLegIdx, selectedDay]);
+
 
     const [mode, setMode] = React.useState<"idle" | "search" | "booked" | "results">("idle");
     const [flights, setFlights] = React.useState<Record<string, string>[]>([]);
@@ -171,6 +166,15 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         if (!legs[selectedLegIdx]) return null;
         return plannerFlights.find(f => f.from === legs[selectedLegIdx].from && f.to === legs[selectedLegIdx].to);
     }, [plannerFlights, legs, selectedLegIdx]);
+    
+    // Auto-select day based on existing flight or leg index
+    React.useEffect(() => {
+        if (existingFlight?.dayNum) {
+            setSelectedDay(existingFlight.dayNum);
+        } else if (dateOptions.days.length > 0 && selectedDay === null) {
+            setSelectedDay(Math.min(selectedLegIdx + 1, dateOptions.days.length));
+        }
+    }, [dateOptions.days.length, selectedLegIdx, selectedDay, existingFlight?.id, existingFlight?.dayNum]);
 
     const handleSearch = async () => {
         const fromCityName = manualFrom || (legs[selectedLegIdx]?.from);
@@ -334,7 +338,26 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                                 return (
                                     <button
                                         key={day.dayNum}
-                                        onClick={() => setSelectedDay(day.dayNum)}
+                                        onClick={() => {
+                                            const newDay = day.dayNum;
+                                            setSelectedDay(newDay);
+                                            if (existingFlight) {
+                                                const dayLabel = day.label;
+                                                const exactDate = dateOptions.type === "exact" && 'date' in day
+                                                    ? (day as { date: Date }).date
+                                                    : undefined;
+                                                const dateStr = exactDate
+                                                    ? exactDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                                                    : dayLabel || "";
+                                                
+                                                addPlannerFlight({
+                                                    ...existingFlight,
+                                                    dayNum: newDay,
+                                                    date: dateStr
+                                                });
+                                                setLinkedTransport(`${existingFlight.airline} ${existingFlight.flightNo}${dateStr ? ` (${dateStr})` : ''}`);
+                                            }
+                                        }}
                                         className={cn(
                                             "shrink-0 flex flex-col items-center px-3 py-2 rounded-xl border text-center transition-all",
                                             isSelected

@@ -538,7 +538,7 @@ export default function TripMapPage() {
                 return { ...dayPlan, events: [...flightEvents, ...nonFlightEvents] };
             });
         });
-    }, [plannerFlightsAll]);
+    }, [plannerFlightsAll, initialTripData]);
 
     const { setOpen: openSignIn, setOnSignInSuccess } = useSignInDialog();
     type SyncPhase = "idle" | "syncing" | "complete";
