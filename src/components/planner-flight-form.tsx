@@ -6,7 +6,7 @@ import { searchAviationstackFlights } from "@/app/actions/flights";
 import { Input } from "@/components/ui/input";
 import { DestinationAutocomplete } from "@/components/search-bar-components";
 import { Button } from "@/components/ui/button";
-import { Plane, Search, Ticket, CheckCircle2, X } from "lucide-react";
+import { Plane, Search, Ticket, CheckCircle2, Trash2 } from "lucide-react";
 import { useTripStore, type PlannerFlight } from "@/lib/trip-store";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -228,14 +228,13 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         };
 
         addPlannerFlight(flight);
+        setMode("idle");
 
         // Geocode for map arcs
         const [fc, tc] = await Promise.all([geocodeFlight(fromCity), geocodeFlight(toCity)]);
         if (fc || tc) {
             addPlannerFlight({ ...flight, fromCoords: fc ?? undefined, toCoords: tc ?? undefined });
         }
-
-        setMode("idle");
     };
 
     const handleSyncBooking = async () => {
@@ -261,14 +260,13 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         };
 
         addPlannerFlight(flight);
+        setBookingRef("");
+        setMode("idle");
 
         const [fc, tc] = await Promise.all([geocodeFlight(fromCity), geocodeFlight(toCity)]);
         if (fc || tc) {
             addPlannerFlight({ ...flight, fromCoords: fc ?? undefined, toCoords: tc ?? undefined });
         }
-
-        setBookingRef("");
-        setMode("idle");
     };
 
     const handleRemoveFlight = (flightId: string) => {
@@ -385,7 +383,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                             onClick={() => handleRemoveFlight(existingFlight.id)}
                             className="p-1 hover:bg-red-100 rounded-full text-gray-400 hover:text-red-500 transition-colors"
                         >
-                            <X className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4" />
                         </button>
                     </div>
                 </div>
@@ -414,11 +412,11 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
             {mode === "idle" && existingFlight && (
                 <div className="flex gap-2 text-sm">
                     <button
-                        onClick={() => { handleRemoveFlight(existingFlight.id); handleSearch(); }}
+                        onClick={() => handleRemoveFlight(existingFlight.id)}
                         disabled={!manualFrom || !manualTo}
                         className="flex-1 py-3 flex items-center justify-center gap-2 rounded-xl border border-gray-200 hover:border-primary hover:bg-primary/5 transition-all text-gray-600 hover:text-primary text-xs font-semibold"
                     >
-                        <Search className="w-3.5 h-3.5" /> Change Flight
+                        <Search className="w-3.5 h-3.5" /> Remove & Change Flight
                     </button>
                 </div>
             )}
@@ -461,7 +459,9 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2 pt-2">
                     <div className="flex items-center justify-between pb-2 border-b border-gray-100">
                         <span className="text-sm font-bold text-gray-800">Available Flights</span>
-                        <button onClick={() => setMode("idle")} className="text-xs text-blue-600 hover:underline">Revise search</button>
+                        <Button onClick={() => setMode("booked")} className="text-xs h-auto" variant="link">
+                            Already Booked?
+                        </Button>
                     </div>
                     {flights.map((f, i) => (
                         <div key={i} className="p-3 border border-gray-100 rounded-xl hover:shadow-md transition-shadow bg-white flex flex-col gap-3">
@@ -515,12 +515,12 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                                     {flight.date ? ` · ${flight.date}` : ""}
                                 </p>
                             </div>
-                            <button
+                            {/* <button
                                 onClick={() => handleRemoveFlight(flight.id)}
                                 className="p-1 hover:bg-red-100 rounded-full text-gray-400 hover:text-red-500 transition-colors shrink-0"
                             >
                                 <X className="w-3.5 h-3.5" />
-                            </button>
+                            </button> */}
                         </div>
                     ))}
                 </div>

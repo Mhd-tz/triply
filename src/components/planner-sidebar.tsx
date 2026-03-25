@@ -54,9 +54,9 @@ export default function PlannerSidebar() {
             <motion.div
                 className={cn(
                     "flex flex-col bg-white border-r border-gray-200 shadow-sm relative overflow-hidden",
-                    expandedTab ? "w-[400px]" : "w-[68px]"
+                    expandedTab ? "w-[380px]" : "w-[65px]"
                 )}
-                animate={{ width: expandedTab ? 400 : 68 }}
+                animate={{ width: expandedTab ? 380 : 65 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 onMouseEnter={() => handleHover(true)}
                 onMouseLeave={() => handleHover(false)}
@@ -149,16 +149,16 @@ export default function PlannerSidebar() {
                             <div className="p-4 border-t border-gray-100 flex gap-3 bg-white shrink-0 min-h-[72px]">
                                 <AnimatePresence initial={false}>
                                     {canGoBack && (
-                                        <motion.div 
+                                        <motion.div
                                             initial={{ opacity: 0, scale: 0.95, x: -5 }}
                                             animate={{ opacity: 1, scale: 1, x: 0 }}
                                             exit={{ opacity: 0, scale: 0.95, x: -5 }}
                                             transition={{ duration: 0.2, ease: "easeOut" }}
                                             className="flex-1"
                                         >
-                                            <Button 
-                                                variant="outline" 
-                                                onClick={goBack} 
+                                            <Button
+                                                variant="outline"
+                                                onClick={goBack}
                                                 className="w-full h-11 rounded-xl font-bold text-sm"
                                             >
                                                 Back: {TAB_LABELS[TAB_ORDER[currentIdx - 1]!]}
@@ -168,15 +168,15 @@ export default function PlannerSidebar() {
                                 </AnimatePresence>
                                 <AnimatePresence initial={false}>
                                     {canGoNext && (
-                                        <motion.div 
+                                        <motion.div
                                             initial={{ opacity: 0, scale: 0.95, x: 5 }}
                                             animate={{ opacity: 1, scale: 1, x: 0 }}
                                             exit={{ opacity: 0, scale: 0.95, x: 5 }}
                                             transition={{ duration: 0.2, ease: "easeOut" }}
                                             className="flex-1"
                                         >
-                                            <Button 
-                                                onClick={goNext} 
+                                            <Button
+                                                onClick={goNext}
                                                 className="w-full h-11 rounded-xl font-bold text-sm"
                                             >
                                                 Next: {TAB_LABELS[TAB_ORDER[currentIdx + 1]!]}

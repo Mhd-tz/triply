@@ -196,8 +196,8 @@ export default function PlannerBudgetForm() {
                                 variant="ghost"
                                 size="sm"
                                 className={cn(
-                                    "h-7 px-2 text-[10px] uppercase font-bold tracking-tight gap-1",
-                                    isEditingOrder ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-gray-400 hover:text-primary hover:bg-primary/5"
+                                    "px-2 text-[10px] uppercase font-bold tracking-tight gap-1 h-auto",
+                                    isEditingOrder ? "text-green-600 hover:text-green-700 hover:bg-green-50" : "text-gray-400 hover:text-primary hover:bg-transparent"
                                 )}
                                 onClick={() => setIsEditingOrder(!isEditingOrder)}
                             >
