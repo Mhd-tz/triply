@@ -30,9 +30,12 @@ export default function PlannerBudgetForm({ onNext }: { onNext: () => void }) {
 
     // Seed destination from URL if no destinations exist yet
     React.useEffect(() => {
-        const dest = searchParams.get("dest") || searchParams.get("q");
-        if (dest && plannerDestinations.length === 0) {
-            setPlannerDestinations([{ id: uid(), name: dest, date: null }]);
+        const destParam = searchParams.get("dest") || searchParams.get("q");
+        if (destParam && plannerDestinations.length === 0) {
+            const names = destParam.split(",").map(n => n.trim()).filter(Boolean);
+            if (names.length > 0) {
+                setPlannerDestinations(names.map(name => ({ id: uid(), name, date: null })));
+            }
         } else if (plannerDestinations.length === 0) {
             setPlannerDestinations([{ id: uid(), name: "", date: null }]);
         }

@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDateToYYYYMMDD, parseYYYYMMDD } from "@/lib/utils";
+import { useTripStore } from "@/lib/trip-store";
 
 import {
     DateMode,
@@ -49,6 +50,16 @@ export default function PlannerSearch() {
     const [flexDays, setFlexDays] = React.useState(initialFlexDays);
     const [flexMonths, setFlexMonths] = React.useState<string[]>(initialFlexMonths);
 
+    const { plannerDestinations } = useTripStore();
+
+    // Sync input with store (comma-separated for display)
+    React.useEffect(() => {
+        if (plannerDestinations.length > 0) {
+            const names = plannerDestinations.map(d => d.name).filter(Boolean).join(", ");
+            setDestination(names);
+        }
+    }, [plannerDestinations]);
+
     const today = React.useMemo(() => startOfDay(new Date()), []);
     const [calendarYear, setCalendarYear] = React.useState(initialStart ? initialStart.getFullYear() : today.getFullYear());
     const [calendarMonth, setCalendarMonth] = React.useState(initialStart ? initialStart.getMonth() : today.getMonth());
@@ -67,7 +78,7 @@ export default function PlannerSearch() {
     };
 
     const hasChanges =
-        destination !== initialDest ||
+        destination !== (plannerDestinations.map(d => d.name).filter(Boolean).join(", ") || initialDest) ||
         travelers !== initialTravelers ||
         dateMode !== initialDateMode ||
         startDate?.toISOString() !== initialStart?.toISOString() ||
@@ -77,8 +88,12 @@ export default function PlannerSearch() {
 
     const handleSearch = () => {
         const params = new URLSearchParams(searchParams.toString());
-        if (destination) params.set("dest", destination);
-        else params.delete("dest");
+        if (destination) {
+            // Keep it simple: one 'dest' param with comma-separated values
+            params.set("dest", destination.split(",").map(s => s.trim()).filter(Boolean).join(","));
+        } else {
+            params.delete("dest");
+        }
 
         if (travelers) params.set("travelers", travelers);
         else params.delete("travelers");

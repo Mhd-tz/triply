@@ -177,7 +177,7 @@ function SidebarButton({
             onClick={onClick}
             className="flex flex-col items-center justify-start text-gray-500 hover:text-primary transition-colors focus:outline-none relative w-16 h-[68px]"
         >
-            <div className="w-11 h-11 bg-gray-50 border border-gray-100 rounded-2xl shadow-sm shrink-0 flex items-center justify-center hover:bg-primary/5 hover:border-primary/20 transition-all">
+            <div className="w-11 h-11 border border-gray-200 rounded-full shadow-sm shrink-0 flex items-center justify-center hover:bg-primary/5 hover:border-primary/20 transition-all">
                 {icon}
             </div>
             <div className="absolute top-[48px] left-0 w-full flex justify-center h-4">
