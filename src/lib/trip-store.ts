@@ -28,6 +28,7 @@ interface TripStore {
   plannerCurrency: string;
   plannerNotes: string;
   plannerFlights: PlannerFlight[];
+  plannerActiveDay: number;
 
   setLinkedTransport: (v: string | null) => void;
   setLinkedStay: (v: string | null) => void;
@@ -41,6 +42,8 @@ interface TripStore {
   setPlannerFlights: (v: PlannerFlight[]) => void;
   addPlannerFlight: (f: PlannerFlight) => void;
   removePlannerFlight: (id: string) => void;
+  setPlannerActiveDay: (v: number) => void;
+  resetPlanningState: () => void;
   clearAll: () => void;
 }
 
@@ -53,6 +56,7 @@ export const useTripStore = create<TripStore>((set) => ({
   plannerCurrency: "USD",
   plannerNotes: "",
   plannerFlights: [],
+  plannerActiveDay: 0,
 
   setLinkedTransport: (v) => set({ linkedTransport: v }),
   setLinkedStay: (v) => set({ linkedStay: v }),
@@ -70,6 +74,13 @@ export const useTripStore = create<TripStore>((set) => ({
     set((s) => ({
       plannerFlights: s.plannerFlights.filter((x) => x.id !== id),
     })),
+  setPlannerActiveDay: (v) => set({ plannerActiveDay: v }),
+  resetPlanningState: () => set({
+    plannerFlights: [],
+    linkedTransport: null,
+    linkedStay: null,
+    plannerNotes: "",
+  }),
   clearAll: () =>
     set({
       linkedTransport: null,
@@ -80,5 +91,6 @@ export const useTripStore = create<TripStore>((set) => ({
       plannerCurrency: "USD",
       plannerNotes: "",
       plannerFlights: [],
+      plannerActiveDay: 0,
     }),
 }));

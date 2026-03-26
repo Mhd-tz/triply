@@ -52,13 +52,67 @@ export default function PlannerSearch() {
 
     const { plannerDestinations } = useTripStore();
 
-    // Sync input with store (comma-separated for display)
+    const syncURL = React.useCallback((overrides?: {
+        destination?: string;
+        travelers?: string;
+        dateMode?: DateMode;
+        startDate?: Date | null;
+        endDate?: Date | null;
+        flexDays?: string;
+        flexMonths?: string[];
+    }) => {
+        const dest = overrides?.destination ?? destination;
+        const trav = overrides?.travelers ?? travelers;
+        const dMode = overrides?.dateMode ?? dateMode;
+        const sDate = overrides?.startDate ?? startDate;
+        const eDate = overrides?.endDate ?? endDate;
+        const fDays = overrides?.flexDays ?? flexDays;
+        const fMonths = overrides?.flexMonths ?? flexMonths;
+
+        const params = new URLSearchParams(searchParams.toString());
+        if (dest) {
+            params.set("dest", dest.split(",").map(s => s.trim()).filter(Boolean).join(","));
+        } else {
+            params.delete("dest");
+        }
+
+        if (trav) params.set("travelers", trav);
+        else params.delete("travelers");
+
+        params.set("dateMode", dMode);
+        
+        if (dMode === "exact") {
+            if (sDate) params.set("start", formatDateToYYYYMMDD(sDate));
+            else params.delete("start");
+            if (eDate) params.set("end", formatDateToYYYYMMDD(eDate));
+            else params.delete("end");
+            params.delete("flexDays");
+            params.delete("flexMonths");
+        } else {
+            params.set("flexDays", fDays);
+            if (fMonths.length > 0) params.set("flexMonths", fMonths.join(","));
+            else params.delete("flexMonths");
+            params.delete("start");
+            params.delete("end");
+        }
+
+        params.delete("dateSummary");
+
+        const newUrl = `/planner?${params.toString()}`;
+        if (window.location.search !== `?${params.toString()}`) {
+            router.replace(newUrl, { scroll: false });
+        }
+    }, [destination, travelers, dateMode, startDate, endDate, flexDays, flexMonths, router, searchParams]);
+
+    // Sync input with store
     React.useEffect(() => {
         if (plannerDestinations.length > 0) {
             const names = plannerDestinations.map(d => d.name).filter(Boolean).join(", ");
-            setDestination(names);
+            if (names !== destination) {
+                setDestination(names);
+            }
         }
-    }, [plannerDestinations]);
+    }, [plannerDestinations, destination]);
 
     const today = React.useMemo(() => startOfDay(new Date()), []);
     const [calendarYear, setCalendarYear] = React.useState(initialStart ? initialStart.getFullYear() : today.getFullYear());
@@ -87,35 +141,7 @@ export default function PlannerSearch() {
         flexMonths.join(",") !== initialFlexMonths.join(",");
 
     const handleSearch = () => {
-        const params = new URLSearchParams(searchParams.toString());
-        if (destination) {
-            // Keep it simple: one 'dest' param with comma-separated values
-            params.set("dest", destination.split(",").map(s => s.trim()).filter(Boolean).join(","));
-        } else {
-            params.delete("dest");
-        }
-
-        if (travelers) params.set("travelers", travelers);
-        else params.delete("travelers");
-
-        params.set("dateMode", dateMode);
-        
-        if (dateMode === "exact") {
-            if (startDate) params.set("start", formatDateToYYYYMMDD(startDate));
-            else params.delete("start");
-            if (endDate) params.set("end", formatDateToYYYYMMDD(endDate));
-            else params.delete("end");
-            params.delete("flexDays");
-            params.delete("flexMonths");
-        } else {
-            params.set("flexDays", flexDays);
-            if (flexMonths.length > 0) params.set("flexMonths", flexMonths.join(","));
-            else params.delete("flexMonths");
-            params.delete("start");
-            params.delete("end");
-        }
-
-        router.replace(`/planner?${params.toString()}`, { scroll: false });
+        syncURL();
         setShowDatePicker(false);
     };
 

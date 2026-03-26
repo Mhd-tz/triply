@@ -270,7 +270,6 @@ export default function HeroSection() {
                                                 const params = new URLSearchParams();
                                                 if (destination) params.set("dest", destination);
                                                 if (travelers) params.set("travelers", travelers);
-                                                params.set("dateSummary", renderSummaryDate());
                                                 params.set("dateMode", dateMode);
                                                 
                                                 if (dateMode === "exact") {

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTripStore } from "@/lib/trip-store";
 import { DestinationAutocomplete } from "./search-bar-components";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 import {
@@ -42,6 +42,7 @@ interface SortableItemProps {
     isEditingOrder: boolean;
     isLast: boolean;
     updateDestination: (id: string, updates: Partial<{ name: string }>) => void;
+    onSelectDestination: (id: string, name: string) => void;
     removeDestination: (id: string) => void;
     canRemove: boolean;
 }
@@ -53,6 +54,7 @@ function SortableDestinationItem({
     isEditingOrder,
     isLast,
     updateDestination,
+    onSelectDestination,
     removeDestination,
     canRemove
 }: SortableItemProps) {
@@ -95,6 +97,7 @@ function SortableDestinationItem({
                 <DestinationAutocomplete
                     value={destination.name}
                     onChange={(val: string) => updateDestination(destination.id, { name: val })}
+                    onSelect={(val: string) => onSelectDestination(destination.id, val)}
                     placeholder={`Destination ${index + 1}`}
                     className="flex-1"
                     disabled={isEditingOrder}
@@ -133,6 +136,8 @@ export default function PlannerBudgetForm() {
         plannerNotes, setPlannerNotes,
     } = useTripStore();
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
 
     const [isEditingOrder, setIsEditingOrder] = React.useState(false);
 
@@ -143,18 +148,44 @@ export default function PlannerBudgetForm() {
         })
     );
 
-    // Seed destination from URL if no destinations exist yet
+    const prevDestParam = React.useRef<string | null>(null);
+
+    // Sync from URL to Store when URL changes externally (e.g. search bar replan)
     React.useEffect(() => {
-        const destParam = searchParams.get("dest") || searchParams.get("q");
-        if (destParam && plannerDestinations.length === 0) {
-            const names = destParam.split(",").map(n => n.trim()).filter(Boolean);
-            if (names.length > 0) {
-                setPlannerDestinations(names.map(name => ({ id: uid(), name, date: null })));
+        const destParam = searchParams.get("dest") || searchParams.get("q") || "";
+        if (destParam !== prevDestParam.current) {
+            prevDestParam.current = destParam;
+            
+            const currentDests = useTripStore.getState().plannerDestinations;
+            const storeNames = currentDests.map(d => d.name).filter(Boolean).join(",");
+            const urlNames = destParam.split(",").map(n => n.trim()).filter(Boolean).join(",");
+
+            if (urlNames !== storeNames) {
+                if (urlNames === "") {
+                    setPlannerDestinations([{ id: uid(), name: "", date: null }]);
+                } else {
+                    const newDests = destParam.split(",").map(n => n.trim()).filter(Boolean).map((name, i) => {
+                        return currentDests[i] 
+                            ? { ...currentDests[i], name } 
+                            : { id: uid(), name, date: null };
+                    });
+                    setPlannerDestinations(newDests);
+                }
             }
-        } else if (plannerDestinations.length === 0) {
-            setPlannerDestinations([{ id: uid(), name: "", date: null }]);
         }
-    }, [searchParams, plannerDestinations.length, setPlannerDestinations]);
+    }, [searchParams, setPlannerDestinations]);
+
+    const syncDestinationsToUrl = (dests: { id: string; name: string; date: Date | null }[]) => {
+        const names = dests.map(d => d.name).filter(Boolean).join(", ");
+        const params = new URLSearchParams(searchParams.toString());
+        if (names) {
+            params.set("dest", names);
+        } else {
+            params.delete("dest");
+        }
+        prevDestParam.current = names;
+        router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    };
 
 
     const updateDestination = (id: string, updates: Partial<{ name: string }>) => {
@@ -163,12 +194,20 @@ export default function PlannerBudgetForm() {
         );
     };
 
+    const handleDestinationSelect = (id: string, name: string) => {
+        const newDests = plannerDestinations.map(d => d.id === id ? { ...d, name } : d);
+        setPlannerDestinations(newDests);
+        syncDestinationsToUrl(newDests);
+    };
+
     const addDestination = () => {
         setPlannerDestinations([...plannerDestinations, { id: uid(), name: "", date: null }]);
     };
 
     const removeDestination = (id: string) => {
-        setPlannerDestinations(plannerDestinations.filter(d => d.id !== id));
+        const newDests = plannerDestinations.filter(d => d.id !== id);
+        setPlannerDestinations(newDests);
+        syncDestinationsToUrl(newDests);
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
@@ -177,7 +216,9 @@ export default function PlannerBudgetForm() {
         if (over && active.id !== over.id) {
             const oldIndex = plannerDestinations.findIndex((d) => d.id === active.id);
             const newIndex = plannerDestinations.findIndex((d) => d.id === over.id);
-            setPlannerDestinations(arrayMove(plannerDestinations, oldIndex, newIndex));
+            const newDests = arrayMove(plannerDestinations, oldIndex, newIndex);
+            setPlannerDestinations(newDests);
+            syncDestinationsToUrl(newDests);
         }
     };
 
@@ -233,6 +274,7 @@ export default function PlannerBudgetForm() {
                                         isEditingOrder={isEditingOrder}
                                         isLast={i === plannerDestinations.length - 1}
                                         updateDestination={updateDestination}
+                                        onSelectDestination={handleDestinationSelect}
                                         removeDestination={removeDestination}
                                         canRemove={plannerDestinations.length > 1}
                                     />

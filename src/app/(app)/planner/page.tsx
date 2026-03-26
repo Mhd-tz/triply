@@ -424,7 +424,8 @@ export default function TripMapPage() {
 
     const [view, setView] = React.useState<ViewMode>("map");
     const [tripData, setTripData] = React.useState<DayPlan[]>(initialTripData);
-    const [activeDay, setActiveDay] = React.useState(0);
+    const activeDay = useTripStore(s => s.plannerActiveDay);
+    const setActiveDay = useTripStore(s => s.setPlannerActiveDay);
     const [expandedEvent, setExpandedEvent] = React.useState<string | null>(null);
     const [transportMode, setTransportMode] = React.useState<TransportMode>("transit");
     const [searchQuery, setSearchQuery] = React.useState("");
@@ -436,11 +437,82 @@ export default function TripMapPage() {
         prefillFromSearch?: SearchResult;
     }>({ isOpen: false, mode: "add" });
 
+    const {
+        plannerOrigin, setPlannerOrigin,
+        plannerDestinations,
+        resetPlanningState
+    } = useTripStore();
+
+    // 1. Centralized Location Detection on Load
+    React.useEffect(() => {
+        if (!plannerOrigin) {
+            const detect = async () => {
+                try {
+                    const getCoords = (): Promise<GeolocationCoordinates | null> =>
+                        new Promise(resolve => {
+                            if (!navigator.geolocation) { resolve(null); return; }
+                            navigator.geolocation.getCurrentPosition(
+                                pos => resolve(pos.coords),
+                                () => resolve(null),
+                                { timeout: 5000 }
+                            );
+                        });
+
+                    const coords = await getCoords();
+
+                    if (coords) {
+                        const { latitude, longitude } = coords;
+                        const r = await fetch(
+                            `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&format=json&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`
+                        );
+                        const d = await r.json();
+                        const city = d.results?.[0]?.city || d.results?.[0]?.county || "";
+                        const country = d.results?.[0]?.country_code?.toUpperCase() || "";
+                        const originCity = city ? `${city}${country ? `, ${country}` : ""}` : "";
+                        setPlannerOrigin(originCity);
+                    } else {
+                        const r = await fetch("https://api.bigdatacloud.net/data/reverse-geocode-client");
+                        const d = await r.json();
+                        if (d.city) {
+                            const originCity = d.city + (d.countryCode ? `, ${d.countryCode}` : "");
+                            setPlannerOrigin(originCity);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Location detection failed", e);
+                }
+            };
+            detect();
+        }
+    }, [plannerOrigin, setPlannerOrigin]);
+
+    // 2. Reset Trip State on Destination Change
+    const prevDestNames = React.useRef<string[]>([]);
+    React.useEffect(() => {
+        // We only care about confirmed/meaningful changes to the DESTINATION LIST
+        // Filter out empty names (being typed) to avoid aggressive resets
+        const currentNames = plannerDestinations
+            .map(d => d.name)
+            .filter(n => n.length > 2); // Only count names that looks like a real destination
+        
+        const namesString = currentNames.slice().sort().join("|");
+        const prevString = prevDestNames.current.slice().sort().join("|");
+
+        if (currentNames.length > 0 && namesString !== prevString && prevDestNames.current.length > 0) {
+            console.log("Destinations changed, resetting planning state...");
+            resetPlanningState();
+        }
+        
+        if (currentNames.length > 0) {
+            prevDestNames.current = currentNames;
+        }
+    }, [plannerDestinations, resetPlanningState]);
+
     React.useEffect(() => {
         setTripData(initialTripData);
         setActiveDay(0);
         setExpandedEvent(null);
-    }, [initialTripData]);
+    }, [initialTripData, setActiveDay]);
 
     const pathname = usePathname();
     const isMainOrPlan = pathname === "/" || pathname === "/planner";
@@ -679,38 +751,47 @@ export default function TripMapPage() {
                 </div> */}
             </header>
 
+            {/* Day tabs */}
             <div className="px-5 bg-white border-b border-gray-200 flex items-center justify-between h-14 relative w-full overflow-hidden">
                 <div className="flex-1 min-w-0 h-full flex items-center gap-1 overflow-x-auto scrollbar-none z-10 pr-4 mask-[linear-gradient(to_right,white_calc(100%-24px),transparent)] mr-2">
-                    {tripData.map((d, i) => (
-                        <button
-                            key={d.day}
-                            onClick={() => {
-                                setActiveDay(i);
-                                setExpandedEvent(null);
-                            }}
-                            className={cn(
-                                "relative flex items-center gap-2 shrink-0 px-4 h-full text-sm font-semibold whitespace-nowrap transition-colors",
-                                activeDay === i ? "text-accent" : "text-gray-500 hover:text-gray-900"
-                            )}
-                        >
-                            <span
+                    {tripData.map((d, i) => {
+                        const hasFlight = plannerFlightsAll.some(f => f.dayNum === d.day);
+                        return (
+                            <button
+                                key={d.day}
+                                onClick={() => {
+                                    setActiveDay(i);
+                                    setExpandedEvent(null);
+                                }}
                                 className={cn(
-                                    "flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold shrink-0",
-                                    activeDay === i ? "bg-accent text-white" : "bg-gray-200 text-gray-500"
+                                    "relative flex items-center gap-2 shrink-0 px-4 h-full text-sm font-semibold whitespace-nowrap transition-colors",
+                                    activeDay === i ? "text-accent" : "text-gray-500 hover:text-gray-900"
                                 )}
                             >
-                                {d.day}
-                            </span>
-                            Day {d.day}
-                            <span className="text-xs font-normal text-gray-400 hidden sm:inline">{d.date}</span>
-                            {activeDay === i && (
-                                <motion.div
-                                    layoutId="day-underline"
-                                    className="absolute bottom-0 left-0 right-0 h-[3px] bg-accent rounded-t-sm"
-                                />
-                            )}
-                        </button>
-                    ))}
+                                <div className="relative">
+                                    <span
+                                        className={cn(
+                                            "flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold shrink-0",
+                                            activeDay === i ? "bg-accent text-white" : "bg-gray-200 text-gray-500"
+                                        )}
+                                    >
+                                        {d.day}
+                                    </span>
+                                    {hasFlight && (
+                                        <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-blue-500 border-2 border-white" />
+                                    )}
+                                </div>
+                                Day {d.day}
+                                <span className="text-xs font-normal text-gray-400 hidden sm:inline">{d.date}</span>
+                                {activeDay === i && (
+                                    <motion.div
+                                        layoutId="day-underline"
+                                        className="absolute bottom-0 left-0 right-0 h-[3px] bg-accent rounded-t-sm"
+                                    />
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
                 <div className="shrink-0 flex items-center z-20 pl-2 border-l border-gray-100 bg-white h-full">
                     <Button

@@ -59,6 +59,7 @@ export function formatLabel(f: GeoapifyFeature) {
 export function DestinationAutocomplete({
     value,
     onChange,
+    onSelect,
     autoFocus = false,
     className,
     placeholder,
@@ -66,6 +67,7 @@ export function DestinationAutocomplete({
 }: {
     value: string;
     onChange: (val: string) => void;
+    onSelect?: (val: string) => void;
     autoFocus?: boolean;
     className?: string;
     placeholder?: string;
@@ -117,7 +119,9 @@ export function DestinationAutocomplete({
 
     const handleSelect = (feature: GeoapifyFeature) => {
         const { city, formatted } = feature.properties;
-        onChange(city ?? formatted);
+        const val = city ?? formatted;
+        onChange(val);
+        onSelect?.(val);
         setSuggestions([]);
         setOpen(false);
     };
@@ -282,6 +286,7 @@ export function DatePickerWidget({
     flexDays, setFlexDays,
     flexMonths, setFlexMonths,
     onClose,
+    onConfirm,
     calendarYear, calendarMonth,
     rightYear, rightMonth,
     onPrev, onNext, canGoPrev,
@@ -298,6 +303,7 @@ export function DatePickerWidget({
     flexMonths: string[];
     setFlexMonths: (m: string[]) => void;
     onClose: () => void;
+    onConfirm?: () => void;
     calendarYear: number;
     calendarMonth: number;
     rightYear: number;
@@ -570,7 +576,10 @@ export function DatePickerWidget({
                     }
                 </span>
                 <Button
-                    onClick={onClose}
+                    onClick={() => {
+                        onConfirm?.();
+                        onClose();
+                    }}
                     className="px-6 font-bold h-11"
                     disabled={dateMode === "exact" ? !startDate || !endDate : !flexDays || flexMonths.length === 0}
                 >

@@ -32,9 +32,10 @@ async function geocodeFlight(q: string): Promise<[number, number] | null> {
 export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () => void }) {
     const {
         setLinkedTransport,
-        plannerOrigin, setPlannerOrigin,
+        plannerOrigin,
         plannerDestinations, setPlannerDestinations,
         plannerFlights, addPlannerFlight, removePlannerFlight,
+        setPlannerActiveDay,
     } = useTripStore();
     const searchParams = useSearchParams();
 
@@ -78,47 +79,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         return { type: "any" as const, days: anyDays };
     }, [searchParams]);
 
-    React.useEffect(() => {
-        if (!plannerOrigin) {
-            const detect = async () => {
-                try {
-                    const getCoords = (): Promise<GeolocationCoordinates | null> =>
-                        new Promise(resolve => {
-                            if (!navigator.geolocation) { resolve(null); return; }
-                            navigator.geolocation.getCurrentPosition(
-                                pos => resolve(pos.coords),
-                                () => resolve(null),
-                                { timeout: 5000 }
-                            );
-                        });
 
-                    const coords = await getCoords();
-
-                    if (coords) {
-                        const { latitude, longitude } = coords;
-                        const r = await fetch(
-                            `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&format=json&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`
-                        );
-                        const d = await r.json();
-                        const city = d.results?.[0]?.city || d.results?.[0]?.county || "";
-                        const country = d.results?.[0]?.country_code?.toUpperCase() || "";
-                        const originCity = city ? `${city}${country ? `, ${country}` : ""}` : "";
-                        setPlannerOrigin(originCity);
-                    } else {
-                        const r = await fetch("https://api.bigdatacloud.net/data/reverse-geocode-client");
-                        const d = await r.json();
-                        if (d.city) {
-                            const originCity = d.city + (d.countryCode ? `, ${d.countryCode}` : "");
-                            setPlannerOrigin(originCity);
-                        }
-                    }
-                } catch (e) {
-                    console.error("Location detection failed", e);
-                }
-            };
-            detect();
-        }
-    }, [plannerOrigin, setPlannerOrigin]);
 
     React.useEffect(() => {
         const dest = searchParams.get("dest") || searchParams.get("q");
@@ -213,6 +174,10 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         const dateStr = exactDate
             ? exactDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })
             : dayLabel || "";
+        
+        if (selectedDay) {
+            setPlannerActiveDay(selectedDay - 1);
+        }
 
         setLinkedTransport(`${f.airline} ${f.flightNo}${dateStr ? ` (${dateStr})` : ''}`);
 
@@ -357,6 +322,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                                                 });
                                                 setLinkedTransport(`${existingFlight.airline} ${existingFlight.flightNo}${dateStr ? ` (${dateStr})` : ''}`);
                                             }
+                                            setPlannerActiveDay(newDay - 1);
                                         }}
                                         className={cn(
                                             "shrink-0 flex flex-col items-center px-3 py-2 rounded-xl border text-center transition-all",
