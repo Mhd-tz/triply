@@ -13,10 +13,10 @@ import { useTripStore } from "@/lib/trip-store";
 
 // ── Category Colors (shared with itinerary) ───────────────────
 export const CATEGORY_COLORS = {
-  meal: "#e8820c",
-  activity: "#1D4983",
-  location: "#0f9a8e",
-  transit: "#16a34a",
+  meal: "#EF9F27",
+  activity: "#4E8B3A",
+  location: "#D4537E",
+  transit: "#85B7EB",
 } as const;
 
 const CATEGORY_META: {
@@ -211,7 +211,7 @@ function MiniTimePicker({
                         key={hr}
                         onClick={() => { setHour(hr); }}
                         className={cn(
-                          "h-7 rounded-lg text-[12px] font-bold transition-all",
+                          "h-7 rounded-full text-[12px] font-bold transition-all",
                           hr === hour12 ? "text-white shadow-md" : "text-gray-600 hover:bg-gray-50"
                         )}
                         style={hr === hour12 ? { backgroundColor: accentColor } : undefined}
@@ -230,7 +230,7 @@ function MiniTimePicker({
                         key={min}
                         onClick={() => { setMinute(min); }}
                         className={cn(
-                          "h-7 rounded-lg text-[12px] font-bold transition-all",
+                          "h-7 rounded-full text-[12px] font-bold transition-all",
                           min === m ? "text-white shadow-md" : "text-gray-500 hover:bg-gray-50"
                         )}
                         style={min === m ? { backgroundColor: accentColor } : undefined}
@@ -435,7 +435,7 @@ function PopularPlacesSection({
     <div className="space-y-2.5">
       <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">Popular Nearby</h4>
       <div className="flex flex-col gap-2">
-        {places.slice(0, 6).map((place) => {
+        {places.slice(0, 5).map((place) => {
           const displayName = place.translatedName || place.name;
           const catMeta = CATEGORY_META.find(c => c.key === place.category) || CATEGORY_META[1];
           const siteNavy = "#1D4983";
@@ -652,8 +652,14 @@ export default function AddEventModal({
     setLng(place.lng);
     setType(place.category || "activity");
     setSearchQuery("");
-    setPlaceImage(null);
-    setImages([]);
+    // Preserve popular item's image if available
+    if ("imageUrl" in place && place.imageUrl) {
+      setPlaceImage(place.imageUrl);
+      setImages([place.imageUrl]);
+    } else {
+      setPlaceImage(null);
+      setImages([]);
+    }
     if ("formatted" in place) setAddress(place.formatted || place.address);
     // Suppress the autocomplete dropdown from appearing
     setSuppressDropdown(true);
@@ -791,180 +797,180 @@ export default function AddEventModal({
 
             {step === "manual" && (
 
-            <div className="flex flex-col gap-4">
-              {/* Place Autocomplete */}
-              {!prefill && config.mode !== "edit" && (
-                <PlaceAutocomplete
-                  value={searchQuery || title}
-                  onChange={(v) => { 
-                    setSearchQuery(v); 
-                    if (!v) {
+              <div className="flex flex-col gap-4">
+                {/* Place Autocomplete */}
+                {!prefill && config.mode !== "edit" && (
+                  <PlaceAutocomplete
+                    value={searchQuery || title}
+                    onChange={(v) => {
+                      setSearchQuery(v);
+                      if (!v) {
+                        setTitle("");
+                        setAddress("");
+                        setLat(undefined);
+                        setLng(undefined);
+                        setImages([]);
+                        setPlaceImage(null);
+                      }
+                    }}
+                    onSelect={(place) => { handlePlaceSelect(place); setSearchQuery(""); }}
+                    biasLat={biasCoords?.lat}
+                    biasLng={biasCoords?.lng}
+                    accentColor={accentColor}
+                    suppressDropdown={suppressDropdown}
+                  />
+                )}
+
+                {(prefill || config.mode === "edit") && (
+                  <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Place Name</label>
+                    <input value={title} onChange={(e) => setTitle(e.target.value)}
+                      className="w-full mt-1 h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-medium text-gray-900 outline-none"
+                      placeholder="e.g. Tokyo Tower"
+                    />
+                  </div>
+                )}
+
+                {/* Address */}
+                {(address || lat) && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Location</label>
+                    <div className="mt-1 flex items-center gap-2 h-10 rounded-xl border border-gray-200 bg-gray-50 px-3">
+                      <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <input value={address} onChange={(e) => setAddress(e.target.value)}
+                        className="flex-1 text-[12px] text-gray-600 outline-none bg-transparent" placeholder="Address"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Time pickers */}
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <MiniTimePicker value={time} onChange={setTime} label="Start Time" accentColor={accentColor} />
+                  </div>
+                  <div className="flex-1">
+                    <MiniTimePicker value={endTime} onChange={setEndTime} label="End Time" accentColor={accentColor} />
+                  </div>
+                </div>
+
+                {/* Time Conflict Warning */}
+                {conflictEvent && (
+                  <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700"
+                  >
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <p className="text-[11px] font-medium">
+                      Overlaps with <strong>&quot;{conflictEvent.title}&quot;</strong> ({conflictEvent.time}–{conflictEvent.endTime || "?"})
+                    </p>
+
+                  </motion.div>
+                )}
+
+                {/* Category Pills */}
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Category</label>
+                  <div className="flex gap-2 mt-1.5">
+                    {CATEGORY_META.map((cat) => (
+                      <button key={cat.key} onClick={() => setType(cat.key)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold transition-all border",
+                          type === cat.key ? "text-white shadow-md scale-[1.02]" : "text-gray-600 bg-gray-50 border-gray-200 hover:border-gray-300"
+                        )}
+                        style={type === cat.key ? { backgroundColor: cat.color, borderColor: cat.color } : undefined}
+                      >
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: type === cat.key ? "rgba(255,255,255,0.6)" : cat.color }}
+                        />{cat.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Distance + Transport */}
+                {distanceInfo && distanceInfo.km > 0 && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+                    <div className="flex items-center gap-2 text-[11px] text-gray-500">
+                      <MapPin className="w-3" />
+                      <span>{distanceInfo.km} km from <strong>{distanceInfo.fromTitle}</strong></span>
+                    </div>
+                    {distanceInfo.km > 5 && (
+                      <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-medium">
+                        <AlertTriangle className="w-3" />
+                        <span>Long distance — consider transit or driving</span>
+                      </div>
+                    )}
+                    <div className="flex gap-1.5">
+                      {(["walk", "transit", "drive"] as const).map((m) => {
+                        const meta = TRANSPORT_META[m];
+                        const TIcon = meta.icon;
+                        const isActive = transportTo === m;
+                        return (
+                          <button key={m} onClick={() => setTransportTo(m)}
+                            className={cn(
+                              "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all",
+                              isActive ? "text-white shadow-sm" : "text-gray-500 border-gray-200 hover:bg-gray-50"
+                            )}
+                            style={isActive ? { backgroundColor: meta.color, borderColor: meta.color } : undefined}
+                          >
+                            <TIcon className="w-3 h-3" />{meta.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {transportTo === "walk" && distanceInfo.km > 2 && (
+                      <p className="text-[10px] text-amber-600 font-medium">⚠️ Long walk ({distanceInfo.km} km)</p>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* Popular Places */}
+                {config.mode === "add" && !prefill && !title && activeDests.length > 0 && (
+                  <PopularPlacesSection destinations={activeDests} onSelect={(place) => handlePlaceSelect(place)} tripData={tripData} category={type} />
+                )}
+
+                {/* Day Selector */}
+                {config.mode === "add" && (
+                  <DaySelector tripData={tripData} targetDay={targetDay} setTargetDay={setTargetDay} accentColor={accentColor} />
+                )}
+
+                {/* Notes */}
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Notes</label>
+                  <textarea value={desc} onChange={(e) => setDesc(e.target.value)}
+                    className="w-full h-16 border border-gray-200 rounded-xl p-3 mt-1 bg-gray-50 text-sm outline-none resize-none placeholder:text-gray-400"
+                    placeholder="Add details, tips, or reminders..."
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-2 border-t border-gray-100">
+                  {config.mode === "add" && !prefill && (
+                    <Button variant="outline" onClick={() => {
+                      setStep("choose");
+                      setType("activity");
                       setTitle("");
                       setAddress("");
+                      setSearchQuery("");
+                      setDesc("");
                       setLat(undefined);
                       setLng(undefined);
                       setImages([]);
                       setPlaceImage(null);
-                    }
-                  }}
-                  onSelect={(place) => { handlePlaceSelect(place); setSearchQuery(""); }}
-                  biasLat={biasCoords?.lat}
-                  biasLng={biasCoords?.lng}
-                  accentColor={accentColor}
-                  suppressDropdown={suppressDropdown}
-                />
-              )}
-
-              {(prefill || config.mode === "edit") && (
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Place Name</label>
-                  <input value={title} onChange={(e) => setTitle(e.target.value)}
-                    className="w-full mt-1 h-11 rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm font-medium text-gray-900 outline-none"
-                    placeholder="e.g. Tokyo Tower"
-                  />
-                </div>
-              )}
-
-              {/* Address */}
-              {(address || lat) && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Location</label>
-                  <div className="mt-1 flex items-center gap-2 h-10 rounded-xl border border-gray-200 bg-gray-50 px-3">
-                    <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                    <input value={address} onChange={(e) => setAddress(e.target.value)}
-                      className="flex-1 text-[12px] text-gray-600 outline-none bg-transparent" placeholder="Address"
-                    />
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Time pickers */}
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <MiniTimePicker value={time} onChange={setTime} label="Start Time" accentColor={accentColor} />
-                </div>
-                <div className="flex-1">
-                  <MiniTimePicker value={endTime} onChange={setEndTime} label="End Time" accentColor={accentColor} />
-                </div>
-              </div>
-
-              {/* Time Conflict Warning */}
-              {conflictEvent && (
-                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700"
-                >
-                  <AlertTriangle className="w-4 h-4 shrink-0" />
-                  <p className="text-[11px] font-medium">
-                    Overlaps with <strong>&quot;{conflictEvent.title}&quot;</strong> ({conflictEvent.time}–{conflictEvent.endTime || "?"})
-                  </p>
-
-                </motion.div>
-              )}
-
-              {/* Category Pills */}
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Category</label>
-                <div className="flex gap-2 mt-1.5">
-                  {CATEGORY_META.map((cat) => (
-                    <button key={cat.key} onClick={() => setType(cat.key)}
-                      className={cn(
-                        "flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-bold transition-all border",
-                        type === cat.key ? "text-white shadow-md scale-[1.02]" : "text-gray-600 bg-gray-50 border-gray-200 hover:border-gray-300"
-                      )}
-                      style={type === cat.key ? { backgroundColor: cat.color, borderColor: cat.color } : undefined}
-                    >
-                      <span className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: type === cat.key ? "rgba(255,255,255,0.6)" : cat.color }}
-                      />{cat.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Distance + Transport */}
-              {distanceInfo && distanceInfo.km > 0 && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-                  <div className="flex items-center gap-2 text-[11px] text-gray-500">
-                    <MapPin className="w-3" />
-                    <span>{distanceInfo.km} km from <strong>{distanceInfo.fromTitle}</strong></span>
-                  </div>
-                  {distanceInfo.km > 5 && (
-                    <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-medium">
-                      <AlertTriangle className="w-3" />
-                      <span>Long distance — consider transit or driving</span>
-                    </div>
+                    }} className="flex-1 h-11 rounded-xl border-gray-200 text-gray-600">
+                      Back
+                    </Button>
                   )}
-                  <div className="flex gap-1.5">
-                    {(["walk", "transit", "drive"] as const).map((m) => {
-                      const meta = TRANSPORT_META[m];
-                      const TIcon = meta.icon;
-                      const isActive = transportTo === m;
-                      return (
-                        <button key={m} onClick={() => setTransportTo(m)}
-                          className={cn(
-                            "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all",
-                            isActive ? "text-white shadow-sm" : "text-gray-500 border-gray-200 hover:bg-gray-50"
-                          )}
-                          style={isActive ? { backgroundColor: meta.color, borderColor: meta.color } : undefined}
-                        >
-                          <TIcon className="w-3 h-3" />{meta.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {transportTo === "walk" && distanceInfo.km > 2 && (
-                    <p className="text-[10px] text-amber-600 font-medium">⚠️ Long walk ({distanceInfo.km} km)</p>
-                  )}
-                </motion.div>
-              )}
-
-              {/* Popular Places */}
-              {config.mode === "add" && !prefill && !title && activeDests.length > 0 && (
-                <PopularPlacesSection destinations={activeDests} onSelect={(place) => handlePlaceSelect(place)} tripData={tripData} category={type} />
-              )}
-
-              {/* Day Selector */}
-              {config.mode === "add" && (
-                <DaySelector tripData={tripData} targetDay={targetDay} setTargetDay={setTargetDay} accentColor={accentColor} />
-              )}
-
-              {/* Notes */}
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Notes</label>
-                <textarea value={desc} onChange={(e) => setDesc(e.target.value)}
-                  className="w-full h-16 border border-gray-200 rounded-xl p-3 mt-1 bg-gray-50 text-sm outline-none resize-none placeholder:text-gray-400"
-                  placeholder="Add details, tips, or reminders..."
-                />
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3 pt-2 border-t border-gray-100">
-                {config.mode === "add" && !prefill && (
-                  <Button variant="outline" onClick={() => { 
-                    setStep("choose"); 
-                    setType("activity"); 
-                    setTitle("");
-                    setAddress("");
-                    setSearchQuery("");
-                    setDesc("");
-                    setLat(undefined);
-                    setLng(undefined);
-                    setImages([]);
-                    setPlaceImage(null);
-                  }} className="flex-1 h-11 rounded-xl border-gray-200 text-gray-600">
-                    Back
+                  <Button onClick={handleSave} disabled={!title || !!conflictEvent}
+                    className={cn("flex-1 h-11 rounded-xl text-white font-bold shadow-md transition-colors", conflictEvent && "opacity-50 cursor-not-allowed")}
+                    style={{ backgroundColor: conflictEvent ? "#9ca3af" : accentColor }}
+                  >
+                    <MapPin className="w-4 h-4 mr-1.5" />
+                    {config.mode === "add" ? "Drop Pin" : "Save Changes"}
                   </Button>
-                )}
-                <Button onClick={handleSave} disabled={!title || !!conflictEvent}
-                  className={cn("flex-1 h-11 rounded-xl text-white font-bold shadow-md transition-colors", conflictEvent && "opacity-50 cursor-not-allowed")}
-                  style={{ backgroundColor: conflictEvent ? "#9ca3af" : accentColor }}
-                >
-                  <MapPin className="w-4 h-4 mr-1.5" />
-                  {config.mode === "add" ? "Drop Pin" : "Save Changes"}
-                </Button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
           </div>
         </div>
       </motion.div>

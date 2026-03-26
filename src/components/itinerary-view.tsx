@@ -5,7 +5,7 @@ import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
     Clock, Star, Edit2, Trash2, ChevronDown,
-    Train, Car, PersonStanding, Plus,
+    Bus, Car, PersonStanding, Plus,
     Navigation, Search, X, GripVertical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -77,13 +77,13 @@ interface ItineraryViewProps {
 
 // colors
 const COLORS = {
-    meal: "#e8820c",
-    activity: "#1D4983",
-    location: "#0f9a8e",
-    transit: "#16a34a",
+    meal: "#EF9F27",
+    activity: "#4E8B3A",
+    location: "#D4537E",
+    transit: "#85B7EB",
     note: "#94a3b8",
-    drive: "#4a98f7",
-    walk: "#7c3aed",
+    drive: "#888780",
+    walk: "#1D9E75",
 } as const;
 
 const TYPE_LABELS: Record<string, string> = {
@@ -126,33 +126,30 @@ function TransitRow({
     const configs = {
         drive: {
             Icon: Car,
-            label: "Drive",
-            bg: "bg-blue-50",
-            border: "border-blue-100",
-            text: "text-blue-700",
-            iconBg: "bg-blue-100",
-            iconText: "text-blue-600",
+            label: "Car",
+            color: "#888780",
+            cardBg: "#88878010",
+            cardBorder: "#88878030",
+            badgeBg: "#88878020",
         },
         transit: {
-            Icon: Train,
-            label: "Transit",
-            bg: "bg-green-50",
-            border: "border-green-100",
-            text: "text-green-700",
-            iconBg: "bg-green-100",
-            iconText: "text-green-600",
+            Icon: Bus,
+            label: "Bus",
+            color: "#85B7EB",
+            cardBg: "#85B7EB10",
+            cardBorder: "#85B7EB30",
+            badgeBg: "#85B7EB20",
         },
         walk: {
             Icon: PersonStanding,
             label: "Walk",
-            bg: "bg-violet-50",
-            border: "border-violet-100",
-            text: "text-violet-700",
-            iconBg: "bg-violet-100",
-            iconText: "text-violet-600",
+            color: "#1D9E75",
+            cardBg: "#1D9E7510",
+            cardBorder: "#1D9E7530",
+            badgeBg: "#1D9E7520",
         },
     };
-    const { Icon, label, bg, border, text, iconBg, iconText } = configs[transportMode];
+    const { Icon, label, color, cardBg, cardBorder, badgeBg } = configs[transportMode];
 
     return (
         <div className="flex items-stretch">
@@ -174,15 +171,16 @@ function TransitRow({
                     initial={{ opacity: 0, x: -6 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.2 }}
-                    className={cn("flex items-center gap-2.5 rounded-lg border px-3 py-2", bg, border)}
+                    className="flex items-center gap-2.5 rounded-lg border px-3 py-2"
+                    style={{ backgroundColor: cardBg, borderColor: cardBorder }}
                 >
-                    <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", iconBg)}>
-                        <Icon className={cn("w-3.5 h-3.5", iconText)} />
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: badgeBg, color }}>
+                        <Icon className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                            <span className={cn("text-[13px] font-bold", text)}>{event.duration}</span>
-                            <span className={cn("text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md", iconBg, iconText)}>
+                            <span className="text-[13px] font-bold" style={{ color }}>{event.duration}</span>
+                            <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md" style={{ backgroundColor: badgeBg, color }}>
                                 {label}
                             </span>
                         </div>
@@ -657,8 +655,8 @@ export default function ItineraryView({
                         <div className="flex items-center bg-gray-100 rounded-full p-1 gap-0.5 w-fit">
                             {(
                                 [
-                                    { mode: "drive" as TransportMode, Icon: Car, label: "Drive" },
-                                    { mode: "transit" as TransportMode, Icon: Train, label: "Transit" },
+                                    { mode: "drive" as TransportMode, Icon: Car, label: "Car" },
+                                    { mode: "transit" as TransportMode, Icon: Bus, label: "Bus" },
                                     { mode: "walk" as TransportMode, Icon: PersonStanding, label: "Walk" },
                                 ] as const
                             ).map(({ mode, Icon, label }) => (

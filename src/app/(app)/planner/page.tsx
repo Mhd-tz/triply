@@ -17,7 +17,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import {
     MapPin,
     Clock,
-    Train,
     Map as MapIcon,
     List,
     Search,
@@ -48,6 +47,7 @@ import {
     Check,
     GripVertical,
     Smartphone,
+    AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseYYYYMMDD } from "@/lib/utils";
@@ -66,7 +66,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from "@dnd-kit/utilities";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import PlannerSearch from "@/components/planner-search";
-import PlannerSidebar from "@/components/planner-sidebar";
+import PlannerSidebar, { type Tab as SidebarTab } from "@/components/planner-sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { LayoutDashboard, LogOut } from "lucide-react";
@@ -186,8 +186,11 @@ function rebuildTransits(
     events: EventItem[],
     fallbackMode: TransportMode
 ): EventItem[] {
-    const places = events.filter((e) => !(e.type === "transit" && e.fromId));
-    if (places.length < 2) return places;
+    // Separate flight/hotel events — they stay at the top without transits
+    const flightHotelEvents = events.filter((e) => e.id.startsWith("flight-") || e.id.startsWith("hotel-"));
+    const regularEvents = events.filter((e) => !e.id.startsWith("flight-") && !e.id.startsWith("hotel-"));
+    const places = regularEvents.filter((e) => !(e.type === "transit" && e.fromId));
+    if (places.length < 2) return [...flightHotelEvents, ...places];
 
     // Collect existing transit segments to preserve user-set modes
     const existingTransits: Record<string, TransportMode> = {};
@@ -225,7 +228,7 @@ function rebuildTransits(
             });
         }
     }
-    return result;
+    return [...flightHotelEvents, ...result];
 }
 
 // route fetching via OSRM
@@ -264,7 +267,7 @@ async function fetchOSRMRoute(
 function getRouteArrows(coords: number[][], count: number = 3): { lng: number; lat: number; bearing: number }[] {
     if (coords.length < 2) return [];
     const arrows: { lng: number; lat: number; bearing: number }[] = [];
-    
+
     // Place arrows at evenly spaced intervals along the route
     for (let a = 1; a <= count; a++) {
         const frac = a / (count + 1);
@@ -291,8 +294,8 @@ const generateId = (prefix: string) =>
 // colors
 const COLORS = {
     ...CATEGORY_COLORS,
-    drive: "#4a98f7",
-    walk: "#7c3aed",
+    drive: "#888780",
+    walk: "#1D9E75",
 };
 
 // mock search results
@@ -485,6 +488,7 @@ export default function TripMapPage() {
     const [expandedEvent, setExpandedEvent] = React.useState<string | null>(null);
     const [transportMode, setTransportMode] = React.useState<TransportMode>("transit");
     const [searchQuery, setSearchQuery] = React.useState("");
+    const [sidebarTab, setSidebarTab] = React.useState<SidebarTab>(null);
     const [selectedSearchResult, setSelectedSearchResult] = React.useState<SearchResult | null>(null);
     const parentMapRef = React.useRef<MapRef>(null);
     const [modalConfig, setModalConfig] = React.useState<{
@@ -657,8 +661,8 @@ export default function TripMapPage() {
                 setTimeout(() => {
                     parentMapRef.current?.flyTo({
                         center: [newEvent.lng!, newEvent.lat!],
-                        zoom: 14,
-                        pitch: 30,
+                        zoom: 11,
+                        pitch: 10,
                         duration: 1200,
                         offset: [200, 0] as [number, number],
                     });
@@ -730,7 +734,7 @@ export default function TripMapPage() {
                         title: `✈ ${f.from.split(",")[0]} → ${f.to.split(",")[0]}`,
                         type: "transit" as const,
                         duration: f.duration || "",
-                        color: "#3b82f6",
+                        color: "#378ADD",
                         desc: f.alreadyBooked
                             ? `Booking Ref: ${f.bookingRef}`
                             : `${f.airline} ${f.flightNo}${f.price && f.price !== "0" ? ` · $${f.price}` : ""}`,
@@ -743,7 +747,7 @@ export default function TripMapPage() {
                         time: h.checkIn || "3:00 PM",
                         title: `🏨 ${h.name}`,
                         type: "activity" as const,
-                        color: "#d97706",
+                        color: "#7F77DD",
                         lat: h.lat,
                         lng: h.lng,
                         address: h.address,
@@ -1006,7 +1010,7 @@ export default function TripMapPage() {
             )} */}
 
             <div className="flex-1 w-full relative overflow-hidden bg-[#e2e8f0] flex">
-                <PlannerSidebar />
+                <PlannerSidebar onTabChange={setSidebarTab} />
                 <div className="flex-1 w-full relative overflow-hidden h-full">
                     <AnimatePresence mode="wait">
                         {view === "itinerary" ? (
@@ -1045,6 +1049,7 @@ export default function TripMapPage() {
                                 onReorder={handleReorder}
                                 parentMapRef={parentMapRef}
                                 onChangeTransitMode={handleChangeTransitMode}
+                                sidebarTab={sidebarTab}
                             />
                         )}
                     </AnimatePresence>
@@ -1449,6 +1454,7 @@ function MapView({
     onReorder,
     parentMapRef,
     onChangeTransitMode,
+    sidebarTab,
 }: any) {
     // Sync the map ref to parent for camera control from save handler
     const mapRef = React.useRef<MapRef>(null);
@@ -1460,6 +1466,8 @@ function MapView({
     const [actionMode, setActionMode] = React.useState<ActionMode>("view");
     const [hoveredEvent, setHoveredEvent] = React.useState<string | null>(null);
     const [activeSidebarDragId, setActiveSidebarDragId] = React.useState<string | null>(null);
+    const [highlightedTransitId, setHighlightedTransitId] = React.useState<string | null>(null);
+    const [mapZoom, setMapZoom] = React.useState(1.8);
     const sidebarDndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
     // Flight arcs from store
@@ -1546,25 +1554,48 @@ function MapView({
         return { origin, destinations };
     }, [plannerFlights, plannerOrigin]);
 
-    // Fly to flight points when they appear
+    // When flights tab opens: zoom out to show all flight routes; when it closes: zoom back to saved view
+    const showFlightRoutes = sidebarTab === "flights" && flightsWithCoords.length > 0;
+    const savedCameraRef = React.useRef<{ center: [number, number]; zoom: number; pitch: number; bearing: number } | null>(null);
     React.useEffect(() => {
-        if (!mapRef.current || flightsWithCoords.length === 0) return;
+        if (!mapRef.current) return;
         const map = mapRef.current.getMap();
         if (!map) return;
 
-        const pts = flightsWithCoords.flatMap(f => [f.fromCoords, f.toCoords].filter(Boolean) as [number, number][]);
-        if (pts.length >= 2) {
-            const lngs = pts.map(p => p[0]);
-            const lats = pts.map(p => p[1]);
-            const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-            const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-            const lngSpan = (Math.max(...lngs) - Math.min(...lngs)) + 30;
-            const latSpan = (Math.max(...lats) - Math.min(...lats)) + 20;
-            const zoom = Math.min(Math.log2(360 / lngSpan), Math.log2(180 / latSpan), 5);
-            map.flyTo({ center: [centerLng, centerLat], zoom: Math.max(1.2, zoom), duration: 1200, essential: true, offset: [200, 0] });
+        if (showFlightRoutes) {
+            // Save current camera before zooming out
+            const c = map.getCenter();
+            savedCameraRef.current = {
+                center: [c.lng, c.lat],
+                zoom: map.getZoom(),
+                pitch: map.getPitch(),
+                bearing: map.getBearing(),
+            };
+            // Zoom out to fit all flight points
+            const pts = flightsWithCoords.flatMap(f => [f.fromCoords, f.toCoords].filter(Boolean) as [number, number][]);
+            if (pts.length >= 2) {
+                const lngs = pts.map(p => p[0]);
+                const lats = pts.map(p => p[1]);
+                const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+                const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+                const lngSpan = (Math.max(...lngs) - Math.min(...lngs)) + 30;
+                const latSpan = (Math.max(...lats) - Math.min(...lats)) + 20;
+                const zoom = Math.min(Math.log2(360 / lngSpan), Math.log2(180 / latSpan), 5);
+                map.flyTo({ center: [centerLng, centerLat], zoom: Math.max(1.2, zoom), duration: 1200, essential: true, offset: [200, 0] });
+            }
+        } else if (savedCameraRef.current) {
+            // Restore saved camera view
+            map.flyTo({
+                center: savedCameraRef.current.center,
+                zoom: savedCameraRef.current.zoom,
+                pitch: savedCameraRef.current.pitch,
+                bearing: savedCameraRef.current.bearing,
+                duration: 1000,
+            });
+            savedCameraRef.current = null;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [flightsWithCoords.map(f => f.id).join(',')]);
+    }, [showFlightRoutes]);
 
     // Initial camera: geocode destination from URL and fly to show it + origin
     const searchParamsMap = useSearchParams();
@@ -1621,13 +1652,13 @@ function MapView({
     }, [searchParamsMap, plannerOrigin]);
 
     const placeEvents = React.useMemo(() => day.events.filter(
-        (e: EventItem) => e.type !== "transit" && e.lat && e.lng
+        (e: EventItem) => e.type !== "transit" && e.lat && e.lng && !e.id.startsWith("flight-") && !e.id.startsWith("hotel-")
     ), [day.events]);
     const selectedEventObj = placeEvents.find((e: EventItem) => e.id === expandedEvent);
 
     React.useEffect(() => {
         if (!mapRef.current) return;
-        if (selectedEventObj)
+        if (selectedEventObj) {
             mapRef.current.flyTo({
                 center: [selectedEventObj.lng!, selectedEventObj.lat!],
                 zoom: 15.5,
@@ -1635,12 +1666,34 @@ function MapView({
                 duration: 1200,
                 offset: [0, 250],
             });
-        // Don't fly anywhere when deselecting — camera stays in place
-    }, [expandedEvent, selectedEventObj]);
+        } else if (!expandedEvent) {
+            // Zoom out when collapsing a timeline item
+            const pinEvents = day.events.filter(
+                (e: EventItem) => e.type !== "transit" && e.lat && e.lng
+            );
+            if (pinEvents.length > 1) {
+                const lngs = pinEvents.map((e: EventItem) => e.lng!);
+                const lats = pinEvents.map((e: EventItem) => e.lat!);
+                const sw: [number, number] = [Math.min(...lngs) - 0.05, Math.min(...lats) - 0.05];
+                const ne: [number, number] = [Math.max(...lngs) + 0.05, Math.max(...lats) + 0.05];
+                mapRef.current.fitBounds([sw, ne], {
+                    padding: { top: 100, bottom: 100, left: 440, right: 100 },
+                    duration: 1200,
+                    maxZoom: 11,
+                });
+            } else if (pinEvents.length === 1) {
+                mapRef.current.flyTo({
+                    center: [pinEvents[0].lng!, pinEvents[0].lat!],
+                    zoom: 11,
+                    pitch: 0,
+                    duration: 1200,
+                });
+            }
+        }
+    }, [expandedEvent, selectedEventObj, day.events]);
 
-    // Fetch real routes via OSRM
-    const [routesGeoJson, setRoutesGeoJson] = React.useState<any>(null);
-    const [routeArrows, setRouteArrows] = React.useState<{ lng: number; lat: number; bearing: number; color: string }[]>([]);
+    // Fetch real routes via OSRM — geometry only
+    const [rawRoutes, setRawRoutes] = React.useState<{ coords: [number, number][]; mode: TransportMode; transitId: string; fromColor: string; toColor: string }[]>([]);
 
     // Stable serialized key for place events to prevent infinite re-renders
     const placeEventsKey = React.useMemo(
@@ -1648,27 +1701,26 @@ function MapView({
         [placeEvents]
     );
 
+    // Key for transit modes so routes re-render when a segment's mode changes
+    const transitModesKey = React.useMemo(
+        () => day.events.filter((e: EventItem) => e.type === "transit").map((e: EventItem) => `${e.id}:${e.transitMode}`).join("|"),
+        [day.events]
+    );
+
     React.useEffect(() => {
         if (placeEvents.length < 2) {
-            setRoutesGeoJson(null);
-            setRouteArrows([]);
+            setRawRoutes([]);
             return;
         }
 
         let cancelled = false;
 
         async function buildRoutes() {
-            const features: any[] = [];
-            const arrows: { lng: number; lat: number; bearing: number; color: string }[] = [];
+            const routes: typeof rawRoutes = [];
 
             for (let i = 0; i < placeEvents.length - 1; i++) {
                 const from = placeEvents[i];
                 const to = placeEvents[i + 1];
-                const isHl = !expandedEvent || expandedEvent === from.id || expandedEvent === to.id;
-                const color = isHl ? to.color : "#94a3b8";
-                const opacity = isHl ? 1 : 0.4;
-
-                // Find the transit event between these two places to get the mode
                 const transitEvt = day.events.find(
                     (e: EventItem) => e.type === "transit" && e.fromId === from.id && e.toId === to.id
                 );
@@ -1680,37 +1732,140 @@ function MapView({
                     segMode
                 );
 
-                features.push({
-                    type: "Feature",
-                    geometry: { type: "LineString", coordinates: coords },
-                    properties: { color, opacity },
+                routes.push({
+                    coords: coords as [number, number][],
+                    mode: segMode,
+                    transitId: transitEvt?.id || `seg-${i}`,
+                    fromColor: from.color,
+                    toColor: to.color,
                 });
-
-                // Get multiple arrows along the route
-                const segArrows = getRouteArrows(coords, coords.length > 20 ? 3 : 2);
-                segArrows.forEach(a => arrows.push({ ...a, color }));
             }
 
-            if (!cancelled) {
-                setRoutesGeoJson({ type: "FeatureCollection", features });
-                setRouteArrows(arrows);
-            }
+            if (!cancelled) setRawRoutes(routes);
         }
 
         buildRoutes();
         return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [placeEventsKey, expandedEvent, transportMode]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [placeEventsKey, transportMode, transitModesKey]);
 
-    const dashArray =
-        transportMode === "transit"
-            ? [2, 2]
-            : transportMode === "walk"
-                ? [1, 2]
-                : [1, 0];
+    // Derive styled GeoJSON + arrows from raw routes + highlight state
+    const { routesGeoJson, routeArrows } = React.useMemo(() => {
+        if (rawRoutes.length === 0) return { routesGeoJson: null, routeArrows: [] };
+
+        const features: any[] = [];
+        const arrows: { lng: number; lat: number; bearing: number; color: string }[] = [];
+
+        for (const route of rawRoutes) {
+            const isHl = highlightedTransitId === route.transitId;
+            if (isHl) {
+                // Split route into two halves with endpoint category colors
+                const mid = Math.floor(route.coords.length / 2);
+                const firstHalf = route.coords.slice(0, mid + 1);
+                const secondHalf = route.coords.slice(mid);
+                features.push({
+                    type: "Feature",
+                    geometry: { type: "LineString", coordinates: firstHalf },
+                    properties: { color: route.fromColor, opacity: 1, mode: route.mode, transitId: route.transitId },
+                });
+                features.push({
+                    type: "Feature",
+                    geometry: { type: "LineString", coordinates: secondHalf },
+                    properties: { color: route.toColor, opacity: 1, mode: route.mode, transitId: route.transitId },
+                });
+            } else {
+                features.push({
+                    type: "Feature",
+                    geometry: { type: "LineString", coordinates: route.coords },
+                    properties: { color: "#9CA3AF", opacity: 0.35, mode: route.mode, transitId: route.transitId },
+                });
+            }
+
+            const segArrows = getRouteArrows(route.coords, route.coords.length > 20 ? 3 : 2);
+            const arrowColor = isHl ? route.fromColor : "#9CA3AF";
+            segArrows.forEach(a => arrows.push({ ...a, color: arrowColor }));
+        }
+
+        return {
+            routesGeoJson: { type: "FeatureCollection", features },
+            routeArrows: arrows,
+        };
+    }, [rawRoutes, highlightedTransitId]);
+
+    // Dash arrays are now per-layer (drive=solid, walk=dashed, transit=dot-dash)
     const filtered = DUMMY_SEARCH_RESULTS.filter((r) =>
         r.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Clustering: build GeoJSON for place events
+    const clusterGeoJson = React.useMemo(() => ({
+        type: "FeatureCollection" as const,
+        features: placeEvents.map((e: EventItem) => ({
+            type: "Feature" as const,
+            properties: { id: e.id, title: e.title, color: e.color },
+            geometry: { type: "Point" as const, coordinates: [e.lng!, e.lat!] },
+        })),
+    }), [placeEvents]);
+
+    // Show clusters when zoomed out below threshold and there are 2+ pins
+    const showClusters = placeEvents.length >= 2 && mapZoom < 9;
+
+    // Handle cluster click: zoom into the cluster
+    const handleClusterClick = React.useCallback((e: any) => {
+        if (!showClusters) return;
+        const map = mapRef.current?.getMap();
+        if (!map) return;
+        const features = map.queryRenderedFeatures(e.point, { layers: ["cluster-circles"] });
+        if (!features?.length) return;
+        const clusterId = features[0].properties?.cluster_id;
+        const source = map.getSource("place-clusters") as any;
+        if (source?.getClusterExpansionZoom) {
+            source.getClusterExpansionZoom(clusterId, (err: any, zoom: number) => {
+                if (err) return;
+                const coords = (features[0].geometry as any).coordinates;
+                map.flyTo({ center: coords, zoom: Math.min(zoom, 14), duration: 800 });
+            });
+        }
+    }, [showClusters]);
+
+    // Set cursor to pointer when hovering over interactive layers
+    const onMouseEnterInteractive = React.useCallback(() => {
+        const map = mapRef.current?.getMap();
+        if (map) map.getCanvas().style.cursor = "pointer";
+    }, []);
+    const onMouseLeaveInteractive = React.useCallback(() => {
+        const map = mapRef.current?.getMap();
+        if (map) map.getCanvas().style.cursor = "";
+    }, []);
+
+    // Build interactive layer IDs
+    const interactiveIds = React.useMemo(() => {
+        const ids: string[] = [];
+        if (showClusters) ids.push("cluster-circles");
+        if (!showClusters && !showFlightRoutes && routesGeoJson) ids.push("route-hit-area");
+        return ids;
+    }, [showClusters, showFlightRoutes, routesGeoJson]);
+
+    // Handle map click: clusters or route lines
+    const handleMapClick = React.useCallback((e: any) => {
+        if (showClusters) {
+            handleClusterClick(e);
+            return;
+        }
+        // Check route click
+        const map = mapRef.current?.getMap();
+        if (!map) return;
+        const features = map.queryRenderedFeatures(e.point, { layers: ["route-hit-area"] });
+        if (features?.length) {
+            const tid = features[0].properties?.transitId;
+            if (tid) {
+                setHighlightedTransitId(prev => prev === tid ? null : tid);
+                return;
+            }
+        }
+        // Click on empty space clears highlight
+        if (highlightedTransitId) setHighlightedTransitId(null);
+    }, [showClusters, handleClusterClick, highlightedTransitId]);
 
     return (
         <motion.div
@@ -1730,17 +1885,22 @@ function MapView({
                     }}
                     style={{ width: "100%", height: "100%" }}
                     mapStyle="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+                    onZoom={(e) => setMapZoom(e.viewState.zoom)}
+                    onClick={handleMapClick}
+                    interactiveLayerIds={interactiveIds}
+                    onMouseEnter={interactiveIds.length > 0 ? onMouseEnterInteractive : undefined}
+                    onMouseLeave={interactiveIds.length > 0 ? onMouseLeaveInteractive : undefined}
                 >
                     <NavigationControl position="bottom-right" />
 
-                    {/* Flight arcs */}
-                    {flightsWithCoords.length > 0 && (
+                    {/* Flight arcs — only visible when flights form is open */}
+                    {sidebarTab === "flights" && flightsWithCoords.length > 0 && (
                         <>
                             <Source id="flight-arcs" type="geojson" data={flightArcs}>
                                 <Layer id="flight-arc-bg" type="line" paint={{ "line-color": "#94a3b8", "line-width": 2, "line-opacity": 0.35, "line-dasharray": [4, 3] }} />
                             </Source>
                             <Source id="flight-arcs-animated" type="geojson" data={flightArcsAnimated}>
-                                <Layer id="flight-arc-active" type="line" paint={{ "line-color": "hsl(216, 62%, 50%)", "line-width": 4, "line-opacity": 0.95, "line-blur": 1 }} />
+                                <Layer id="flight-arc-active" type="line" paint={{ "line-color": "#378ADD", "line-width": 4, "line-opacity": 0.95, "line-blur": 1 }} />
                             </Source>
 
                             {/* Origin marker */}
@@ -1779,36 +1939,138 @@ function MapView({
                         </>
                     )}
 
-                    {/* Itinerary routes */}
-                    {routesGeoJson && (
-                        <Source id="routes" type="geojson" data={routesGeoJson as any}>
+                    {/* Cluster layer */}
+                    {showClusters && (
+                        <Source
+                            id="place-clusters"
+                            type="geojson"
+                            data={clusterGeoJson as any}
+                            cluster={true}
+                            clusterMaxZoom={10}
+                            clusterRadius={60}
+                        >
                             <Layer
-                                id="route-lines"
+                                id="cluster-circles"
+                                type="circle"
+                                filter={["has", "point_count"]}
+                                paint={{
+                                    "circle-color": "#1D4983",
+                                    "circle-radius": ["step", ["get", "point_count"], 22, 5, 28, 10, 34],
+                                    "circle-opacity": 0.9,
+                                    "circle-stroke-width": 3,
+                                    "circle-stroke-color": "#ffffff",
+                                }}
+                            />
+                            <Layer
+                                id="cluster-count"
+                                type="symbol"
+                                filter={["has", "point_count"]}
+                                layout={{
+                                    "text-field": "{point_count_abbreviated}",
+                                    "text-size": 14,
+                                }}
+                                paint={{
+                                    "text-color": "#ffffff",
+                                }}
+                            />
+                            {/* Unclustered single points */}
+                            <Layer
+                                id="unclustered-point"
+                                type="circle"
+                                filter={["!", ["has", "point_count"]]}
+                                paint={{
+                                    "circle-color": ["get", "color"],
+                                    "circle-radius": 8,
+                                    "circle-stroke-width": 2,
+                                    "circle-stroke-color": "#ffffff",
+                                }}
+                            />
+                        </Source>
+                    )}
+
+                    {/* Itinerary routes (hidden when clusters active or flight routes showing) */}
+                    {!showClusters && !showFlightRoutes && routesGeoJson && (
+                        <Source id="routes" type="geojson" data={routesGeoJson as any}>
+                            {/* Invisible wide hit area for clicking routes */}
+                            <Layer
+                                id="route-hit-area"
                                 type="line"
                                 paint={{
+                                    "line-color": "transparent",
+                                    "line-width": 16,
+                                    "line-opacity": 0,
+                                }}
+                            />
+                            {/* Car: solid line */}
+                            <Layer
+                                id="route-lines-drive"
+                                type="line"
+                                filter={["==", ["get", "mode"], "drive"]}
+                                paint={{
                                     "line-color": ["get", "color"],
-                                    "line-width": transportMode === "drive" ? 4 : 3,
-                                    "line-dasharray": dashArray,
+                                    "line-width": 4,
+                                    "line-opacity": ["get", "opacity"],
+                                }}
+                            />
+                            {/* Walk: short dashes */}
+                            <Layer
+                                id="route-lines-walk"
+                                type="line"
+                                filter={["==", ["get", "mode"], "walk"]}
+                                paint={{
+                                    "line-color": ["get", "color"],
+                                    "line-width": 3,
+                                    "line-dasharray": [2, 2],
+                                    "line-opacity": ["get", "opacity"],
+                                }}
+                            />
+                            {/* Bus: dot-dash */}
+                            <Layer
+                                id="route-lines-transit"
+                                type="line"
+                                filter={["==", ["get", "mode"], "transit"]}
+                                paint={{
+                                    "line-color": ["get", "color"],
+                                    "line-width": 3,
+                                    "line-dasharray": [4, 2, 1, 2],
                                     "line-opacity": ["get", "opacity"],
                                 }}
                             />
                         </Source>
                     )}
-                    {/* Route direction arrows */}
-                    {routeArrows.map((arrow, i) => (
+                    {/* Route direction arrows (animated, hidden when clusters active) */}
+                    <style>{`
+                        @keyframes arrowPulse {
+                            0%, 70% { transform: translateX(0); opacity: 1; }
+                            85% { transform: translateX(4px); opacity: 0.4; }
+                            86% { transform: translateX(-3px); opacity: 0; }
+                            100% { transform: translateX(0); opacity: 1; }
+                        }
+                    `}</style>
+                    {!showClusters && !showFlightRoutes && routeArrows.map((arrow, i) => (
                         <Marker key={`arrow-${i}`} longitude={arrow.lng} latitude={arrow.lat} anchor="center" style={{ zIndex: 5 }}>
                             <div
                                 className="flex items-center justify-center w-5 h-5 rounded-full bg-white shadow-md border border-gray-200"
                                 style={{ transform: `rotate(${arrow.bearing - 90}deg)` }}
                             >
-                                <ArrowRight className="w-3 h-3" style={{ color: arrow.color }} />
+                                <ArrowRight
+                                    className="w-3 h-3"
+                                    style={{
+                                        color: arrow.color,
+                                        animation: `arrowPulse 4s ease-in-out ${i * 0.6}s infinite`,
+                                    }}
+                                />
                             </div>
                         </Marker>
                     ))}
-                    {placeEvents.map((event) => {
+                    {!showClusters && !showFlightRoutes && placeEvents.map((event: EventItem) => {
                         const isSelected = expandedEvent === event.id;
                         const isDanger =
                             actionMode === "remove" && hoveredEvent === event.id;
+                        // Determine if this pin is an endpoint of the highlighted transit
+                        const hlTransitEvt = highlightedTransitId ? day.events.find((e: EventItem) => e.id === highlightedTransitId) : null;
+                        const isHlEndpoint = hlTransitEvt ? (event.id === hlTransitEvt.fromId || event.id === hlTransitEvt.toId) : false;
+                        const isDimmed = !!highlightedTransitId && !isHlEndpoint && !isSelected;
                         return (
                             <Marker
                                 key={event.id}
@@ -1817,6 +2079,8 @@ function MapView({
                                 anchor="bottom"
                                 style={{
                                     zIndex: isSelected ? 50 : hoveredEvent === event.id ? 40 : 10,
+                                    opacity: isDimmed ? 0.3 : 1,
+                                    transition: "opacity 0.3s ease",
                                 }}
                             >
                                 <div
@@ -1895,7 +2159,7 @@ function MapView({
                             </Marker>
                         );
                     })}
-                    {selectedEventObj && actionMode === "view" && (
+                    {!showClusters && !showFlightRoutes && selectedEventObj && actionMode === "view" && (
                         <Popup
                             longitude={selectedEventObj.lng!}
                             latitude={selectedEventObj.lat!}
@@ -1944,7 +2208,6 @@ function MapView({
                                                         key={i}
                                                         className={cn(
                                                             "w-3.5 h-3.5",
-                                                            // @ts-expect-error: selectedEventObj.rating is not defined
                                                             i < Math.floor(selectedEventObj.rating)
                                                                 ? "fill-amber-400 text-amber-400"
                                                                 : "fill-gray-200 text-gray-200"
@@ -2043,20 +2306,20 @@ function MapView({
                                                 if (pinEvents.length > 1 && mapRef.current) {
                                                     const lngs = pinEvents.map((e: EventItem) => e.lng!);
                                                     const lats = pinEvents.map((e: EventItem) => e.lat!);
-                                                    const sw: [number, number] = [Math.min(...lngs) - 0.03, Math.min(...lats) - 0.03];
-                                                    const ne: [number, number] = [Math.max(...lngs) + 0.03, Math.max(...lats) + 0.03];
+                                                    const sw: [number, number] = [Math.min(...lngs) - 0.05, Math.min(...lats) - 0.05];
+                                                    const ne: [number, number] = [Math.max(...lngs) + 0.05, Math.max(...lats) + 0.05];
                                                     setTimeout(() => {
                                                         mapRef.current?.fitBounds([sw, ne], {
                                                             padding: { top: 100, bottom: 100, left: 440, right: 100 },
                                                             duration: 1200,
-                                                            maxZoom: 14,
+                                                            maxZoom: 11,
                                                         });
                                                     }, 150);
                                                 } else if (pinEvents.length === 1 && mapRef.current) {
                                                     setTimeout(() => {
                                                         mapRef.current?.flyTo({
                                                             center: [pinEvents[0].lng!, pinEvents[0].lat!],
-                                                            zoom: 13,
+                                                            zoom: 11,
                                                             pitch: 0,
                                                             duration: 1200,
                                                         });
@@ -2179,7 +2442,7 @@ function MapView({
                                 setActiveSidebarDragId(null);
                                 const { active, over } = e;
                                 if (!over || active.id === over.id || !onReorder) return;
-                                const placeEvts = day.events.filter((ev: EventItem) => !(ev.type === "transit" && ev.fromId));
+                                const placeEvts = day.events.filter((ev: EventItem) => !(ev.type === "transit" && ev.fromId) && !ev.id.startsWith("flight-") && !ev.id.startsWith("hotel-"));
                                 const oldIdx = placeEvts.findIndex((ev: EventItem) => ev.id === active.id);
                                 const newIdx = placeEvts.findIndex((ev: EventItem) => ev.id === over.id);
                                 if (oldIdx === -1 || newIdx === -1) return;
@@ -2189,18 +2452,38 @@ function MapView({
                             onDragCancel={() => setActiveSidebarDragId(null)}
                         >
                             <SortableContext
-                                items={day.events.filter((ev: EventItem) => !(ev.type === "transit" && ev.fromId)).map((ev: EventItem) => ev.id)}
+                                items={day.events.filter((ev: EventItem) => !(ev.type === "transit" && ev.fromId) && !ev.id.startsWith("flight-") && !ev.id.startsWith("hotel-")).map((ev: EventItem) => ev.id)}
                                 strategy={verticalListSortingStrategy}
                             >
                                 {day.events.map((event: EventItem, index: number) => {
                                     const isTransit = event.type === "transit" && !!event.fromId;
-                                    if (isTransit) {
+                                    const isFlight = event.id.startsWith("flight-");
+                                    const isHotel = event.id.startsWith("hotel-");
+                                    if (isTransit && !isFlight) {
+                                        const fromEvt = day.events.find((e: EventItem) => e.id === event.fromId);
+                                        const toEvt = day.events.find((e: EventItem) => e.id === event.toId);
                                         return (
                                             <TransitRow
                                                 key={event.id}
                                                 event={event}
                                                 onChangeMode={onChangeTransitMode}
                                                 isLast={index === day.events.length - 1}
+                                                isHighlighted={highlightedTransitId === event.id}
+                                                onToggleHighlight={() => setHighlightedTransitId(highlightedTransitId === event.id ? null : event.id)}
+                                                fromColor={fromEvt?.color}
+                                                toColor={toEvt?.color}
+                                            />
+                                        );
+                                    }
+                                    if (isFlight || isHotel) {
+                                        return (
+                                            <StaticPlaceRow
+                                                key={event.id}
+                                                event={event}
+                                                isSelected={expandedEvent === event.id}
+                                                isLast={index === day.events.length - 1}
+                                                onClick={() => handleItemInteract(event)}
+                                                hideTime={isHotel}
                                             />
                                         );
                                     }
@@ -2247,16 +2530,13 @@ function MapView({
                             <LegendItem color={COLORS.meal} label="Meal" />
                             <LegendItem color={COLORS.activity} label="Activity" />
                             <LegendItem color={COLORS.location} label="Location" />
-                            <LegendItem color={
-                                transportMode === "transit" ? COLORS.transit : transportMode === "drive" ? COLORS.drive : COLORS.walk
-                            } label={transportMode} />
                         </div>
                     </div>
                 </div>
             </motion.div>
 
             {/* RIGHT TOOLBAR */}
-            <motion.div
+            {/* <motion.div
                 initial={{ x: 60, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ ease: "easeInOut" }}
@@ -2269,7 +2549,7 @@ function MapView({
                         tooltip="Add Location"
                         onClick={() => onOpenModal("add")}
                     />
-                    {/* <ToolbarButton
+                    <ToolbarButton
                         icon={<MapPinMinus className="w-5 h-5" />}
                         isActive={actionMode === "remove"}
                         tooltip="Remove Mode"
@@ -2284,8 +2564,8 @@ function MapView({
                         onClick={() =>
                             setActionMode(actionMode === "edit" ? "view" : "edit")
                         }
-                    /> */}
-                    {/* <div className="w-8 h-px bg-primary/30 mx-auto my-1" />
+                    />
+                    <div className="w-8 h-px bg-primary/30 mx-auto my-1" />
                     <ToolbarButton
                         icon={<Car className="w-5 h-5" />}
                         tooltip="Drive"
@@ -2303,9 +2583,9 @@ function MapView({
                         tooltip="Walk"
                         isActive={transportMode === "walk"}
                         onClick={() => setTransportMode("walk")}
-                    /> */}
+                    />
                 </div>
-            </motion.div>
+            </motion.div> */}
         </motion.div>
     );
 
@@ -2327,36 +2607,35 @@ function MapView({
 function TransitRow({
     event,
     onChangeMode,
+    isHighlighted,
+    onToggleHighlight,
+    fromColor,
+    toColor,
 }: {
     event: EventItem;
     onChangeMode?: (transitId: string, mode: TransportMode) => void;
     isLast: boolean;
+    isHighlighted?: boolean;
+    onToggleHighlight?: () => void;
+    fromColor?: string;
+    toColor?: string;
 }) {
-    const configs = {
-        drive: {
-            Icon: Car,
-            label: "Drive",
-            card: "bg-blue-50 border-blue-100",
-            text: "text-blue-600",
-            badge: "bg-blue-100 text-blue-600",
-        },
-        transit: {
-            Icon: Train,
-            label: "Transit",
-            card: "bg-green-50 border-green-100",
-            text: "text-green-700",
-            badge: "bg-green-100 text-green-700",
-        },
-        walk: {
-            Icon: PersonStanding,
-            label: "Walk",
-            card: "bg-violet-50 border-violet-100",
-            text: "text-violet-600",
-            badge: "bg-violet-100 text-violet-600",
-        },
-    };
+    const modeIcons: Record<TransportMode, typeof Car> = { drive: Car, transit: Bus, walk: PersonStanding };
+    const modeLabels: Record<TransportMode, string> = { drive: "Car", transit: "Bus", walk: "Walk" };
     const currentMode = event.transitMode || "walk";
-    const { Icon, label, card, text, badge } = configs[currentMode];
+    const Icon = modeIcons[currentMode];
+    const label = modeLabels[currentMode];
+
+    // Gray by default, colored when highlighted
+    const gray = "#9CA3AF";
+    const color = isHighlighted ? (fromColor || gray) : gray;
+    const cardBg = isHighlighted ? `${fromColor}10` : `${gray}10`;
+    const cardBorder = isHighlighted ? `${fromColor}30` : `${gray}30`;
+    const badgeBg = isHighlighted ? `${fromColor}20` : `${gray}20`;
+    const cardStyle = isHighlighted && fromColor && toColor
+        ? { background: `linear-gradient(135deg, ${fromColor}10, ${toColor}10)`, borderColor: `${fromColor}30` }
+        : { backgroundColor: cardBg, borderColor: cardBorder };
+
     const isLongWalk = currentMode === "walk" && (event.distanceKm || 0) > 2;
     const isLongTransit = currentMode === "transit" && (event.distanceKm || 0) > 20;
     const showWarning = isLongWalk || isLongTransit;
@@ -2364,10 +2643,12 @@ function TransitRow({
     const allModes: TransportMode[] = ["walk", "transit", "drive"];
 
     return (
-        <div className="flex">
+        <div className="flex cursor-pointer" onClick={onToggleHighlight}>
             <div className="w-[40px] shrink-0" />
-            <div className="w-5 shrink-0 flex flex-col items-center relative py-1">
-                <div className="flex flex-col gap-[4px] items-center">
+            <div className="w-5 shrink-0 flex flex-col items-center justify-center relative overflow-visible">
+                {/* Continuous connector line behind dots */}
+                <div className="absolute -top-5 -bottom-5 left-1/2 -translate-x-1/2 w-[2px] bg-gray-200 z-0" />
+                <div className="flex flex-col gap-[4px] items-center relative z-10 py-1">
                     {Array.from({ length: 7 }).map((_, i) => (
                         <motion.div
                             key={i}
@@ -2375,40 +2656,34 @@ function TransitRow({
                             animate={{ opacity: 1, scaleY: 1 }}
                             transition={{ delay: i * 0.04 }}
                             className="w-[2px] h-[4px] rounded-full"
-                            style={{ backgroundColor: COLORS.transit }}
+                            style={{ backgroundColor: color }}
                         />
                     ))}
                 </div>
             </div>
-            <div className="flex-1 pl-3 py-1 pb-4">
+            <div className="flex-1 min-w-0 pl-3 py-1 pb-4">
                 <motion.div
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.25 }}
-                    className={cn(
-                        "rounded-xl border px-3 py-2.5",
-                        card
-                    )}
+                    className="rounded-xl border px-3 py-2.5 overflow-hidden transition-all"
+                    style={cardStyle}
                 >
                     <div className="flex items-center gap-2.5">
                         <div
-                            className={cn(
-                                "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
-                                badge
-                            )}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: badgeBg, color }}
                         >
                             <Icon className="w-3.5 h-3.5" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-1">
-                                <span className={cn("text-[13px] font-bold", text)}>
+                                <span className="text-[13px] font-bold" style={{ color }}>
                                     {event.duration}
                                 </span>
                                 <span
-                                    className={cn(
-                                        "text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md",
-                                        badge
-                                    )}
+                                    className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md shrink-0"
+                                    style={{ backgroundColor: badgeBg, color }}
                                 >
                                     {label}
                                 </span>
@@ -2423,21 +2698,22 @@ function TransitRow({
                     {onChangeMode && (
                         <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-200/50">
                             {allModes.map((m) => {
-                                const MIcon = configs[m].Icon;
+                                const MIcon = modeIcons[m];
                                 const isActive = m === currentMode;
+                                const mColor = isHighlighted ? (fromColor || gray) : gray;
+                                const mBadgeBg = isHighlighted ? `${fromColor}20` : `${gray}20`;
                                 return (
                                     <button
                                         key={m}
-                                        onClick={() => onChangeMode(event.id, m)}
+                                        onClick={(e) => { e.stopPropagation(); onChangeMode(event.id, m); }}
                                         className={cn(
                                             "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all",
-                                            isActive
-                                                ? `${configs[m].badge} shadow-sm`
-                                                : "text-gray-400 hover:bg-gray-100"
+                                            isActive ? "shadow-sm" : "text-gray-400 hover:bg-gray-100"
                                         )}
+                                        style={isActive ? { backgroundColor: mBadgeBg, color: mColor } : undefined}
                                     >
                                         <MIcon className="w-3 h-3" />
-                                        {configs[m].label}
+                                        {modeLabels[m]}
                                     </button>
                                 );
                             })}
@@ -2446,7 +2722,7 @@ function TransitRow({
                     {/* Distance warning */}
                     {showWarning && (
                         <div className="mt-1.5 flex items-center gap-1 text-[10px] text-amber-600 font-medium">
-                            <span>⚠️</span>
+                            <AlertTriangle className="w-3 h-3" />
                             {isLongWalk ? `Long walk (${event.distanceKm} km)` : `Long transit (${event.distanceKm} km)`}
                         </div>
                     )}
@@ -2478,16 +2754,16 @@ function SortablePlaceRow(props: {
                 <div className="w-[40px] shrink-0 pt-[10px] pr-3 text-right">
                     <span className="text-[12px] font-bold text-gray-600">{props.event.time}</span>
                 </div>
-                <div className="w-5 shrink-0 flex flex-col items-center relative">
+                <div className="w-5 shrink-0 flex flex-col items-center relative overflow-visible">
                     {!props.isLast && (
-                        <div className="absolute top-6 bottom-[-24px] w-[2px] bg-gray-200 z-0" />
+                        <div className="absolute top-[22px] -bottom-5 left-1/2 -translate-x-1/2 w-[2px] bg-gray-200 z-0" />
                     )}
                     <div
                         className="w-4 h-4 rounded-full mt-3.5 relative z-10 border-[3px] border-white shadow-sm ring-1 ring-gray-100"
                         style={{ backgroundColor: props.event.color }}
                     />
                 </div>
-                <div className="flex-1 pb-5 pl-3">
+                <div className="flex-1 min-w-0 pb-5 pl-3">
                     <motion.div
                         layout
                         className="w-full overflow-hidden shadow-sm rounded-lg border transition-all"
@@ -2556,6 +2832,79 @@ function SortablePlaceRow(props: {
                                             </p>
                                         )}
                                     </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </motion.div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// static (non-draggable) place row for flights/hotels
+function StaticPlaceRow(props: {
+    event: EventItem;
+    isSelected: boolean;
+    isLast: boolean;
+    onClick: () => void;
+    hideTime?: boolean;
+}) {
+    return (
+        <div>
+            <div className="flex group cursor-pointer" onClick={props.onClick}>
+                <div className="w-[40px] shrink-0 pt-[10px] pr-3 text-right">
+                    {!props.hideTime && (
+                        <span className="text-[12px] font-bold text-gray-600">{props.event.time}</span>
+                    )}
+                </div>
+                <div className="w-5 shrink-0 flex flex-col items-center relative overflow-visible">
+                    {!props.isLast && (
+                        <div className="absolute top-[22px] -bottom-5 left-1/2 -translate-x-1/2 w-[2px] bg-gray-200 z-0" />
+                    )}
+                    <div
+                        className="w-4 h-4 rounded-full mt-3.5 relative z-10 border-[3px] border-white shadow-sm ring-1 ring-gray-100"
+                        style={{ backgroundColor: props.event.color }}
+                    />
+                </div>
+                <div className="flex-1 min-w-0 pb-5 pl-3">
+                    <motion.div
+                        layout
+                        className="w-full overflow-hidden shadow-sm rounded-lg border transition-all"
+                        style={{
+                            backgroundColor: props.isSelected ? "white" : props.event.color,
+                            borderColor: props.isSelected ? props.event.color : "transparent",
+                        }}
+                    >
+                        <motion.div
+                            layout
+                            className="px-4 py-3 flex items-center justify-between gap-2"
+                            style={{ backgroundColor: props.event.color }}
+                        >
+                            <p className="text-[15px] font-bold text-white truncate flex-1">
+                                {props.event.title.length > 19 ? props.event.title.substring(0, 19) + "..." : props.event.title}
+                            </p>
+                            {props.isSelected ? (
+                                <ChevronUp className="w-4 h-4 text-white opacity-80 shrink-0" />
+                            ) : (
+                                <ChevronDown className="w-4 h-4 text-white opacity-80 shrink-0" />
+                            )}
+                        </motion.div>
+                        <AnimatePresence>
+                            {props.isSelected && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="bg-white"
+                                >
+                                    {props.event.desc && (
+                                        <div className="p-4">
+                                            <p className="text-[13px] text-gray-600 line-clamp-2 leading-relaxed">
+                                                {props.event.desc}
+                                            </p>
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
                         </AnimatePresence>

@@ -14,13 +14,17 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-type Tab = "flights" | "hotels" | "trip" | null;
+export type Tab = "flights" | "hotels" | "trip" | null;
 
 const TAB_ORDER: Tab[] = ["trip", "flights", "hotels"];
 const TAB_LABELS: Record<string, string> = { trip: "Trip", flights: "Flights", hotels: "Hotels" };
 
-export default function PlannerSidebar() {
-    const [expandedTab, setExpandedTab] = React.useState<Tab>(null);
+export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Tab) => void } = {}) {
+    const [expandedTab, setExpandedTabRaw] = React.useState<Tab>(null);
+    const setExpandedTab = React.useCallback((tab: Tab) => {
+        setExpandedTabRaw(tab);
+        onTabChange?.(tab);
+    }, [onTabChange]);
     const [direction, setDirection] = React.useState(0);
     const [showOnboarding, setShowOnboarding] = React.useState(true);
 
