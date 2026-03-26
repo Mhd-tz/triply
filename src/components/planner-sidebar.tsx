@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Plane, Bed, Wallet, PanelLeftClose } from "lucide-react";
+import { Plane, Bed, PanelLeftClose, NotebookText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PlannerFlightForm from "./planner-flight-form";
 import PlannerHotelForm from "./planner-hotel-form";
@@ -65,7 +65,7 @@ export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Ta
                 {/* Floating Icons Mode */}
                 <div className={cn("absolute inset-0 flex flex-col items-center py-6 gap-3 z-10 transition-opacity", expandedTab ? "opacity-0 pointer-events-none" : "opacity-100")}>
                     <SidebarButton
-                        icon={<Wallet className="w-5 h-5" />}
+                        icon={<NotebookText className="w-5 h-5" />}
                         label="Trip"
                         forceOpen={showOnboarding}
                         onClick={() => {
