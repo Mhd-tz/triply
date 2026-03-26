@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
@@ -130,7 +131,7 @@ function StarRating({ rating }: { rating: number }) {
     );
 }
 
-// transit row — per-segment mode switching (matches map view)
+// transit row - per-segment mode switching (matches map view)
 function TransitRow({
     event,
     onChangeMode,
@@ -486,7 +487,6 @@ function RightPanelSearch({
         try {
             const r = await fetch(`/api/places/popular?dest=${encodeURIComponent(currentDest)}&limit=12`);
             const data = await r.json();
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const items: SearchResult[] = (data.results || []).map((p: any, i: number) => ({
                 id: `sug-${i}-${p.placeId || i}`,
                 name: p.translatedName || p.name,
@@ -516,7 +516,6 @@ function RightPanelSearch({
                 const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(query)}${biasParam}&limit=8&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`;
                 const r = await fetch(url);
                 const data = await r.json();
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const items: SearchResult[] = (data.features || []).map((f: any, i: number) => {
                     const p = f.properties;
                     const rawType = p.result_type === "amenity" ? (p.category || "Place") : (p.result_type || "Place");
@@ -821,7 +820,7 @@ function DaySummaryPanel({
                                     <div className="w-1.5 h-1.5 rounded-full mt-2 shrink-0" style={{ backgroundColor: p.color }} />
                                     <div className="flex-1 min-w-0">
                                         <span className="text-[12px] font-bold text-gray-800">{p.title}</span>
-                                        {/* <span className="text-[12px] text-gray-500"> — </span> */}
+                                        {/* <span className="text-[12px] text-gray-500"> - </span> */}
                                         <span className="text-[12px] text-gray-500 line-clamp-2 leading-relaxed">{p.desc}</span>
                                     </div>
                                     <span className="text-[10px] font-bold text-gray-400 shrink-0 mt-0.5">{p.time}</span>
@@ -836,10 +835,8 @@ function DaySummaryPanel({
 
 export default function ItineraryView({
     day,
-    tripData,
     expandedEvent,
     setExpandedEvent,
-    transportMode,
     onOpenModal,
     onSearchResultClick,
     onReorder,
@@ -890,7 +887,7 @@ export default function ItineraryView({
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-4 pt-4 pb-2" style={{ scrollbarWidth: "none" }}>
+                <div className="flex-1 overflow-y-auto px-4 pl-0 pt-4 pb-2" style={{ scrollbarWidth: "none" }}>
                     {day.events.length === 0 && (
                         <div className="h-full flex items-center justify-center text-gray-400 text-sm italic py-10">
                             No plans yet. Add something!

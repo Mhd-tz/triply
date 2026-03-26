@@ -12,7 +12,7 @@ import { useTripStore } from "@/lib/trip-store";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-/* ── dummy hotel data ────────────────────────────────────────── */
+// dummy hotel data
 const AMENITY_ICONS: Record<string, React.ReactNode> = {
     "Free WiFi": <Wifi className="w-3.5 h-3.5" />,
     "Parking": <Car className="w-3.5 h-3.5" />,
@@ -144,7 +144,7 @@ function getBedLabel(room: HotelTemplate["rooms"][0], travelers: number) {
 }
 
 
-/* ── Main Component ──────────────────────────────────────── */
+// Main Component
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function PlannerHotelForm({ onClose: _onClose }: { onClose: () => void }) {
     const {
@@ -748,7 +748,7 @@ export default function PlannerHotelForm({ onClose: _onClose }: { onClose: () =>
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs font-semibold text-gray-800 truncate">{hotel.name}</p>
                                 <p className="text-[10px] text-gray-500 truncate">
-                                    {hotel.alreadyBooked ? `Ref: ${hotel.bookingRef || "—"}` : `$${hotel.pricePerNight}/night`}
+                                    {hotel.alreadyBooked ? `Ref: ${hotel.bookingRef || "-"}` : `$${hotel.pricePerNight}/night`}
                                     {hotel.date ? ` · ${hotel.date}` : ""}
                                 </p>
                             </div>

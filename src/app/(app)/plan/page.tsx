@@ -594,8 +594,8 @@ function FlightsStep({ data, onChange }: { data: PlanData; onChange: (d: Partial
     const syncBookedFlight = async (legId: string, fromCity: string, toCity: string, bookingRef: string) => {
         const newFlights = [...data.flights.filter(f => !(f.from === fromCity && f.to === toCity)), {
             id: `booked-${legId}-${uid()}`, from: fromCity, to: toCity, date: "",
-            airline: "Own Booking", flightNo: bookingRef || "N/A", departTime: "—",
-            arriveTime: "—", price: "0", bookingRef,
+            airline: "Own Booking", flightNo: bookingRef || "N/A", departTime: "-",
+            arriveTime: "-", price: "0", bookingRef,
             alreadyBooked: true, type: "outbound" as const, logo: "", duration: "",
         }];
         onChange({ flights: newFlights });
@@ -623,7 +623,7 @@ function FlightsStep({ data, onChange }: { data: PlanData; onChange: (d: Partial
             <div>
                 <h2 className="text-xl font-heading font-bold">Flights</h2>
                 <p className="text-sm text-muted-foreground mt-0.5">
-                    {legs.length} segment{legs.length !== 1 ? "s" : ""} — search or enter your booking.
+                    {legs.length} segment{legs.length !== 1 ? "s" : ""} - search or enter your booking.
                 </p>
             </div>
 
@@ -643,7 +643,7 @@ function FlightsStep({ data, onChange }: { data: PlanData; onChange: (d: Partial
 
                     return (
                         <div key={leg.id} className="rounded-2xl border bg-background overflow-hidden shadow-sm">
-                            {/* ── Leg header ── */}
+                            {/* Leg header */}
                             <div className="flex items-center gap-3 px-4 py-3 border-b bg-muted/20">
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/10 text-primary uppercase tracking-wide shrink-0">
@@ -666,7 +666,7 @@ function FlightsStep({ data, onChange }: { data: PlanData; onChange: (d: Partial
                                 )}
                             </div>
 
-                            {/* ── Selected state ── */}
+                            {/* Selected state */}
                             {selected ? (
                                 <div className="p-4">
                                     <div className={cn(
@@ -707,7 +707,7 @@ function FlightsStep({ data, onChange }: { data: PlanData; onChange: (d: Partial
                                     </div>
                                 </div>
                             ) : (
-                                /* ── Idle / mode chooser ── */
+                                /* Idle / mode chooser */
                                 <div className="p-4 space-y-4">
                                     {ls.mode === "idle" && (
                                         <div className="flex gap-2.5">
@@ -738,7 +738,7 @@ function FlightsStep({ data, onChange }: { data: PlanData; onChange: (d: Partial
                                         </div>
                                     )}
 
-                                    {/* ── Already booked entry ── */}
+                                    {/* Already booked entry */}
                                     {ls.mode === "booked" && (
                                         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
                                             <div className="flex items-center gap-2">
@@ -771,7 +771,7 @@ function FlightsStep({ data, onChange }: { data: PlanData; onChange: (d: Partial
                                         </motion.div>
                                     )}
 
-                                    {/* ── Searching / results ── */}
+                                    {/* Searching / results */}
                                     {ls.mode === "search" && (
                                         <div className="space-y-3">
                                             {ls.searching ? (
@@ -1023,7 +1023,7 @@ function ItineraryStep({ data, onChange, destLabel }: {
                 <p className="text-sm text-muted-foreground mt-0.5">Day-by-day plans for your trip.</p>
             </div>
             <div className="rounded-lg border border-dashed bg-muted/20 p-10 text-center">
-                <p className="text-sm text-muted-foreground">Add hotel check-in/out dates first — your days will appear here.</p>
+                <p className="text-sm text-muted-foreground">Add hotel check-in/out dates first - your days will appear here.</p>
             </div>
         </div>
     );
@@ -1076,7 +1076,7 @@ function ItineraryStep({ data, onChange, destLabel }: {
                                         <Input placeholder="Activity or place name" value={act.title}
                                             onChange={e => updateAct(day.date, act.id, { title: e.target.value })}
                                             className="h-8 text-sm" />
-                                        <Input placeholder="Notes — address, booking ref…" value={act.note}
+                                        <Input placeholder="Notes - address, booking ref…" value={act.note}
                                             onChange={e => updateAct(day.date, act.id, { note: e.target.value })}
                                             className="h-8 text-xs" />
                                     </div>
@@ -1148,11 +1148,11 @@ function OverviewStep({ data, dest, travelers, dateSummary }: {
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Flights</p>
                     {data.flights.map(f => (
                         <div key={f.id} className="flex items-center flex-wrap gap-x-2 gap-y-1 rounded-md border bg-muted/20 px-3 py-2">
-                            <span className="font-bold text-sm">{f.from || "—"}</span>
+                            <span className="font-bold text-sm">{f.from || "-"}</span>
                             <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                            <span className="font-bold text-sm">{f.to || "—"}</span>
+                            <span className="font-bold text-sm">{f.to || "-"}</span>
                             {f.airline && <span className="text-xs text-muted-foreground">{f.airline} {f.flightNo}</span>}
-                            {f.departTime && f.arriveTime && f.departTime !== "—" && <span className="text-xs">{f.departTime} → {f.arriveTime}</span>}
+                            {f.departTime && f.arriveTime && f.departTime !== "-" && <span className="text-xs">{f.departTime} → {f.arriveTime}</span>}
                             {f.price && f.price !== "0" && <span className="text-sm font-bold text-primary ml-auto">{data.currency} {parseFloat(f.price).toLocaleString()}</span>}
                         </div>
                     ))}
@@ -1245,7 +1245,7 @@ function OverviewStep({ data, dest, travelers, dateSummary }: {
 
             <div className="flex items-center justify-center gap-2 py-2 text-muted-foreground">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span className="text-xs">All set — have an amazing trip!</span>
+                <span className="text-xs">All set - have an amazing trip!</span>
             </div>
         </div>
     );

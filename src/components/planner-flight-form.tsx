@@ -39,7 +39,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
     } = useTripStore();
     const searchParams = useSearchParams();
 
-    // Derive available dates from URL
+    // Get dates from URL
     const dateOptions = React.useMemo(() => {
         const dateMode = searchParams.get("dateMode") || "exact";
         const startStr = searchParams.get("start");
@@ -214,8 +214,8 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
             to: toCity,
             airline: "Own Booking",
             flightNo: bookingRef,
-            departTime: "—",
-            arriveTime: "—",
+            departTime: "-",
+            arriveTime: "-",
             price: "0",
             bookingRef,
             alreadyBooked: true,
@@ -336,7 +336,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                             })}
                         </div>
                     ) : (
-                        <p className="text-xs text-gray-400 py-2">No dates selected in search — pick dates in the search bar above</p>
+                        <p className="text-xs text-gray-400 py-2">No dates selected in search - pick dates in the search bar above</p>
                     )}
                 </div>
             </div>

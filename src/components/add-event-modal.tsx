@@ -742,7 +742,7 @@ export default function AddEventModal({
 
   const aiSavedRef = React.useRef(false);
 
-  // ── Reset form when modal reopens in "add" mode ──────────
+  // Reset form when modal reopens
   const prevOpenRef = React.useRef(false);
   const [placeImage, setPlaceImage] = React.useState<string | null>(null);
 
@@ -847,7 +847,7 @@ export default function AddEventModal({
     return null;
   }, [tripData, targetDay, time, endTime, event?.id]);
 
-  // ── Distance from last event ────────────────────────────
+  // Distance from last event
   const distanceInfo = React.useMemo(() => {
     if (!lat || !lng || !tripData[targetDay]) return null;
     const existing = tripData[targetDay].events.filter(
@@ -916,7 +916,7 @@ export default function AddEventModal({
           color: CATEGORY_COLORS.location,
           lat: 35.6605,
           lng: 139.7291,
-          desc: "AI Suggested: Best place to see Tokyo Tower illuminated at night.",
+          desc: "Recommended: Best place to see Tokyo Tower illuminated at night.",
           address: "6 Chome-10-1 Roppongi, Minato City",
           images: [
             "https://images.unsplash.com/photo-1536640751915-770ceaf3e717?w=400&auto=format&fit=crop",
@@ -1023,10 +1023,10 @@ export default function AddEventModal({
                     </div>
                     <div className="text-left">
                       <p className="font-bold text-sm text-gray-900 group-hover:text-purple-800">
-                        Magic Add (AI)
+                        Quick Add
                       </p>
                       <p className="text-[11px] text-gray-500 mt-0.5">
-                        Let AI find the perfect next spot.
+                        Find the perfect next spot.
                       </p>
                     </div>
                   </div>
@@ -1241,7 +1241,7 @@ export default function AddEventModal({
                     {distanceInfo.km > 5 && (
                       <div className="flex items-center gap-1.5 text-[10px] text-amber-600 font-medium">
                         <AlertTriangle className="w-3" />
-                        <span>Long distance — consider transit or driving</span>
+                        <span>Long distance - consider transit or driving</span>
                       </div>
                     )}
                     <div className="flex gap-1.5">

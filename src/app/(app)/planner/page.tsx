@@ -116,7 +116,7 @@ interface SearchResult {
     reviews?: { author: string; text: string; rating: number }[];
 }
 
-/** Map a specific place type string to our 3 categories */
+// Map place types to categories
 function inferCategoryFromType(type: string): "meal" | "activity" | "location" {
     const t = type.toLowerCase();
     if (["restaurant", "café", "cafe", "bakery", "bar", "food", "catering", "fast_food", "pub"].some(k => t.includes(k)))
@@ -153,7 +153,7 @@ const DUMMY_REVIEW_POOL = [
     { author: "Mike P.", text: "Exceeded expectations. Beautiful setting and great vibes.", rating: 5 },
 ];
 
-/** Enrich a search result with Wikipedia description, image, and dummy reviews */
+// Enrich search result with Wikipedia data and reviews
 async function enrichSearchResult(result: SearchResult): Promise<SearchResult> {
     const enriched = { ...result };
     try {
@@ -250,7 +250,7 @@ function formatDuration(mins: number): string {
     return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
-/** Pick the best default transport mode based on distance */
+// Default transport based on distance
 function smartDefaultTransport(km: number): TransportMode {
     if (km < 1) return "walk";
     if (km < 5) return "walk";
@@ -576,7 +576,7 @@ export default function TripMapPage() {
         resetPlanningState
     } = useTripStore();
 
-    // 0. Sync URL to Store (Centralized)
+    // Sync URL to Store
     const prevDestParam = React.useRef<string | null>(null);
     React.useEffect(() => {
         const dests = searchParams.getAll("dest");
@@ -607,7 +607,7 @@ export default function TripMapPage() {
         }
     }, [searchParams, setPlannerDestinations]);
 
-    // 1. Centralized Location Detection on Load
+    // Initial Location Detection
     React.useEffect(() => {
         if (!plannerOrigin) {
             const detect = async () => {
@@ -650,7 +650,7 @@ export default function TripMapPage() {
         }
     }, [plannerOrigin, setPlannerOrigin]);
 
-    // 2. Reset Trip State on Destination Change
+    // Reset Trip State on Destination Change
     const prevDestNames = React.useRef<string[]>([]);
     React.useEffect(() => {
         // We only care about confirmed/meaningful changes to the DESTINATION LIST
@@ -800,7 +800,7 @@ export default function TripMapPage() {
                     .filter(f => f.dayNum === dayNum)
                     .map(f => ({
                         id: `flight-${f.id}`,
-                        time: f.departTime && f.departTime !== "—" ? f.departTime.replace(/\s?(AM|PM)/i, (_, m) => ` ${m}`) : "TBD",
+                        time: f.departTime && f.departTime !== "-" ? f.departTime.replace(/\s?(AM|PM)/i, (_, m) => ` ${m}`) : "TBD",
                         title: `✈ ${f.from.split(",")[0]} → ${f.to.split(",")[0]}`,
                         type: "transit" as const,
                         duration: f.duration || "",
@@ -822,7 +822,7 @@ export default function TripMapPage() {
                         lng: h.lng,
                         address: h.address,
                         desc: h.alreadyBooked
-                            ? `Booking Ref: ${h.bookingRef || "—"}${h.roomType ? ` · ${h.roomType}` : ""}${h.guestName ? ` · Guest: ${h.guestName}` : ""}`
+                            ? `Booking Ref: ${h.bookingRef || "-"}${h.roomType ? ` · ${h.roomType}` : ""}${h.guestName ? ` · Guest: ${h.guestName}` : ""}`
                             : `$${h.pricePerNight}/night${h.rating ? ` · ★ ${h.rating}` : ""}`,
                     }));
                 return { ...dayPlan, events: [...flightEvents, ...hotelEvents, ...cleanEvents] };
@@ -1064,7 +1064,7 @@ export default function TripMapPage() {
                         )}
                     </AnimatePresence>
 
-                    {/* View mode toggler — bottom-left */}
+                    {/* View mode toggler - bottom-left */}
                     <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30">
                         <div className="flex items-center bg-white/95 backdrop-blur-md rounded-full p-1 gap-0.5 shadow-lg border border-gray-200">
                             {(["map", "itinerary"] as ViewMode[]).map((v) => (
@@ -1727,7 +1727,7 @@ function MapView({
         }
     }, [expandedEvent, selectedEventObj, day.events]);
 
-    // Fetch real routes via OSRM — geometry only
+    // Fetch route geometry via OSRM
     const [rawRoutes, setRawRoutes] = React.useState<{ coords: [number, number][]; mode: TransportMode; transitId: string; fromColor: string; toColor: string }[]>([]);
 
     // Stable serialized key for place events to prevent infinite re-renders
@@ -2016,7 +2016,7 @@ function MapView({
                 >
                     <NavigationControl position="bottom-right" />
 
-                    {/* Flight arcs — only visible when flights form is open */}
+                    {/* Flight arcs */}
                     {sidebarTab === "flights" && flightsWithCoords.length > 0 && (
                         <>
                             <Source id="flight-arcs" type="geojson" data={flightArcs}>
