@@ -5,32 +5,30 @@ import { motion, AnimatePresence } from "motion/react";
 import { Plane, Bed, Wallet, PanelLeftClose } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PlannerFlightForm from "./planner-flight-form";
-import PlannerBudgetForm from "./planner-budget-form";
+import PlannerBudgetForm from "./planner-trip-form";
 import { Button } from "@/components/ui/button";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
+type Tab = "flights" | "hotels" | "trip" | null;
 
-type Tab = "flights" | "hotels" | "budget" | null;
-
-const TAB_ORDER: Tab[] = ["budget", "flights", "hotels"];
-const TAB_LABELS: Record<string, string> = { budget: "Budget", flights: "Flights", hotels: "Hotels" };
+const TAB_ORDER: Tab[] = ["trip", "flights", "hotels"];
+const TAB_LABELS: Record<string, string> = { trip: "Trip", flights: "Flights", hotels: "Hotels" };
 
 export default function PlannerSidebar() {
     const [expandedTab, setExpandedTab] = React.useState<Tab>(null);
-    const [showLabels, setShowLabels] = React.useState(true);
     const [direction, setDirection] = React.useState(0);
+    const [showOnboarding, setShowOnboarding] = React.useState(true);
 
     React.useEffect(() => {
         const timer = setTimeout(() => {
-            if (!expandedTab) setShowLabels(false);
-        }, 3000);
+            setShowOnboarding(false);
+        }, 4000);
         return () => clearTimeout(timer);
-    }, [expandedTab]);
-
-    const handleHover = (isHovering: boolean) => {
-        if (!expandedTab) {
-            setShowLabels(isHovering);
-        }
-    };
+    }, []);
 
     const currentIdx = expandedTab ? TAB_ORDER.indexOf(expandedTab) : -1;
     const canGoBack = currentIdx > 0;
@@ -54,40 +52,38 @@ export default function PlannerSidebar() {
             <motion.div
                 className={cn(
                     "flex flex-col bg-white border-r border-gray-200 shadow-sm relative overflow-hidden",
-                    expandedTab ? "w-[380px]" : "w-[65px]"
+                    expandedTab ? "w-[380px]" : "w-[55px]"
                 )}
-                animate={{ width: expandedTab ? 380 : 65 }}
+                animate={{ width: expandedTab ? 380 : 55 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                onMouseEnter={() => handleHover(true)}
-                onMouseLeave={() => handleHover(false)}
             >
                 {/* Floating Icons Mode */}
-                <div className={cn("absolute inset-0 flex flex-col items-center py-6 gap-4 z-10 transition-opacity", expandedTab ? "opacity-0 pointer-events-none" : "opacity-100")}>
+                <div className={cn("absolute inset-0 flex flex-col items-center py-6 gap-3 z-10 transition-opacity", expandedTab ? "opacity-0 pointer-events-none" : "opacity-100")}>
                     <SidebarButton
                         icon={<Wallet className="w-5 h-5" />}
-                        label="Budget"
-                        showLabel={showLabels}
+                        label="Trip"
+                        forceOpen={showOnboarding}
                         onClick={() => {
-                            setExpandedTab("budget");
-                            setShowLabels(true);
+                            setExpandedTab("trip");
+                            setShowOnboarding(false);
                         }}
                     />
                     <SidebarButton
                         icon={<Plane className="w-5 h-5" />}
                         label="Flights"
-                        showLabel={showLabels}
+                        forceOpen={showOnboarding}
                         onClick={() => {
                             setExpandedTab("flights");
-                            setShowLabels(true);
+                            setShowOnboarding(false);
                         }}
                     />
                     <SidebarButton
                         icon={<Bed className="w-5 h-5" />}
                         label="Hotels"
-                        showLabel={showLabels}
+                        forceOpen={showOnboarding}
                         onClick={() => {
                             setExpandedTab("hotels");
-                            setShowLabels(true);
+                            setShowOnboarding(false);
                         }}
                     />
                 </div>
@@ -129,7 +125,7 @@ export default function PlannerSidebar() {
                                         transition={{ duration: 0.25, ease: "easeInOut" }}
                                         className="h-full w-full"
                                     >
-                                        {expandedTab === "budget" && (
+                                        {expandedTab === "trip" && (
                                             <PlannerBudgetForm />
                                         )}
                                         {expandedTab === "flights" && (
@@ -196,33 +192,38 @@ export default function PlannerSidebar() {
 function SidebarButton({
     icon,
     label,
-    showLabel,
     onClick,
+    forceOpen,
 }: {
     icon: React.ReactNode;
     label: string;
-    showLabel: boolean;
     onClick: () => void;
+    forceOpen?: boolean;
 }) {
+    const [isOpen, setIsOpen] = React.useState(false);
+
+    // Sync state with forceOpen but allow hover to override or work after
+    React.useEffect(() => {
+        if (forceOpen !== undefined) {
+            setIsOpen(forceOpen);
+        }
+    }, [forceOpen]);
+
     return (
-        <button
-            onClick={onClick}
-            className="flex flex-col items-center justify-start text-gray-500 hover:text-primary transition-colors focus:outline-none relative w-16 h-[68px]"
-        >
-            <div className="w-11 h-11 border border-gray-200 rounded-full shadow-sm shrink-0 flex items-center justify-center hover:bg-primary/5 hover:border-primary/20 transition-all">
-                {icon}
-            </div>
-            <div className="absolute top-[48px] left-0 w-full flex justify-center h-4">
-                <motion.span
-                    initial={false}
-                    animate={{ opacity: showLabel ? 1 : 0, y: showLabel ? 0 : -4, scale: showLabel ? 1 : 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="text-[10px] font-bold uppercase tracking-wide whitespace-nowrap"
-                    style={{ pointerEvents: showLabel ? "auto" : "none" }}
+        <Tooltip open={isOpen} onOpenChange={setIsOpen}>
+            <TooltipTrigger asChild>
+                <button
+                    onClick={onClick}
+                    className="group flex flex-col items-center justify-center text-gray-500 hover:text-primary transition-colors focus:outline-none relative w-10 h-10"
                 >
-                    {label}
-                </motion.span>
-            </div>
-        </button>
+                    <div className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center group-hover:bg-primary/5 group-hover:border-primary/20 transition-all">
+                        {icon}
+                    </div>
+                </button>
+            </TooltipTrigger>
+            <TooltipContent side="right" sideOffset={10} className="font-semibold px-3 py-1.5">
+                {label}
+            </TooltipContent>
+        </Tooltip>
     );
 }
