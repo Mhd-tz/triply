@@ -57,6 +57,7 @@ import Image from "next/image";
 import Logo from "@/assets/images/logo.png";
 import Link from "next/link";
 import ItineraryView from "@/components/itinerary-view";
+import AddEventModal, { CATEGORY_COLORS } from "@/components/add-event-modal";
 import { useAuth } from "@/lib/auth-context";
 import { useSignInDialog } from "@/components/signin-dialog";
 import { useTripStore } from "@/lib/trip-store";
@@ -97,6 +98,7 @@ interface EventItem {
     desc?: string;
     url?: string;
     reviews?: { author: string; text: string; rating: number }[];
+    transitMode?: TransportMode;
 }
 
 interface DayPlan {
@@ -172,12 +174,28 @@ function formatDuration(mins: number): string {
     return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
+/** Pick the best default transport mode based on distance */
+function smartDefaultTransport(km: number): TransportMode {
+    if (km < 1) return "walk";
+    if (km < 5) return "walk";
+    if (km < 15) return "transit";
+    return "drive";
+}
+
 function rebuildTransits(
     events: EventItem[],
-    mode: TransportMode
+    fallbackMode: TransportMode
 ): EventItem[] {
     const places = events.filter((e) => !(e.type === "transit" && e.fromId));
     if (places.length < 2) return places;
+
+    // Collect existing transit segments to preserve user-set modes
+    const existingTransits: Record<string, TransportMode> = {};
+    events.forEach((e) => {
+        if (e.type === "transit" && e.fromId && e.transitMode) {
+            existingTransits[`${e.fromId}--${e.toId}`] = e.transitMode;
+        }
+    });
 
     const result: EventItem[] = [];
     for (let i = 0; i < places.length; i++) {
@@ -185,41 +203,83 @@ function rebuildTransits(
         if (i < places.length - 1) {
             const from = places[i];
             const to = places[i + 1];
-            const { mins, km } = calcTransit(from, to, mode);
+            const segKey = `${from.id}--${to.id}`;
+            // Use preserved mode > smart default > fallback
+            const km = from.lat && from.lng && to.lat && to.lng
+                ? Math.round(haversineKm(from.lat, from.lng, to.lat, to.lng) * 10) / 10
+                : 0;
+            const mode = existingTransits[segKey] || smartDefaultTransport(km) || fallbackMode;
+            const { mins } = calcTransit(from, to, mode);
             result.push({
-                id: `transit-auto-${from.id}--${to.id}`,
+                id: `transit-auto-${segKey}`,
                 type: "transit",
                 title: `To ${to.title}`,
-                time: from.time,
+                time: from.endTime || from.time,
                 durationMins: mins,
                 distanceKm: km,
                 duration: formatDuration(mins),
                 fromId: from.id,
                 toId: to.id,
                 color: COLORS.transit,
+                transitMode: mode,
             });
         }
     }
     return result;
 }
 
-// route curves
-function getCurvedRoute(
+// route fetching via OSRM
+const routeCache: Record<string, number[][]> = {};
+
+async function fetchOSRMRoute(
     start: [number, number],
-    end: [number, number]
-) {
-    const [x1, y1] = start;
-    const [x2, y2] = end;
-    const cx = (x1 + x2) / 2 - (y2 - y1) * 0.15;
-    const cy = (y1 + y2) / 2 + (x2 - x1) * 0.15;
-    const pts: number[][] = [];
-    for (let t = 0; t <= 1; t += 0.02) {
-        pts.push([
-            (1 - t) ** 2 * x1 + 2 * (1 - t) * t * cx + t ** 2 * x2,
-            (1 - t) ** 2 * y1 + 2 * (1 - t) * t * cy + t ** 2 * y2,
-        ]);
+    end: [number, number],
+    mode: TransportMode
+): Promise<number[][]> {
+    const profile = mode === "drive" ? "car" : mode === "transit" ? "car" : "foot";
+    const cacheKey = `${profile}:${start.join(",")}:${end.join(",")}`;
+    if (routeCache[cacheKey]) return routeCache[cacheKey];
+
+    try {
+        const url = `https://router.project-osrm.org/route/v1/${profile}/${start[0]},${start[1]};${end[0]},${end[1]}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("OSRM request failed");
+        const data = await res.json();
+        const coords = data?.routes?.[0]?.geometry?.coordinates;
+        if (coords && coords.length > 0) {
+            routeCache[cacheKey] = coords;
+            return coords;
+        }
+    } catch (e) {
+        console.warn("OSRM routing failed, using straight line", e);
     }
-    return pts;
+
+    // Fallback: straight line
+    const fallback = [start, end];
+    routeCache[cacheKey] = fallback;
+    return fallback;
+}
+
+// Get multiple arrow positions along a route for direction indicators
+function getRouteArrows(coords: number[][], count: number = 3): { lng: number; lat: number; bearing: number }[] {
+    if (coords.length < 2) return [];
+    const arrows: { lng: number; lat: number; bearing: number }[] = [];
+    
+    // Place arrows at evenly spaced intervals along the route
+    for (let a = 1; a <= count; a++) {
+        const frac = a / (count + 1);
+        const idx = Math.floor(frac * (coords.length - 1));
+        const p1 = coords[Math.max(0, idx - 1)];
+        const p2 = coords[Math.min(coords.length - 1, idx + 1)];
+        const dLng = (p2[0] - p1[0]) * Math.PI / 180;
+        const lat1 = p1[1] * Math.PI / 180;
+        const lat2 = p2[1] * Math.PI / 180;
+        const y = Math.sin(dLng) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+        const bearing = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+        arrows.push({ lng: coords[idx][0], lat: coords[idx][1], bearing });
+    }
+    return arrows;
 }
 
 let _idCounter = 0;
@@ -230,11 +290,7 @@ const generateId = (prefix: string) =>
 
 // colors
 const COLORS = {
-    meal: "#e8820c",
-    activity: "#1D4983",
-    location: "#0f9a8e",
-    transit: "#16a34a",
-    note: "#94a3b8",
+    ...CATEGORY_COLORS,
     drive: "#4a98f7",
     walk: "#7c3aed",
 };
@@ -430,6 +486,7 @@ export default function TripMapPage() {
     const [transportMode, setTransportMode] = React.useState<TransportMode>("transit");
     const [searchQuery, setSearchQuery] = React.useState("");
     const [selectedSearchResult, setSelectedSearchResult] = React.useState<SearchResult | null>(null);
+    const parentMapRef = React.useRef<MapRef>(null);
     const [modalConfig, setModalConfig] = React.useState<{
         isOpen: boolean;
         mode: "add" | "edit" | "remove";
@@ -594,11 +651,50 @@ export default function TripMapPage() {
 
             setModalConfig({ isOpen: false, mode: "add" });
             setSelectedSearchResult(null);
+
+            // Fly map camera to the new event
+            if (newEvent.lat && newEvent.lng && parentMapRef.current) {
+                setTimeout(() => {
+                    parentMapRef.current?.flyTo({
+                        center: [newEvent.lng!, newEvent.lat!],
+                        zoom: 14,
+                        pitch: 30,
+                        duration: 1200,
+                        offset: [200, 0] as [number, number],
+                    });
+                }, 200);
+            }
+
             setTimeout(() => {
                 savingRef.current = false;
             }, 100);
         },
         [activeDay, modalConfig.mode, transportMode]
+    );
+
+    /** Change transport mode for a single transit segment */
+    const handleChangeTransitMode = React.useCallback(
+        (transitEventId: string, newMode: TransportMode) => {
+            setTripData((prev) => {
+                const newData = prev.map((d) => ({ ...d, events: [...d.events] }));
+                const evtIdx = newData[activeDay].events.findIndex((e) => e.id === transitEventId);
+                if (evtIdx > -1) {
+                    const transitEvt = { ...newData[activeDay].events[evtIdx], transitMode: newMode };
+                    // Recalculate duration for the new mode
+                    const from = newData[activeDay].events.find((e) => e.id === transitEvt.fromId);
+                    const to = newData[activeDay].events.find((e) => e.id === transitEvt.toId);
+                    if (from && to) {
+                        const { mins, km } = calcTransit(from, to, newMode);
+                        transitEvt.durationMins = mins;
+                        transitEvt.distanceKm = km;
+                        transitEvt.duration = formatDuration(mins);
+                    }
+                    newData[activeDay].events[evtIdx] = transitEvt;
+                }
+                return newData;
+            });
+        },
+        [activeDay]
     );
 
     const handleDeleteEvent = (id: string) => {
@@ -937,7 +1033,6 @@ export default function TripMapPage() {
                                 expandedEvent={expandedEvent}
                                 setExpandedEvent={setExpandedEvent}
                                 transportMode={transportMode}
-                                setTransportMode={setTransportMode}
                                 searchQuery={searchQuery}
                                 setSearchQuery={setSearchQuery}
                                 onSearchResultClick={(r: SearchResult) => {
@@ -948,6 +1043,8 @@ export default function TripMapPage() {
                                     setModalConfig({ isOpen: true, mode: mode as any, eventId })
                                 }
                                 onReorder={handleReorder}
+                                parentMapRef={parentMapRef}
+                                onChangeTransitMode={handleChangeTransitMode}
                             />
                         )}
                     </AnimatePresence>
@@ -971,17 +1068,61 @@ export default function TripMapPage() {
                 )}
             </AnimatePresence>
 
-            <ActionModal
-                config={modalConfig}
-                tripData={tripData}
-                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
-                onSave={handleSaveEvent}
-                onDelete={handleDeleteEvent}
-                currentEvent={
+            {/* Remove Confirmation Modal */}
+            {modalConfig.isOpen && modalConfig.mode === "remove" && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+                    onClick={() => setModalConfig({ ...modalConfig, isOpen: false })}
+                >
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Trash2 className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2 text-gray-900">Remove Pin?</h3>
+                        <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+                            Are you sure you want to remove{" "}
+                            <b>&quot;{day.events.find((e) => e.id === modalConfig.eventId)?.title}&quot;</b>?
+                        </p>
+                        <div className="flex gap-3">
+                            <Button
+                                variant="outline"
+                                className="flex-1 rounded-xl h-11"
+                                onClick={() => setModalConfig({ ...modalConfig, isOpen: false })}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                className="flex-1 rounded-xl h-11 bg-red-500 hover:bg-red-600 text-white font-bold"
+                                onClick={() => handleDeleteEvent(modalConfig.eventId!)}
+                            >
+                                Yes, Remove
+                            </Button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {/* Add/Edit Event Modal */}
+            <AddEventModal
+                config={{
+                    isOpen: modalConfig.isOpen && modalConfig.mode !== "remove",
+                    mode: modalConfig.mode === "remove" ? "add" : modalConfig.mode,
+                    eventId: modalConfig.eventId,
+                    prefillFromSearch: modalConfig.prefillFromSearch,
+                }}
+                event={
                     modalConfig.eventId
                         ? day.events.find((e) => e.id === modalConfig.eventId)
                         : undefined
                 }
+                tripData={tripData}
+                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+                onSave={handleSaveEvent}
                 activeDayIndex={activeDay}
             />
 
@@ -1301,14 +1442,21 @@ function MapView({
     expandedEvent,
     setExpandedEvent,
     transportMode,
-    setTransportMode,
     searchQuery,
     setSearchQuery,
     onSearchResultClick,
     onOpenModal,
     onReorder,
+    parentMapRef,
+    onChangeTransitMode,
 }: any) {
+    // Sync the map ref to parent for camera control from save handler
     const mapRef = React.useRef<MapRef>(null);
+    React.useEffect(() => {
+        if (parentMapRef) {
+            parentMapRef.current = mapRef.current;
+        }
+    });
     const [actionMode, setActionMode] = React.useState<ActionMode>("view");
     const [hoveredEvent, setHoveredEvent] = React.useState<string | null>(null);
     const [activeSidebarDragId, setActiveSidebarDragId] = React.useState<string | null>(null);
@@ -1472,10 +1620,10 @@ function MapView({
         setTimeout(flyToDestination, 300);
     }, [searchParamsMap, plannerOrigin]);
 
-    const placeEvents: EventItem[] = day.events.filter(
+    const placeEvents = React.useMemo(() => day.events.filter(
         (e: EventItem) => e.type !== "transit" && e.lat && e.lng
-    );
-    const selectedEventObj = placeEvents.find((e) => e.id === expandedEvent);
+    ), [day.events]);
+    const selectedEventObj = placeEvents.find((e: EventItem) => e.id === expandedEvent);
 
     React.useEffect(() => {
         if (!mapRef.current) return;
@@ -1490,33 +1638,69 @@ function MapView({
         // Don't fly anywhere when deselecting — camera stays in place
     }, [expandedEvent, selectedEventObj]);
 
-    const routesGeoJson = React.useMemo(() => {
-        if (placeEvents.length < 2) return null;
-        return {
-            type: "FeatureCollection",
-            features: placeEvents.slice(0, -1).map((from, i) => {
+    // Fetch real routes via OSRM
+    const [routesGeoJson, setRoutesGeoJson] = React.useState<any>(null);
+    const [routeArrows, setRouteArrows] = React.useState<{ lng: number; lat: number; bearing: number; color: string }[]>([]);
+
+    // Stable serialized key for place events to prevent infinite re-renders
+    const placeEventsKey = React.useMemo(
+        () => placeEvents.map((e: EventItem) => `${e.id}:${e.lat}:${e.lng}`).join("|"),
+        [placeEvents]
+    );
+
+    React.useEffect(() => {
+        if (placeEvents.length < 2) {
+            setRoutesGeoJson(null);
+            setRouteArrows([]);
+            return;
+        }
+
+        let cancelled = false;
+
+        async function buildRoutes() {
+            const features: any[] = [];
+            const arrows: { lng: number; lat: number; bearing: number; color: string }[] = [];
+
+            for (let i = 0; i < placeEvents.length - 1; i++) {
+                const from = placeEvents[i];
                 const to = placeEvents[i + 1];
-                const isHl =
-                    !expandedEvent ||
-                    expandedEvent === from.id ||
-                    expandedEvent === to.id;
-                return {
+                const isHl = !expandedEvent || expandedEvent === from.id || expandedEvent === to.id;
+                const color = isHl ? to.color : "#94a3b8";
+                const opacity = isHl ? 1 : 0.4;
+
+                // Find the transit event between these two places to get the mode
+                const transitEvt = day.events.find(
+                    (e: EventItem) => e.type === "transit" && e.fromId === from.id && e.toId === to.id
+                );
+                const segMode = transitEvt?.transitMode || transportMode;
+
+                const coords = await fetchOSRMRoute(
+                    [from.lng!, from.lat!],
+                    [to.lng!, to.lat!],
+                    segMode
+                );
+
+                features.push({
                     type: "Feature",
-                    geometry: {
-                        type: "LineString",
-                        coordinates: getCurvedRoute(
-                            [from.lng!, from.lat!],
-                            [to.lng!, to.lat!]
-                        ),
-                    },
-                    properties: {
-                        color: isHl ? to.color : "#94a3b8",
-                        opacity: isHl ? 1 : 0.4,
-                    },
-                };
-            }),
-        };
-    }, [placeEvents, expandedEvent]);
+                    geometry: { type: "LineString", coordinates: coords },
+                    properties: { color, opacity },
+                });
+
+                // Get multiple arrows along the route
+                const segArrows = getRouteArrows(coords, coords.length > 20 ? 3 : 2);
+                segArrows.forEach(a => arrows.push({ ...a, color }));
+            }
+
+            if (!cancelled) {
+                setRoutesGeoJson({ type: "FeatureCollection", features });
+                setRouteArrows(arrows);
+            }
+        }
+
+        buildRoutes();
+        return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [placeEventsKey, expandedEvent, transportMode]);
 
     const dashArray =
         transportMode === "transit"
@@ -1610,6 +1794,17 @@ function MapView({
                             />
                         </Source>
                     )}
+                    {/* Route direction arrows */}
+                    {routeArrows.map((arrow, i) => (
+                        <Marker key={`arrow-${i}`} longitude={arrow.lng} latitude={arrow.lat} anchor="center" style={{ zIndex: 5 }}>
+                            <div
+                                className="flex items-center justify-center w-5 h-5 rounded-full bg-white shadow-md border border-gray-200"
+                                style={{ transform: `rotate(${arrow.bearing - 90}deg)` }}
+                            >
+                                <ArrowRight className="w-3 h-3" style={{ color: arrow.color }} />
+                            </div>
+                        </Marker>
+                    ))}
                     {placeEvents.map((event) => {
                         const isSelected = expandedEvent === event.id;
                         const isDanger =
@@ -1839,7 +2034,35 @@ function MapView({
                                             </a>
                                         )}
                                         <button
-                                            onClick={() => setExpandedEvent(null)}
+                                            onClick={() => {
+                                                setExpandedEvent(null);
+                                                // Zoom out to fit all pins + destination area
+                                                const pinEvents = day.events.filter(
+                                                    (e: EventItem) => e.type !== "transit" && e.lat && e.lng
+                                                );
+                                                if (pinEvents.length > 1 && mapRef.current) {
+                                                    const lngs = pinEvents.map((e: EventItem) => e.lng!);
+                                                    const lats = pinEvents.map((e: EventItem) => e.lat!);
+                                                    const sw: [number, number] = [Math.min(...lngs) - 0.03, Math.min(...lats) - 0.03];
+                                                    const ne: [number, number] = [Math.max(...lngs) + 0.03, Math.max(...lats) + 0.03];
+                                                    setTimeout(() => {
+                                                        mapRef.current?.fitBounds([sw, ne], {
+                                                            padding: { top: 100, bottom: 100, left: 440, right: 100 },
+                                                            duration: 1200,
+                                                            maxZoom: 14,
+                                                        });
+                                                    }, 150);
+                                                } else if (pinEvents.length === 1 && mapRef.current) {
+                                                    setTimeout(() => {
+                                                        mapRef.current?.flyTo({
+                                                            center: [pinEvents[0].lng!, pinEvents[0].lat!],
+                                                            zoom: 13,
+                                                            pitch: 0,
+                                                            duration: 1200,
+                                                        });
+                                                    }, 150);
+                                                }
+                                            }}
                                             className="text-[11px] font-bold text-primary border border-primary px-4 py-1.5 rounded-full hover:bg-primary hover:text-white transition-colors"
                                         >
                                             Close
@@ -1976,7 +2199,7 @@ function MapView({
                                             <TransitRow
                                                 key={event.id}
                                                 event={event}
-                                                transportMode={transportMode}
+                                                onChangeMode={onChangeTransitMode}
                                                 isLast={index === day.events.length - 1}
                                             />
                                         );
@@ -2009,14 +2232,25 @@ function MapView({
                             )}
                         </DndContext>
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 px-4 py-3.5 flex items-center justify-center gap-x-5 gap-y-2 flex-wrap z-10 shadow-[0_-10px_15px_-5px_rgba(0,0,0,0.05)]">
-                        <LegendItem color={COLORS.meal} label="Meal" />
-                        <LegendItem color={COLORS.activity} label="Activity" />
-                        <LegendItem color={COLORS.location} label="Location" />
-                        {/* @ts-expect-error: transportMode is not a valid key of COLORS */}
-                        <LegendItem color={
-                            transportMode === "transit" ? COLORS.transit : transportMode === "drive" ? COLORS.drive : transportMode === "walk" ? COLORS.walk : null
-                        } label={transportMode} />
+                    <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 z-10 shadow-[0_-10px_15px_-5px_rgba(0,0,0,0.05)]">
+                        <div className="px-4 pt-3 pb-2 flex justify-center">
+                            <button
+                                onClick={() => onOpenModal("add")}
+                                className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-white text-[12px] font-bold shadow-md hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                style={{ backgroundColor: '#1D4983' }}
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                Add Activity
+                            </button>
+                        </div>
+                        <div className="px-4 pb-3 pt-1 flex items-center justify-center gap-x-5 gap-y-2 flex-wrap">
+                            <LegendItem color={COLORS.meal} label="Meal" />
+                            <LegendItem color={COLORS.activity} label="Activity" />
+                            <LegendItem color={COLORS.location} label="Location" />
+                            <LegendItem color={
+                                transportMode === "transit" ? COLORS.transit : transportMode === "drive" ? COLORS.drive : COLORS.walk
+                            } label={transportMode} />
+                        </div>
                     </div>
                 </div>
             </motion.div>
@@ -2092,10 +2326,10 @@ function MapView({
 // transit row
 function TransitRow({
     event,
-    transportMode,
+    onChangeMode,
 }: {
     event: EventItem;
-    transportMode: TransportMode;
+    onChangeMode?: (transitId: string, mode: TransportMode) => void;
     isLast: boolean;
 }) {
     const configs = {
@@ -2121,7 +2355,13 @@ function TransitRow({
             badge: "bg-violet-100 text-violet-600",
         },
     };
-    const { Icon, label, card, text, badge } = configs[transportMode];
+    const currentMode = event.transitMode || "walk";
+    const { Icon, label, card, text, badge } = configs[currentMode];
+    const isLongWalk = currentMode === "walk" && (event.distanceKm || 0) > 2;
+    const isLongTransit = currentMode === "transit" && (event.distanceKm || 0) > 20;
+    const showWarning = isLongWalk || isLongTransit;
+
+    const allModes: TransportMode[] = ["walk", "transit", "drive"];
 
     return (
         <div className="flex">
@@ -2146,37 +2386,70 @@ function TransitRow({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.25 }}
                     className={cn(
-                        "flex items-center gap-2.5 rounded-xl border px-3 py-2.5",
+                        "rounded-xl border px-3 py-2.5",
                         card
                     )}
                 >
-                    <div
-                        className={cn(
-                            "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
-                            badge
-                        )}
-                    >
-                        <Icon className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                            <span className={cn("text-[13px] font-bold", text)}>
-                                {event.duration}
-                            </span>
-                            <span
-                                className={cn(
-                                    "text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md",
-                                    badge
-                                )}
-                            >
-                                {label}
-                            </span>
+                    <div className="flex items-center gap-2.5">
+                        <div
+                            className={cn(
+                                "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                                badge
+                            )}
+                        >
+                            <Icon className="w-3.5 h-3.5" />
                         </div>
-                        <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                            {event.distanceKm ? `${event.distanceKm} km · ` : ""}
-                            {event.title}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                                <span className={cn("text-[13px] font-bold", text)}>
+                                    {event.duration}
+                                </span>
+                                <span
+                                    className={cn(
+                                        "text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md",
+                                        badge
+                                    )}
+                                >
+                                    {label}
+                                </span>
+                            </div>
+                            <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                                {event.distanceKm ? `${event.distanceKm} km · ` : ""}
+                                {event.title}
+                            </p>
+                        </div>
                     </div>
+                    {/* Per-segment mode switcher */}
+                    {onChangeMode && (
+                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-200/50">
+                            {allModes.map((m) => {
+                                const MIcon = configs[m].Icon;
+                                const isActive = m === currentMode;
+                                return (
+                                    <button
+                                        key={m}
+                                        onClick={() => onChangeMode(event.id, m)}
+                                        className={cn(
+                                            "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all",
+                                            isActive
+                                                ? `${configs[m].badge} shadow-sm`
+                                                : "text-gray-400 hover:bg-gray-100"
+                                        )}
+                                    >
+                                        <MIcon className="w-3 h-3" />
+                                        {configs[m].label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                    {/* Distance warning */}
+                    {showWarning && (
+                        <div className="mt-1.5 flex items-center gap-1 text-[10px] text-amber-600 font-medium">
+                            <span>⚠️</span>
+                            {isLongWalk ? `Long walk (${event.distanceKm} km)` : `Long transit (${event.distanceKm} km)`}
+                        </div>
+                    )}
                 </motion.div>
             </div>
         </div>
@@ -2326,399 +2599,4 @@ const ToolbarButton = ({ icon, isActive, onClick, tooltip }: any) => (
 );
 
 // action modal
-function ActionModal({
-    config,
-    tripData,
-    onClose,
-    onSave,
-    onDelete,
-    currentEvent,
-    activeDayIndex,
-}: any) {
-    if (!config.isOpen) return null;
-    if (config.mode === "remove") {
-        return (
-            <div
-                className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
-                onClick={onClose}
-            >
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 text-center"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Trash2 className="w-8 h-8" />
-                    </div>
-                    <h3 className="text-xl font-bold mb-2 text-gray-900">Remove Pin?</h3>
-                    <p className="text-gray-500 text-sm mb-8 leading-relaxed">
-                        Are you sure you want to remove{" "}
-                        <b>&quot;{currentEvent?.title}&quot;</b>?
-                    </p>
-                    <div className="flex gap-3">
-                        <Button
-                            variant="outline"
-                            className="flex-1 rounded-xl h-11"
-                            onClick={onClose}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            className="flex-1 rounded-xl h-11 bg-red-500 hover:bg-red-600 text-white font-bold"
-                            onClick={() => onDelete(currentEvent?.id)}
-                        >
-                            Yes, Remove
-                        </Button>
-                    </div>
-                </motion.div>
-            </div>
-        );
-    }
-    return (
-        <FormModal
-            config={config}
-            event={currentEvent}
-            tripData={tripData}
-            onClose={onClose}
-            onSave={onSave}
-            activeDayIndex={activeDayIndex}
-        />
-    );
-}
-
-// form modal
-function FormModal({
-    config,
-    event,
-    tripData,
-    onClose,
-    onSave,
-    activeDayIndex,
-}: any) {
-    const prefill = config.prefillFromSearch as SearchResult | undefined;
-    const [step, setStep] = React.useState<"choose" | "ai_loading" | "manual">(
-        config.mode === "edit" || prefill ? "manual" : "choose"
-    );
-    const [title, setTitle] = React.useState(event?.title || prefill?.name || "");
-    const [time, setTime] = React.useState(event?.time || "12:00");
-    const [endTime, setEndTime] = React.useState(event?.endTime || "13:00");
-    const [address, setAddress] = React.useState(
-        event?.address || prefill?.address || ""
-    );
-    const [desc, setDesc] = React.useState(event?.desc || prefill?.desc || "");
-    const [type, setType] = React.useState(event?.type || "activity");
-    const [targetDay, setTargetDay] = React.useState<number>(activeDayIndex);
-    const aiSavedRef = React.useRef(false);
-
-    const handleAI = () => {
-        if (aiSavedRef.current) return;
-        setStep("ai_loading");
-        setTimeout(() => {
-            if (aiSavedRef.current) return;
-            aiSavedRef.current = true;
-            onSave(
-                {
-                    id: generateId("ai"),
-                    title: "Roppongi Hills Deck",
-                    time: "18:00",
-                    endTime: "20:00",
-                    type: "location",
-                    color: COLORS.location,
-                    lat: 35.6605,
-                    lng: 139.7291,
-                    desc: "AI Suggested: Best place to see Tokyo Tower illuminated at night.",
-                    address: "6 Chome-10-1 Roppongi, Minato City",
-                    images: [
-                        "https://images.unsplash.com/photo-1536640751915-770ceaf3e717?w=400&auto=format&fit=crop",
-                    ],
-                },
-                targetDay
-            );
-        }, 2000);
-    };
-
-    const handleSave = () => {
-        if (!title) return;
-        onSave(
-            {
-                ...event,
-                id: config.mode === "edit" ? event.id : generateId("manual"),
-                title,
-                time,
-                endTime,
-                type,
-                address,
-                desc,
-                color: COLORS[type as keyof typeof COLORS] || "#94a3b8",
-                lat: event?.lat || prefill?.lat || 35.6895,
-                lng: event?.lng || prefill?.lng || 139.6917,
-                images: event?.images || prefill?.images,
-                rating: event?.rating || prefill?.rating,
-                reviewCount: event?.reviewCount || prefill?.reviewCount,
-                reviews: event?.reviews || prefill?.reviews,
-                url: event?.url || prefill?.url,
-            },
-            targetDay
-        );
-    };
-
-    return (
-        <div
-            className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 py-8"
-            onClick={onClose}
-        >
-            <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]"
-                onClick={(e) => e.stopPropagation()}
-            >
-                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center shrink-0">
-                    <h3 className="font-bold text-lg text-gray-900">
-                        {config.mode === "add" ? "Add to Map" : "Edit Event"}
-                    </h3>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:bg-gray-100 p-1.5 rounded-full"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-                {prefill && step === "manual" && (
-                    <div className="mx-4 mt-4 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 bg-gray-100">
-                            {prefill.images?.[0] ? (
-                                <img
-                                    src={prefill.images[0]}
-                                    alt={prefill.name}
-                                    className="w-full h-full object-cover"
-                                />
-                            ) : (
-                                <MapPin className="w-4 h-4 text-blue-400 m-2" />
-                            )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-blue-800 truncate">
-                                {prefill.name}
-                            </p>
-                            <p className="text-[11px] text-blue-500 truncate">
-                                {prefill.address}
-                            </p>
-                        </div>
-                        <span className="text-[10px] font-bold uppercase text-blue-400 bg-blue-100 px-2 py-0.5 rounded-md shrink-0">
-                            {prefill.type}
-                        </span>
-                    </div>
-                )}
-                <div className="p-6 overflow-y-auto scrollbar-none">
-                    {step === "choose" && (
-                        <div className="flex flex-col gap-4">
-                            <button
-                                onClick={handleAI}
-                                className="w-full flex items-center justify-between p-4 rounded-2xl border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors group"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-purple-200 p-3 rounded-xl text-purple-700">
-                                        <Wand2 className="h-6 w-6" />
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="font-bold text-gray-900 group-hover:text-purple-800">
-                                            Magic Add (AI)
-                                        </p>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Let AI find the perfect next spot nearby.
-                                        </p>
-                                    </div>
-                                </div>
-                                <ArrowRight className="h-5 w-5 text-purple-400 group-hover:text-purple-600" />
-                            </button>
-                            <button
-                                onClick={() => setStep("manual")}
-                                className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-200 hover:border-blue-400 hover:bg-gray-50 transition-colors group"
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="bg-gray-100 group-hover:bg-blue-100 p-3 rounded-xl text-gray-600 group-hover:text-blue-600 transition-colors">
-                                        <Pencil className="h-6 w-6" />
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="font-bold text-gray-900 group-hover:text-blue-600">
-                                            Manual Entry
-                                        </p>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            Pinpoint a specific place you have in mind.
-                                        </p>
-                                    </div>
-                                </div>
-                                <ArrowRight className="h-5 w-5 text-gray-300 group-hover:text-blue-400" />
-                            </button>
-                            <DaySelector
-                                tripData={tripData}
-                                targetDay={targetDay}
-                                setTargetDay={setTargetDay}
-                            />
-                        </div>
-                    )}
-                    {step === "ai_loading" && (
-                        <div className="py-16 flex flex-col items-center justify-center text-center">
-                            <Sparkles className="h-12 w-12 text-purple-500 animate-pulse mb-4" />
-                            <h4 className="font-bold text-gray-900 text-lg mb-1">
-                                Scanning local area...
-                            </h4>
-                            <p className="text-sm text-gray-500">
-                                Finding highly rated spots that fit your schedule.
-                            </p>
-                        </div>
-                    )}
-                    {step === "manual" && (
-                        <div className="flex flex-col gap-4">
-                            <div>
-                                <label className="text-[11px] font-bold text-gray-500 uppercase">
-                                    Place Name
-                                </label>
-                                <Input
-                                    value={title}
-                                    onChange={(e) => setTitle(e.target.value)}
-                                    className="h-11 rounded-xl mt-1 bg-gray-50"
-                                    placeholder="e.g. Tokyo Tower"
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-bold text-gray-500 uppercase">
-                                    Location / Address
-                                </label>
-                                <Input
-                                    value={address}
-                                    onChange={(e) => setAddress(e.target.value)}
-                                    className="h-11 rounded-xl mt-1 bg-gray-50"
-                                    placeholder="Search address..."
-                                />
-                            </div>
-                            <div className="flex gap-4">
-                                <div className="flex-1">
-                                    <label className="text-[11px] font-bold text-gray-500 uppercase">
-                                        Start Time
-                                    </label>
-                                    <Input
-                                        type="time"
-                                        value={time}
-                                        onChange={(e) => setTime(e.target.value)}
-                                        className="h-11 rounded-xl mt-1 bg-gray-50"
-                                    />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="text-[11px] font-bold text-gray-500 uppercase">
-                                        End Time
-                                    </label>
-                                    <Input
-                                        type="time"
-                                        value={endTime}
-                                        onChange={(e) => setEndTime(e.target.value)}
-                                        className="h-11 rounded-xl mt-1 bg-gray-50"
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-bold text-gray-500 uppercase">
-                                    Category
-                                </label>
-                                <select
-                                    value={type}
-                                    onChange={(e) => setType(e.target.value)}
-                                    className="w-full h-11 border border-gray-200 rounded-xl px-3 mt-1 bg-gray-50 text-sm outline-none"
-                                >
-                                    <option value="activity">Activity</option>
-                                    <option value="meal">Meal</option>
-                                    <option value="transit">Transit</option>
-                                    <option value="location">Location</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="text-[11px] font-bold text-gray-500 uppercase">
-                                    Notes / Description
-                                </label>
-                                <textarea
-                                    value={desc}
-                                    onChange={(e) => setDesc(e.target.value)}
-                                    className="w-full h-20 border border-gray-200 rounded-xl p-3 mt-1 bg-gray-50 text-sm outline-none resize-none"
-                                    placeholder="Add details..."
-                                />
-                            </div>
-                            {config.mode === "add" && (
-                                <DaySelector
-                                    tripData={tripData}
-                                    targetDay={targetDay}
-                                    setTargetDay={setTargetDay}
-                                />
-                            )}
-                            <div className="flex gap-3 mt-2 pt-4 border-t border-gray-100">
-                                {config.mode === "add" && !prefill && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setStep("choose")}
-                                        className="flex-1 h-11 rounded-xl border-gray-200 text-gray-600"
-                                    >
-                                        Back
-                                    </Button>
-                                )}
-                                <Button
-                                    onClick={handleSave}
-                                    disabled={!title}
-                                    className="flex-1 h-11 rounded-xl bg-[#4772b3] hover:bg-[#385e97] text-white font-bold"
-                                >
-                                    {config.mode === "add" ? "Drop Pin" : "Save Changes"}
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </motion.div>
-        </div>
-    );
-}
-
-// day selector
-function DaySelector({
-    tripData,
-    targetDay,
-    setTargetDay,
-}: {
-    tripData: DayPlan[];
-    targetDay: number;
-    setTargetDay: (i: number) => void;
-}) {
-    return (
-        <div>
-            <label className="text-[11px] font-bold text-gray-500 uppercase block mb-2">
-                Add to Day
-            </label>
-            <div className="flex gap-2 flex-wrap">
-                {tripData.map((d: DayPlan, i: number) => (
-                    <button
-                        key={d.day}
-                        type="button"
-                        onClick={() => setTargetDay(i)}
-                        className={cn(
-                            "flex flex-col items-center px-3 py-2 rounded-xl border transition-all",
-                            targetDay === i
-                                ? "border-[#4772b3] bg-blue-50"
-                                : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100"
-                        )}
-                    >
-                        <span
-                            className={cn(
-                                "text-xs font-bold",
-                                targetDay === i ? "text-[#4772b3]" : "text-gray-700"
-                            )}
-                        >
-                            Day {d.day}
-                        </span>
-                        <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                            {d.date.split(",")[0]}
-                        </span>
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-}
+// (ActionModal, FormModal, DaySelector removed — replaced by AddEventModal component)

@@ -37,6 +37,7 @@ export interface EventItem {
     desc?: string;
     url?: string;
     reviews?: { author: string; text: string; rating: number }[];
+    transitMode?: TransportMode;
 }
 
 export interface DayPlan {
