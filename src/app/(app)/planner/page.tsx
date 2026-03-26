@@ -449,10 +449,10 @@ export default function TripMapPage() {
         const dests = searchParams.getAll("dest");
         const qParam = searchParams.get("q");
         const destParam = dests.length > 0 ? dests.join("|") : (qParam || "");
-        
+
         if (destParam !== prevDestParam.current) {
             prevDestParam.current = destParam;
-            
+
             const currentDests = useTripStore.getState().plannerDestinations;
             const urlNames = dests.length > 0 ? dests : (qParam ? [qParam] : []);
 
@@ -464,8 +464,8 @@ export default function TripMapPage() {
                     setPlannerDestinations([{ id: Math.random().toString(36).substring(2, 9), name: "", date: null }]);
                 } else {
                     const newDests = urlNames.map((name, i) => {
-                        return currentDests[i] 
-                            ? { ...currentDests[i], name } 
+                        return currentDests[i]
+                            ? { ...currentDests[i], name }
                             : { id: Math.random().toString(36).substring(2, 9), name, date: null };
                     });
                     setPlannerDestinations(newDests);
@@ -525,7 +525,7 @@ export default function TripMapPage() {
         const currentNames = plannerDestinations
             .map(d => d.name)
             .filter(n => n.length > 2); // Only count names that looks like a real destination
-        
+
         const namesString = currentNames.slice().sort().join("|");
         const prevString = prevDestNames.current.slice().sort().join("|");
 
@@ -533,7 +533,7 @@ export default function TripMapPage() {
             console.log("Destinations changed, resetting planning state...");
             resetPlanningState();
         }
-        
+
         if (currentNames.length > 0) {
             prevDestNames.current = currentNames;
         }
@@ -809,7 +809,7 @@ export default function TripMapPage() {
                                         {d.day}
                                     </span>
                                     {hasFlight && (
-                                        <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-blue-500 border-2 border-white" />
+                                        <div className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-white" />
                                     )}
                                 </div>
                                 Day {d.day}
