@@ -308,8 +308,8 @@ function haversineKm(
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -386,7 +386,7 @@ function rebuildTransits(
       const km =
         from.lat && from.lng && to.lat && to.lng
           ? Math.round(haversineKm(from.lat, from.lng, to.lat, to.lng) * 10) /
-            10
+          10
           : 0;
       const mode =
         existingTransits[segKey] || smartDefaultTransport(km) || fallbackMode;
@@ -800,10 +800,10 @@ export default function TripMapPage() {
             return currentDests[i]
               ? { ...currentDests[i], name }
               : {
-                  id: Math.random().toString(36).substring(2, 9),
-                  name,
-                  date: null,
-                };
+                id: Math.random().toString(36).substring(2, 9),
+                name,
+                date: null,
+              };
           });
           setPlannerDestinations(newDests);
         }
@@ -1063,7 +1063,7 @@ export default function TripMapPage() {
           .map((h) => ({
             id: `hotel-${h.id}`,
             time: h.checkIn || "3:00 PM",
-            title: `🏨 ${h.name}`,
+            title: `𖠿 ${h.name}`,
             type: "activity" as const,
             color: "#7F77DD",
             lat: h.lat,
@@ -1308,8 +1308,8 @@ export default function TripMapPage() {
             onClick={handleConfirmSync}
             variant="outline"
             disabled
-            // disabled={!user || syncPhase === "syncing" || syncPhase === "complete" }
-            // className="rounded-xl h-9 px-5 bg-primary hover:bg-primary/80 text-white font-bold text-[12px] gap-2 shadow-sm"
+          // disabled={!user || syncPhase === "syncing" || syncPhase === "complete" }
+          // className="rounded-xl h-9 px-5 bg-primary hover:bg-primary/80 text-white font-bold text-[12px] gap-2 shadow-sm"
           >
             {user ? (
               <>
@@ -2818,12 +2818,12 @@ function MapView({
               // Determine if this pin is an endpoint of the highlighted transit
               const hlTransitEvt = highlightedTransitId
                 ? day.events.find(
-                    (e: EventItem) => e.id === highlightedTransitId,
-                  )
+                  (e: EventItem) => e.id === highlightedTransitId,
+                )
                 : null;
               const isHlEndpoint = hlTransitEvt
                 ? event.id === hlTransitEvt.fromId ||
-                  event.id === hlTransitEvt.toId
+                event.id === hlTransitEvt.toId
                 : false;
               const isDimmed =
                 !!highlightedTransitId && !isHlEndpoint && !isSelected;
@@ -3147,91 +3147,91 @@ function MapView({
         <AnimatePresence>
           {(searchQuery.trim().length > 0 ||
             (isSearchFocused && !searchQuery.trim())) && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 overflow-hidden z-20"
-            >
-              {!searchQuery.trim() && (
-                <div className="px-3 pt-3 pb-1">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
-                    Suggestions in {currentDest || "your destination"}
-                  </p>
-                </div>
-              )}
-              <div className="max-h-64 overflow-y-auto p-2 scrollbar-none">
-                {isLoadingSuggestions && !searchQuery.trim() ? (
-                  <div className="p-4 flex items-center justify-center gap-2 text-sm text-gray-400">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Loading
-                    suggestions...
-                  </div>
-                ) : filtered.length > 0 ? (
-                  filtered.map((res) => (
-                    <div
-                      key={res.id}
-                      onClick={() => onSearchResultClick(res)}
-                      className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors group"
-                    >
-                      <img
-                        src={
-                          res.images?.[0] ||
-                          getFallbackImage(res.id || res.name)
-                        }
-                        alt={res.name}
-                        className="w-10 h-10 rounded-lg object-cover shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="font-bold text-sm text-gray-900 truncate flex-1 min-w-0">
-                            {res.name}
-                          </span>
-                          {res.rating && (
-                            <div className="flex items-center gap-0.5 shrink-0">
-                              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                              <span className="text-[11px] font-bold text-gray-600">
-                                {res.rating}
-                              </span>
-                            </div>
-                          )}
-                          <span
-                            className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md shrink-0"
-                            style={{
-                              color:
-                                CATEGORY_COLORS[
-                                  res.category ||
-                                    inferCategoryFromType(res.type)
-                                ] || CATEGORY_COLORS.activity,
-                              backgroundColor:
-                                (CATEGORY_COLORS[
-                                  res.category ||
-                                    inferCategoryFromType(res.type)
-                                ] || CATEGORY_COLORS.activity) + "18",
-                            }}
-                          >
-                            {CATEGORY_LABELS[
-                              res.category || inferCategoryFromType(res.type)
-                            ] || res.type}
-                          </span>
-                        </div>
-                        <span className="text-xs text-gray-500 truncate block">
-                          {res.address}
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : searchQuery.trim() ? (
-                  <div className="p-4 text-center text-sm text-gray-500">
-                    No places found matching &quot;{searchQuery}&quot;
-                  </div>
-                ) : (
-                  <div className="p-4 text-center text-sm text-gray-500">
-                    No suggestions available
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 overflow-hidden z-20"
+              >
+                {!searchQuery.trim() && (
+                  <div className="px-3 pt-3 pb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                      Suggestions in {currentDest || "your destination"}
+                    </p>
                   </div>
                 )}
-              </div>
-            </motion.div>
-          )}
+                <div className="max-h-64 overflow-y-auto p-2 scrollbar-none">
+                  {isLoadingSuggestions && !searchQuery.trim() ? (
+                    <div className="p-4 flex items-center justify-center gap-2 text-sm text-gray-400">
+                      <Loader2 className="w-4 h-4 animate-spin" /> Loading
+                      suggestions...
+                    </div>
+                  ) : filtered.length > 0 ? (
+                    filtered.map((res) => (
+                      <div
+                        key={res.id}
+                        onClick={() => onSearchResultClick(res)}
+                        className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors group"
+                      >
+                        <img
+                          src={
+                            res.images?.[0] ||
+                            getFallbackImage(res.id || res.name)
+                          }
+                          alt={res.name}
+                          className="w-10 h-10 rounded-lg object-cover shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-bold text-sm text-gray-900 truncate flex-1 min-w-0">
+                              {res.name}
+                            </span>
+                            {res.rating && (
+                              <div className="flex items-center gap-0.5 shrink-0">
+                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                <span className="text-[11px] font-bold text-gray-600">
+                                  {res.rating}
+                                </span>
+                              </div>
+                            )}
+                            <span
+                              className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md shrink-0"
+                              style={{
+                                color:
+                                  CATEGORY_COLORS[
+                                  res.category ||
+                                  inferCategoryFromType(res.type)
+                                  ] || CATEGORY_COLORS.activity,
+                                backgroundColor:
+                                  (CATEGORY_COLORS[
+                                    res.category ||
+                                    inferCategoryFromType(res.type)
+                                  ] || CATEGORY_COLORS.activity) + "18",
+                              }}
+                            >
+                              {CATEGORY_LABELS[
+                                res.category || inferCategoryFromType(res.type)
+                              ] || res.type}
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-500 truncate block">
+                            {res.address}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : searchQuery.trim() ? (
+                    <div className="p-4 text-center text-sm text-gray-500">
+                      No places found matching &quot;{searchQuery}&quot;
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-sm text-gray-500">
+                      No suggestions available
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
         </AnimatePresence>
       </div>
 
@@ -3352,24 +3352,24 @@ function MapView({
                   <DragOverlay dropAnimation={null}>
                     {activeSidebarDragId
                       ? (() => {
-                          const dragEvt = day.events.find(
-                            (e: EventItem) => e.id === activeSidebarDragId,
-                          );
-                          if (!dragEvt) return null;
-                          return (
-                            <div
-                              className="rounded-lg p-3 border-2 border-blue-400 shadow-2xl opacity-90 max-w-[300px]"
-                              style={{ backgroundColor: dragEvt.color }}
-                            >
-                              <p className="text-[15px] font-bold text-white truncate">
-                                {dragEvt.title}
-                              </p>
-                              <p className="text-[11px] text-white/70 mt-0.5">
-                                {dragEvt.time}
-                              </p>
-                            </div>
-                          );
-                        })()
+                        const dragEvt = day.events.find(
+                          (e: EventItem) => e.id === activeSidebarDragId,
+                        );
+                        if (!dragEvt) return null;
+                        return (
+                          <div
+                            className="rounded-lg p-3 border-2 border-blue-400 shadow-2xl opacity-90 max-w-[300px]"
+                            style={{ backgroundColor: dragEvt.color }}
+                          >
+                            <p className="text-[15px] font-bold text-white truncate">
+                              {dragEvt.title}
+                            </p>
+                            <p className="text-[11px] text-white/70 mt-0.5">
+                              {dragEvt.time}
+                            </p>
+                          </div>
+                        );
+                      })()
                       : null}
                   </DragOverlay>,
                   document.body,
@@ -3509,13 +3509,13 @@ function TransitRow({
   const cardStyle =
     isHighlighted && fromColor && toColor
       ? {
-          background: `linear-gradient(135deg, ${hexToRgba(fromColor, 0.12)}, ${hexToRgba(toColor, 0.12)})`,
-          borderColor: hexToRgba(fromColor, 0.25),
-        }
+        background: `linear-gradient(135deg, ${hexToRgba(fromColor, 0.12)}, ${hexToRgba(toColor, 0.12)})`,
+        borderColor: hexToRgba(fromColor, 0.25),
+      }
       : {
-          backgroundColor: hexToRgba(gray, 0.08),
-          borderColor: hexToRgba(gray, 0.15),
-        };
+        backgroundColor: hexToRgba(gray, 0.08),
+        borderColor: hexToRgba(gray, 0.15),
+      };
 
   const isLongWalk = currentMode === "walk" && (event.distanceKm || 0) > 2;
   const isLongTransit =
