@@ -99,6 +99,18 @@ const TYPE_LABELS: Record<string, string> = {
     note: "Note",
 };
 
+const SEARCH_PLACEHOLDER_IMAGES = [
+    "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=320&q=80",
+    "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=320&q=80",
+    "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=320&q=80",
+    "https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&w=320&q=80",
+];
+
+function getFallbackImage(seed: string) {
+    const hash = seed.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    return SEARCH_PLACEHOLDER_IMAGES[hash % SEARCH_PLACEHOLDER_IMAGES.length];
+}
+
 // components
 function StarRating({ rating }: { rating: number }) {
     return (
@@ -245,6 +257,9 @@ function PlaceRow({
     onClick,
     onEdit,
     onRemove,
+    draggable = true,
+    hideTime = false,
+    hideTypeBadge = false,
 }: {
     event: EventItem;
     isExpanded: boolean;
@@ -253,8 +268,14 @@ function PlaceRow({
     onClick: () => void;
     onEdit: () => void;
     onRemove: () => void;
+    draggable?: boolean;
+    hideTime?: boolean;
+    hideTypeBadge?: boolean;
 }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: event.id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id: event.id,
+        disabled: !draggable,
+    });
     const dndStyle = {
         transform: CSS.Transform.toString(transform),
         transition,
@@ -272,7 +293,7 @@ function PlaceRow({
             className="flex group"
         >
             <div className="w-[52px] shrink-0 pt-[13px] pr-2 text-right">
-                <span className="text-[11px] font-bold text-gray-500">{event.time}</span>
+                {!hideTime && <span className="text-[11px] font-bold text-gray-500">{event.time}</span>}
             </div>
 
             <div className="w-7 shrink-0 flex flex-col items-center relative">
@@ -303,9 +324,13 @@ function PlaceRow({
                         style={{ backgroundColor: event.color }}
                     >
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <button {...attributes} {...listeners} className="touch-none cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-white/20 text-white/60 hover:text-white transition-colors" onClick={(e) => e.stopPropagation()}>
-                                <GripVertical className="w-3.5 h-3.5" />
-                            </button>
+                            {draggable ? (
+                                <button {...attributes} {...listeners} className="touch-none cursor-grab active:cursor-grabbing p-0.5 rounded hover:bg-white/20 text-white/60 hover:text-white transition-colors" onClick={(e) => e.stopPropagation()}>
+                                    <GripVertical className="w-3.5 h-3.5" />
+                                </button>
+                            ) : (
+                                <span className="w-4 h-4" />
+                            )}
                             <span className="text-[14px] font-bold text-white truncate">
                                 {
                                     event.title.length > 18 ? event.title.substring(0, 18) + "..." : event.title
@@ -313,9 +338,11 @@ function PlaceRow({
                             </span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
-                            <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-white/20 text-white">
-                                {TYPE_LABELS[event.type]}
-                            </span>
+                            {!hideTypeBadge && (
+                                <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md bg-white/20 text-white">
+                                    {TYPE_LABELS[event.type]}
+                                </span>
+                            )}
                             <motion.div
                                 animate={{ rotate: isExpanded ? 180 : 0 }}
                                 transition={{ duration: 0.2 }}
@@ -395,20 +422,22 @@ function PlaceRow({
                                         </div>
                                     )}
 
-                                    <div className="flex gap-2 pt-3 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
-                                        <button
-                                            onClick={onEdit}
-                                            className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-blue-50 text-blue-700 text-[12px] font-bold hover:bg-blue-100 transition-colors"
-                                        >
-                                            <Edit2 className="w-3.5 h-3.5" /> Edit
-                                        </button>
-                                        <button
-                                            onClick={onRemove}
-                                            className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-red-50 text-red-600 text-[12px] font-bold hover:bg-red-100 transition-colors"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" /> Remove
-                                        </button>
-                                    </div>
+                                    {draggable && (
+                                        <div className="flex gap-2 pt-3 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+                                            <button
+                                                onClick={onEdit}
+                                                className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-blue-50 text-blue-700 text-[12px] font-bold hover:bg-blue-100 transition-colors"
+                                            >
+                                                <Edit2 className="w-3.5 h-3.5" /> Edit
+                                            </button>
+                                            <button
+                                                onClick={onRemove}
+                                                className="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-lg bg-red-50 text-red-600 text-[12px] font-bold hover:bg-red-100 transition-colors"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" /> Remove
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </motion.div>
                         )}
@@ -569,9 +598,11 @@ function RightPanelSearch({
                                             onClick={() => { onSearchResultClick(res); setQuery(""); }}
                                             className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors group"
                                         >
-                                            {res.images?.[0] && (
-                                                <img src={res.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                                            )}
+                                            <img
+                                                src={res.images?.[0] || getFallbackImage(res.id || res.name)}
+                                                alt={res.name}
+                                                className="w-10 h-10 rounded-lg object-cover shrink-0"
+                                            />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-0.5">
                                                     <span className="font-bold text-sm text-gray-900 truncate flex-1 min-w-0">{res.name}</span>
@@ -845,11 +876,17 @@ export default function ItineraryView({
                 className="w-[420px] shrink-0 flex flex-col bg-white border-r border-gray-200 shadow-sm overflow-hidden"
             >
                 <div className="shrink-0 px-5 py-4 border-b border-gray-100">
-                    <div className="flex items-center justify-between">
-                        <span className="font-bold text-gray-900 text-[16px]">Day {day.day} Timeline</span>
-                        <span className="text-gray-500 font-medium text-xs bg-gray-100 px-3 py-1.5 rounded-md">
-                            {day.date}
-                        </span>
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900 text-[16px]">Day {day.day} Timeline</span>
+                        </div>
+                        <button
+                            onClick={() => onOpenModal("add")}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1D4983] text-white text-[12px] font-bold hover:bg-[#163970] transition-colors shadow-md"
+                        >
+                            <Plus className="w-3.5 h-3.5" />
+                            Add Activity
+                        </button>
                     </div>
                 </div>
 
@@ -900,6 +937,9 @@ export default function ItineraryView({
                                                 onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
                                                 onEdit={() => onOpenModal("edit", event.id)}
                                                 onRemove={() => onOpenModal("remove", event.id)}
+                                                draggable={false}
+                                                hideTime={isHotel}
+                                                hideTypeBadge
                                             />
                                         );
                                     }
@@ -954,20 +994,21 @@ export default function ItineraryView({
                 transition={{ delay: 0.15 }}
                 className="flex-1 flex flex-col overflow-hidden"
             >
-                <div className="shrink-0 px-5 py-4 bg-white border-b border-gray-100 flex items-center justify-between">
+                <div className="shrink-0 px-5 py-4 bg-white border-b border-gray-100">
                     <div>
                         <h2 className="font-bold text-gray-900 text-[16px]">{day.date}</h2>
                         <p className="text-[12px] text-gray-500 mt-0.5">
-                            {tripData.length}-day trip · {day.events.filter((e) => !(e.type === "transit" && e.fromId)).length} stops today
+                            {
+                                day.events.filter(
+                                    (e) =>
+                                        !(e.type === "transit" && e.fromId) &&
+                                        !e.id.startsWith("flight-") &&
+                                        !e.id.startsWith("hotel-")
+                                ).length
+                            }{" "}
+                            stops today
                         </p>
                     </div>
-                    <button
-                        onClick={() => onOpenModal("add")}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1D4983] text-white text-[12px] font-bold hover:bg-[#163970] transition-colors shadow-md"
-                    >
-                        <Plus className="w-3.5 h-3.5" />
-                        Add Stop
-                    </button>
                 </div>
 
                 <DaySummaryPanel

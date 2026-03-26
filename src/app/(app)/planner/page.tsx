@@ -21,16 +21,13 @@ import {
     List,
     Search,
     X,
-    MapPinMinus,
     Car,
     Bus,
     PersonStanding,
     Star,
     ExternalLink,
-    Wand2,
     Trash2,
     Edit2,
-    Sparkles,
     ArrowRight,
     Plus,
     ChevronUp,
@@ -38,10 +35,6 @@ import {
     Phone,
     Globe,
     Navigation,
-    Pencil,
-    Plane,
-    Bed,
-    CheckCircle2,
     LogIn,
     Loader2,
     Check,
@@ -52,7 +45,6 @@ import {
 import { cn } from "@/lib/utils";
 import { parseYYYYMMDD } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import Image from "next/image";
 import Logo from "@/assets/images/logo.png";
 import Link from "next/link";
@@ -140,6 +132,18 @@ const CATEGORY_LABELS: Record<string, string> = {
     location: "Location",
 };
 
+const SEARCH_PLACEHOLDER_IMAGES = [
+    "https://images.unsplash.com/photo-1467269204594-9661b134dd2b?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=800&q=80",
+    "https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&w=800&q=80",
+];
+
+function getFallbackImage(seed: string) {
+    const hash = seed.split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    return SEARCH_PLACEHOLDER_IMAGES[hash % SEARCH_PLACEHOLDER_IMAGES.length];
+}
+
 const DUMMY_REVIEW_POOL = [
     { author: "Sarah M.", text: "Absolutely loved this place! Highly recommend visiting.", rating: 5 },
     { author: "James R.", text: "Great experience overall. Would definitely come back.", rating: 4 },
@@ -222,6 +226,7 @@ const MODE_OVERHEAD_MINS: Record<TransportMode, number> = {
     walk: 0,
 };
 
+// calculate transit time
 function calcTransit(
     from: EventItem,
     to: EventItem,
@@ -237,6 +242,7 @@ function calcTransit(
     return { mins, km: Math.round(km * 10) / 10 };
 }
 
+// format duration
 function formatDuration(mins: number): string {
     if (mins < 60) return `${mins} min`;
     const h = Math.floor(mins / 60);
@@ -256,8 +262,10 @@ function rebuildTransits(
     events: EventItem[],
     fallbackMode: TransportMode
 ): EventItem[] {
-    // Separate flight/hotel events — they stay at the top without transits
-    const flightHotelEvents = events.filter((e) => e.id.startsWith("flight-") || e.id.startsWith("hotel-"));
+    // Keep logistics pinned at top in fixed order: flights first, then hotels.
+    const flightEvents = events.filter((e) => e.id.startsWith("flight-"));
+    const hotelEvents = events.filter((e) => e.id.startsWith("hotel-"));
+    const flightHotelEvents = [...flightEvents, ...hotelEvents];
     const regularEvents = events.filter((e) => !e.id.startsWith("flight-") && !e.id.startsWith("hotel-"));
     const places = regularEvents.filter((e) => !(e.type === "transit" && e.fromId));
     if (places.length < 2) return [...flightHotelEvents, ...places];
@@ -354,12 +362,6 @@ function getRouteArrows(coords: number[][], count: number = 3): { lng: number; l
     }
     return arrows;
 }
-
-let _idCounter = 0;
-const generateId = (prefix: string) =>
-    `${prefix}-${Date.now()}-${++_idCounter}-${Math.random()
-        .toString(36)
-        .slice(2, 7)}`;
 
 // colors
 const COLORS = {
@@ -783,9 +785,7 @@ export default function TripMapPage() {
     };
 
     /* linked logistics from hero */
-    const linkedStay = useTripStore((s) => s.linkedStay);
     const plannerFlightsAll = useTripStore((s) => s.plannerFlights);
-    const removePlannerFlight = useTripStore((s) => s.removePlannerFlight);
     const plannerHotelsAll = useTripStore((s) => s.plannerHotels);
 
     /* sync plannerFlights + plannerHotels into day timelines */
@@ -855,8 +855,11 @@ export default function TripMapPage() {
         (newPlaceEvents: EventItem[]) => {
             setTripData((prev) => {
                 const newData = prev.map((d) => ({ ...d, events: [...d.events] }));
-                // rebuild: place newPlaceEvents in order, then add transits
-                newData[activeDay].events = rebuildTransits(newPlaceEvents, transportMode);
+                const pinnedEvents = newData[activeDay].events.filter(
+                    (e) => e.id.startsWith("flight-") || e.id.startsWith("hotel-")
+                );
+                // Keep flight/hotel fixed, reorder only regular events, then rebuild transits.
+                newData[activeDay].events = [...pinnedEvents, ...rebuildTransits(newPlaceEvents, transportMode)];
                 return newData;
             });
         },
@@ -970,12 +973,12 @@ export default function TripMapPage() {
                                         {d.day}
                                     </span>
                                     {hasFlight && (
-                                        <div className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-white" />
+                                        <div className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-[#378ADD] border-2 border-white" />
                                     )}
                                     {hotelCount > 0 && (
-                                        <div className="absolute -bottom-2 -left-1 min-w-[14px] h-3.5 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center">
+                                        <div className={cn("absolute rounded-full bg-[#7F77DD] border-2 border-white flex items-center justify-center", hotelCount > 1 ? "w-3.5 h-3.5 -bottom-1.5 -left-1" : "w-2.5 h-2.5 -left-0.5 -bottom-1")}>
                                             {hotelCount > 1 && (
-                                                <span className="text-[7px] font-bold text-white leading-none">{hotelCount}</span>
+                                                <span className="text-[7.5px] font-bold text-white leading-none">{hotelCount}</span>
                                             )}
                                         </div>
                                     )}
@@ -1008,49 +1011,6 @@ export default function TripMapPage() {
                     </Button>
                 </div>
             </div>
-
-            {/* {(plannerFlightsAll.length > 0 || linkedStay) && (
-                <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    className="shrink-0 bg-white border-b border-gray-200 px-5 py-3"
-                > */}
-            {/* <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Linked Logistics</p> */}
-            {/* <div className="flex flex-wrap gap-2">
-                        {plannerFlightsAll.map((flight) => (
-                            <div key={flight.id} className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 group">
-                                <Plane className="h-3.5 w-3.5 text-blue-500 shrink-0 mt-0.5" />
-                                <div className="flex flex-col min-w-0">
-                                    <span className="text-[10px] font-semibold text-blue-800 truncate max-w-[200px] flex items-center gap-1">
-                                        {flight.from.split(",")[0]}
-                                        <ArrowRight className="h-3 w-3 text-blue-700 shrink-0" />
-                                        {flight.to.split(",")[0]}
-                                    </span>
-                                    <span className="text-[9.5px] text-blue-600/70 truncate"> */}
-            {/* {flight.alreadyBooked ? `Ref: ${flight.bookingRef}` : `${flight.airline} ${flight.flightNo}`} */}
-            {/* {flight.dayNum ? `Day ${flight.dayNum}` : ""}
-                                        {flight.date ? ` · ${flight.date}` : ""}
-                                    </span>
-                                </div> */}
-            {/* <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" /> */}
-            {/* <button
-                                    onClick={() => removePlannerFlight(flight.id)}
-                                    className="p-0.5 rounded hover:bg-red-100 text-gray-500 hover:text-red-500 transition-colors shrink-0"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </div>
-                        ))}
-                        {linkedStay && (
-                            <div className="flex items-center gap-2.5 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
-                                <Bed className="h-4 w-4 text-amber-600" />
-                                <span className="text-[12px] font-semibold text-amber-800 truncate max-w-[260px]">{linkedStay}</span>
-                                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                            </div>
-                        )}
-                    </div>
-                </motion.div>
-            )} */}
 
             <div className="flex-1 w-full relative overflow-hidden bg-[#e2e8f0] flex">
                 <PlannerSidebar onTabChange={setSidebarTab} />
@@ -1158,7 +1118,7 @@ export default function TripMapPage() {
             {/* Remove Confirmation Modal */}
             {modalConfig.isOpen && modalConfig.mode === "remove" && (
                 <div
-                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+                    className="fixed inset-0 z-100 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
                     onClick={() => setModalConfig({ ...modalConfig, isOpen: false })}
                 >
                     <motion.div
@@ -1358,7 +1318,7 @@ function SearchResultDrawer({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-140 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-6"
             onClick={onClose}
         >
             <motion.div
@@ -1366,62 +1326,48 @@ function SearchResultDrawer({
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: 100, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 400, damping: 35 }}
-                className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+                className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[calc(100vh-1rem)] sm:max-h-[calc(100vh-3rem)] flex flex-col"
                 onClick={(e) => e.stopPropagation()}
             >
-                {result.images?.length ? (
-                    <div className="relative h-52 sm:h-64 shrink-0 bg-gray-100">
-                        <AnimatePresence mode="wait">
-                            <motion.img
-                                key={imgIdx}
-                                src={result.images[imgIdx]}
-                                alt={result.name}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
-                                className="w-full h-full object-cover"
-                            />
-                        </AnimatePresence>
-                        {result.images.length > 1 && (
-                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                {result.images.map((_, i) => (
-                                    <button
-                                        key={i}
-                                        onClick={() => setImgIdx(i)}
-                                        className={cn(
-                                            "h-1.5 rounded-full transition-all",
-                                            i === imgIdx ? "bg-white w-4" : "bg-white/60 w-1.5"
-                                        )}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                        <button
-                            onClick={onClose}
-                            className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm text-white p-2 rounded-full"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                        <span
-                            className="absolute top-3 left-3 backdrop-blur-sm text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide"
-                            style={{ backgroundColor: (CATEGORY_COLORS[result.category || inferCategoryFromType(result.type)] || CATEGORY_COLORS.activity) + "CC" }}
-                        >
-                            {CATEGORY_LABELS[result.category || inferCategoryFromType(result.type)] || result.type}
-                        </span>
-                    </div>
-                ) : (
-                    <div className="h-20 shrink-0 bg-linear-to-r from-blue-50 to-teal-50 flex items-center justify-between px-5">
-                        <span
-                            className="text-xs font-bold uppercase tracking-wider"
-                            style={{ color: CATEGORY_COLORS[result.category || inferCategoryFromType(result.type)] || CATEGORY_COLORS.activity }}
-                        >
-                            {CATEGORY_LABELS[result.category || inferCategoryFromType(result.type)] || result.type}
-                        </span>
-                        <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                )}
+                <div className="relative h-52 sm:h-64 shrink-0 bg-gray-100">
+                    <AnimatePresence mode="wait">
+                        <motion.img
+                            key={imgIdx}
+                            src={result.images?.[imgIdx] || getFallbackImage(result.id || result.name)}
+                            alt={result.name}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="w-full h-full object-cover"
+                        />
+                    </AnimatePresence>
+                    {(result.images?.length || 0) > 1 && (
+                        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                            {result.images?.map((_, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => setImgIdx(i)}
+                                    className={cn(
+                                        "h-1.5 rounded-full transition-all",
+                                        i === imgIdx ? "bg-white w-4" : "bg-white/60 w-1.5"
+                                    )}
+                                />
+                            ))}
+                        </div>
+                    )}
+                    <button
+                        onClick={onClose}
+                        className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm text-white p-2 rounded-full"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                    <span
+                        className="absolute top-3 left-3 backdrop-blur-sm text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide"
+                        style={{ backgroundColor: (CATEGORY_COLORS[result.category || inferCategoryFromType(result.type)] || CATEGORY_COLORS.activity) + "CC" }}
+                    >
+                        {CATEGORY_LABELS[result.category || inferCategoryFromType(result.type)] || result.type}
+                    </span>
+                </div>
                 <div className="flex-1 overflow-y-auto scrollbar-none p-5">
                     <div className="flex items-start justify-between gap-3 mb-2">
                         <h2 className="text-xl font-bold text-gray-900 leading-tight">{result.name}</h2>
@@ -1492,7 +1438,7 @@ function SearchResultDrawer({
                             <h4 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3">
                                 Reviews
                             </h4>
-                            <div className="flex flex-col gap-2.5">
+                            <div className="flex flex-col gap-2.5 max-h-56 overflow-y-auto pr-1">
                                 {result.reviews.map((rev, i) => (
                                     <div
                                         key={i}
@@ -1551,6 +1497,7 @@ function MapView({
             parentMapRef.current = mapRef.current;
         }
     });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [actionMode, setActionMode] = React.useState<ActionMode>("view");
     const [hoveredEvent, setHoveredEvent] = React.useState<string | null>(null);
     const [activeSidebarDragId, setActiveSidebarDragId] = React.useState<string | null>(null);
@@ -2026,6 +1973,11 @@ function MapView({
         // Check route click
         const map = mapRef.current?.getMap();
         if (!map) return;
+        // Guard against style/layer race during map style updates.
+        if (!map.isStyleLoaded() || !map.getLayer("route-hit-area")) {
+            if (highlightedTransitId) setHighlightedTransitId(null);
+            return;
+        }
         const features = map.queryRenderedFeatures(e.point, { layers: ["route-hit-area"] });
         if (features?.length) {
             const tid = features[0].properties?.transitId;
@@ -2557,9 +2509,11 @@ function MapView({
                                             onClick={() => onSearchResultClick(res)}
                                             className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors group"
                                         >
-                                            {res.images?.[0] && (
-                                                <img src={res.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
-                                            )}
+                                            <img
+                                                src={res.images?.[0] || getFallbackImage(res.id || res.name)}
+                                                alt={res.name}
+                                                className="w-10 h-10 rounded-lg object-cover shrink-0"
+                                            />
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-0.5">
                                                     <span className="font-bold text-sm text-gray-900 truncate flex-1 min-w-0">
@@ -3014,6 +2968,18 @@ function SortablePlaceRow(props: {
                                         </div>
                                     )}
                                     <div className="p-4">
+                                        <div className="flex flex-wrap items-center gap-2 mb-3">
+                                            <span className="flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg">
+                                                <Clock className="w-3 h-3" />
+                                                {props.event.time}
+                                            </span>
+                                            {props.event.address && (
+                                                <span className="flex items-center gap-1 text-[11px] text-gray-500 bg-gray-50 px-2.5 py-1 rounded-lg">
+                                                    <Navigation className="w-3 h-3 text-gray-400" />
+                                                    {props.event.address}
+                                                </span>
+                                            )}
+                                        </div>
                                         {props.event.rating && (
                                             <div className="flex items-center gap-1.5 mb-2">
                                                 <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
@@ -3026,10 +2992,23 @@ function SortablePlaceRow(props: {
                                             </div>
                                         )}
                                         {props.event.desc && (
-                                            <p className="text-[13px] text-gray-600 line-clamp-2 leading-relaxed">
+                                            <p className="text-[13px] text-gray-600 leading-relaxed mb-3">
                                                 {props.event.desc}
                                             </p>
                                         )}
+                                        {props.event.reviews?.length ? (
+                                            <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                                                {props.event.reviews.slice(0, 3).map((rev, i) => (
+                                                    <div key={i} className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+                                                        <div className="flex items-center justify-between mb-1">
+                                                            <span className="text-[11px] font-bold text-gray-800">{rev.author}</span>
+                                                            <span className="text-[10px] font-semibold text-amber-600">{rev.rating}★</span>
+                                                        </div>
+                                                        <p className="text-[11px] text-gray-600 leading-relaxed line-clamp-2">{rev.text}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </motion.div>
                             )}
@@ -3126,25 +3105,3 @@ const LegendItem = ({ color, label }: { color: string; label: string }) => (
         </span>
     </div>
 );
-
-const ToolbarButton = ({ icon, isActive, onClick, tooltip }: any) => (
-    <div className="relative group flex items-center">
-        <button
-            onClick={onClick}
-            className={cn(
-                "w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md border border-primary/30",
-                isActive
-                    ? "bg-primary text-white scale-110 shadow-lg"
-                    : "bg-white text-primary hover:scale-105"
-            )}
-        >
-            {icon}
-        </button>
-        <span className="absolute right-[56px] bg-gray-900 text-white text-[12px] font-bold px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
-            {tooltip}
-        </span>
-    </div>
-);
-
-// action modal
-// (ActionModal, FormModal, DaySelector removed — replaced by AddEventModal component)

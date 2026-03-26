@@ -809,7 +809,7 @@ export default function ProfileDashboard() {
         whatsapp: false, telegramBot: false, weatherAlerts: true,
     });
 
-    // Protect route — redirect if not signed in
+    // Protect route - redirect if not signed in
     React.useEffect(() => {
         if (!user) {
             router.replace("/");
