@@ -439,9 +439,40 @@ export default function TripMapPage() {
 
     const {
         plannerOrigin, setPlannerOrigin,
-        plannerDestinations,
+        plannerDestinations, setPlannerDestinations,
         resetPlanningState
     } = useTripStore();
+
+    // 0. Sync URL to Store (Centralized)
+    const prevDestParam = React.useRef<string | null>(null);
+    React.useEffect(() => {
+        const dests = searchParams.getAll("dest");
+        const qParam = searchParams.get("q");
+        const destParam = dests.length > 0 ? dests.join("|") : (qParam || "");
+        
+        if (destParam !== prevDestParam.current) {
+            prevDestParam.current = destParam;
+            
+            const currentDests = useTripStore.getState().plannerDestinations;
+            const urlNames = dests.length > 0 ? dests : (qParam ? [qParam] : []);
+
+            const storeNames = currentDests.map(d => d.name).filter(Boolean).join("|");
+            const urlNamesStr = urlNames.join("|");
+
+            if (urlNamesStr !== storeNames) {
+                if (urlNames.length === 0) {
+                    setPlannerDestinations([{ id: Math.random().toString(36).substring(2, 9), name: "", date: null }]);
+                } else {
+                    const newDests = urlNames.map((name, i) => {
+                        return currentDests[i] 
+                            ? { ...currentDests[i], name } 
+                            : { id: Math.random().toString(36).substring(2, 9), name, date: null };
+                    });
+                    setPlannerDestinations(newDests);
+                }
+            }
+        }
+    }, [searchParams, setPlannerDestinations]);
 
     // 1. Centralized Location Detection on Load
     React.useEffect(() => {

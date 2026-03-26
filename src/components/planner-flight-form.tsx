@@ -33,7 +33,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
     const {
         setLinkedTransport,
         plannerOrigin,
-        plannerDestinations, setPlannerDestinations,
+        plannerDestinations,
         plannerFlights, addPlannerFlight, removePlannerFlight,
         setPlannerActiveDay,
     } = useTripStore();
@@ -81,12 +81,6 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
 
 
 
-    React.useEffect(() => {
-        const dest = searchParams.get("dest") || searchParams.get("q");
-        if (dest && plannerDestinations.length === 0) {
-            setPlannerDestinations([{ id: Math.random().toString(36).substring(2, 9), name: dest, date: null }]);
-        }
-    }, [searchParams, plannerDestinations.length, setPlannerDestinations]);
 
     const legs = React.useMemo(() => {
         const arr: { id: string; from: string; to: string; label: string; date: Date | null; destId: string }[] = [];

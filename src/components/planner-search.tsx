@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatDateToYYYYMMDD, parseYYYYMMDD } from "@/lib/utils";
+import { formatDateToYYYYMMDD, parseYYYYMMDD, formatDestinations, parseDestinations } from "@/lib/utils";
 import { useTripStore } from "@/lib/trip-store";
 
 import {
@@ -23,19 +23,25 @@ import {
     DatePickerWidget
 } from "@/components/search-bar-components";
 
+
 export default function PlannerSearch() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
     // Init state from URL (or defaults)
-    const initialDest = searchParams.get("dest") || "";
+    const initialDests = searchParams.getAll("dest");
+    const initialQ = searchParams.get("q");
+    const initialDest = initialDests.length > 0
+        ? formatDestinations(initialDests.map(name => ({ name })))
+        : (initialQ || "");
+
     const initialTravelers = searchParams.get("travelers") || "2";
     const initialDateMode = (searchParams.get("dateMode") as DateMode) || "exact";
-    
+
     // Parse exact dates
     const initialStart = searchParams.get("start") ? parseYYYYMMDD(searchParams.get("start") as string) : null;
     const initialEnd = searchParams.get("end") ? parseYYYYMMDD(searchParams.get("end") as string) : null;
-    
+
     // Parse flexible dates
     const initialFlexDays = searchParams.get("flexDays") || "7 days";
     const initialFlexMonths = searchParams.get("flexMonths") ? searchParams.get("flexMonths")!.split(",") : [];
@@ -70,17 +76,19 @@ export default function PlannerSearch() {
         const fMonths = overrides?.flexMonths ?? flexMonths;
 
         const params = new URLSearchParams(searchParams.toString());
+        params.delete("dest");
+        params.delete("q");
+
         if (dest) {
-            params.set("dest", dest.split(",").map(s => s.trim()).filter(Boolean).join(","));
-        } else {
-            params.delete("dest");
+            const parsed = parseDestinations(dest);
+            parsed.forEach(d => params.append("dest", d));
         }
 
         if (trav) params.set("travelers", trav);
         else params.delete("travelers");
 
         params.set("dateMode", dMode);
-        
+
         if (dMode === "exact") {
             if (sDate) params.set("start", formatDateToYYYYMMDD(sDate));
             else params.delete("start");
@@ -107,7 +115,7 @@ export default function PlannerSearch() {
     // Sync input with store
     React.useEffect(() => {
         if (plannerDestinations.length > 0) {
-            const names = plannerDestinations.map(d => d.name).filter(Boolean).join(", ");
+            const names = formatDestinations(plannerDestinations);
             if (names !== destination) {
                 setDestination(names);
             }
@@ -132,7 +140,7 @@ export default function PlannerSearch() {
     };
 
     const hasChanges =
-        destination !== (plannerDestinations.map(d => d.name).filter(Boolean).join(", ") || initialDest) ||
+        destination !== (formatDestinations(plannerDestinations) || initialDest) ||
         travelers !== initialTravelers ||
         dateMode !== initialDateMode ||
         startDate?.toISOString() !== initialStart?.toISOString() ||
@@ -181,18 +189,31 @@ export default function PlannerSearch() {
         >
             <div className="flex flex-col md:flex-row items-center gap-2 w-full relative z-20">
                 {/* Destination */}
-                <div className="relative w-full md:flex-[1.5]">
+                <motion.div
+                    layout
+                    initial={false}
+                    animate={{
+                        flex: plannerDestinations.length > 2 ? 1.5 :
+                            plannerDestinations.length > 1 ? 1 : 0.8
+                    }}
+                    transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                    className="relative w-full"
+                >
                     <DestinationAutocomplete
                         value={destination}
                         onChange={setDestination}
+                        onSelect={(val) => {
+                            setDestination(val);
+                            handleSearch();
+                        }}
                         className="h-10"
                     />
-                </div>
+                </motion.div>
 
                 {/* Date picker trigger */}
                 <div
                     className={cn(
-                        "flex w-full md:flex-[1.8] h-10 border shadow-xs overflow-hidden bg-white cursor-pointer rounded-lg relative transition-all",
+                        "flex w-full flex-[1.2] md:min-w-[180px] h-10 border shadow-xs overflow-hidden bg-white cursor-pointer rounded-lg relative transition-all",
                         showDatePicker
                             ? "border-primary ring-2 ring-primary/30"
                             : "border-gray-200 hover:border-gray-300"
@@ -218,7 +239,7 @@ export default function PlannerSearch() {
                 </div>
 
                 {/* Travelers */}
-                <div className="w-full md:flex-[0.8] relative flex items-center">
+                <div className="w-full md:flex-[0.55] relative flex items-center">
                     <Select value={travelers} onValueChange={setTravelers}>
                         <SelectTrigger className="w-full h-10 border-gray-200 shadow-xs">
                             <SelectValue />

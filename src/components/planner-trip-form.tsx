@@ -150,40 +150,15 @@ export default function PlannerBudgetForm() {
 
     const prevDestParam = React.useRef<string | null>(null);
 
-    // Sync from URL to Store when URL changes externally (e.g. search bar replan)
-    React.useEffect(() => {
-        const destParam = searchParams.get("dest") || searchParams.get("q") || "";
-        if (destParam !== prevDestParam.current) {
-            prevDestParam.current = destParam;
-            
-            const currentDests = useTripStore.getState().plannerDestinations;
-            const storeNames = currentDests.map(d => d.name).filter(Boolean).join(",");
-            const urlNames = destParam.split(",").map(n => n.trim()).filter(Boolean).join(",");
-
-            if (urlNames !== storeNames) {
-                if (urlNames === "") {
-                    setPlannerDestinations([{ id: uid(), name: "", date: null }]);
-                } else {
-                    const newDests = destParam.split(",").map(n => n.trim()).filter(Boolean).map((name, i) => {
-                        return currentDests[i] 
-                            ? { ...currentDests[i], name } 
-                            : { id: uid(), name, date: null };
-                    });
-                    setPlannerDestinations(newDests);
-                }
-            }
-        }
-    }, [searchParams, setPlannerDestinations]);
 
     const syncDestinationsToUrl = (dests: { id: string; name: string; date: Date | null }[]) => {
-        const names = dests.map(d => d.name).filter(Boolean).join(", ");
+        const names = dests.map(d => d.name).filter(Boolean);
         const params = new URLSearchParams(searchParams.toString());
-        if (names) {
-            params.set("dest", names);
-        } else {
-            params.delete("dest");
-        }
-        prevDestParam.current = names;
+        params.delete("dest");
+        params.delete("q");
+        names.forEach(name => params.append("dest", name));
+        
+        prevDestParam.current = names.join("|");
         router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     };
 

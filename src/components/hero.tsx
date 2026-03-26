@@ -25,7 +25,7 @@ import {
     DestinationChips,
     DatePickerWidget
 } from "@/components/search-bar-components";
-import { formatDateToYYYYMMDD } from "@/lib/utils";
+import { formatDateToYYYYMMDD, parseDestinations } from "@/lib/utils";
 
 type AppState = "collapsed" | "expanded";
 
@@ -268,7 +268,10 @@ export default function HeroSection() {
                                             disabled={!destination}
                                             onClick={() => {
                                                 const params = new URLSearchParams();
-                                                if (destination) params.set("dest", destination);
+                                                if (destination) {
+                                                    const parsed = parseDestinations(destination);
+                                                    parsed.forEach(d => params.append("dest", d));
+                                                }
                                                 if (travelers) params.set("travelers", travelers);
                                                 params.set("dateMode", dateMode);
                                                 

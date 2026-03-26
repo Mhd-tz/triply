@@ -118,8 +118,10 @@ export function DestinationAutocomplete({
     };
 
     const handleSelect = (feature: GeoapifyFeature) => {
-        const { city, formatted } = feature.properties;
-        const val = city ?? formatted;
+        const { city, country_code, formatted } = feature.properties;
+        const val = city
+            ? `${city}${country_code ? `, ${country_code.toUpperCase()}` : ""}`
+            : formatted;
         onChange(val);
         onSelect?.(val);
         setSuggestions([]);
@@ -157,12 +159,14 @@ export function DestinationAutocomplete({
                 placeholder={placeholder || "Destination"}
                 disabled={disabled}
                 className={cn(
-                    "w-full h-11 pl-10 pr-9 text-[14px] font-medium text-gray-800 placeholder:text-gray-400 font-sans",
+                    "w-full h-11 pl-10 pr-6 text-[14px] font-medium text-gray-800 placeholder:text-gray-400 font-sans",
                     "border border-gray-200 rounded-lg outline-none shadow-xs",
                     "focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all",
+                    loading && "pr-10",
                     disabled && "bg-gray-50 text-gray-400 cursor-not-allowed opacity-60",
                     className
                 )}
+                style={{ maskImage: "none", WebkitMaskImage: "none" }}
             />
 
             {/* Loading spinner */}
@@ -234,14 +238,14 @@ export function DestinationAutocomplete({
 
 // --- Destination Chips ---
 export const DESTINATIONS = [
-    { label: "Tokyo", cc: "JP" },
-    { label: "Paris", cc: "FR" },
-    { label: "Bali", cc: "ID" },
-    { label: "New York", cc: "US" },
-    { label: "Santorini", cc: "GR" },
-    { label: "Bangkok", cc: "TH" },
-    { label: "London", cc: "GB" },
-    { label: "Dubai", cc: "AE" },
+    { label: "Tokyo, JP", cc: "JP" },
+    { label: "Paris, FR", cc: "FR" },
+    { label: "Bali, ID", cc: "ID" },
+    { label: "New York, US", cc: "US" },
+    { label: "Santorini, GR", cc: "GR" },
+    { label: "Bangkok, TH", cc: "TH" },
+    { label: "London, GB", cc: "GB" },
+    { label: "Dubai, AE", cc: "AE" },
 ];
 
 export function DestinationChips({ onSelect }: { onSelect: (dest: string) => void }) {
@@ -271,7 +275,7 @@ export function DestinationChips({ onSelect }: { onSelect: (dest: string) => voi
                         className="w-4 h-3.5 object-cover rounded-[2px] shadow-sm shrink-0 border border-gray-100"
                     />
                     <span className="text-[12px] font-bold text-gray-600 group-hover:text-primary transition-colors">
-                        {dest.label}
+                        {dest.label.split(",")[0]}
                     </span>
                 </motion.button>
             ))}
