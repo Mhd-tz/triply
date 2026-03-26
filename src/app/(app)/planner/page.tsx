@@ -111,6 +111,7 @@ interface SearchResult {
     id: string;
     name: string;
     type: string;
+    category?: "meal" | "activity" | "location";
     address: string;
     rating?: number;
     reviewCount?: number;
@@ -121,6 +122,75 @@ interface SearchResult {
     url?: string;
     phone?: string;
     reviews?: { author: string; text: string; rating: number }[];
+}
+
+/** Map a specific place type string to our 3 categories */
+function inferCategoryFromType(type: string): "meal" | "activity" | "location" {
+    const t = type.toLowerCase();
+    if (["restaurant", "café", "cafe", "bakery", "bar", "food", "catering", "fast_food", "pub"].some(k => t.includes(k)))
+        return "meal";
+    if (["museum", "park", "monument", "attraction", "landmark", "heritage", "temple", "church", "castle", "palace", "tower", "bridge", "garden", "beach", "viewpoint", "zoo", "aquarium"].some(k => t.includes(k)))
+        return "location";
+    return "activity";
+}
+
+const CATEGORY_LABELS: Record<string, string> = {
+    meal: "Meal",
+    activity: "Activity",
+    location: "Location",
+};
+
+const DUMMY_REVIEW_POOL = [
+    { author: "Sarah M.", text: "Absolutely loved this place! Highly recommend visiting.", rating: 5 },
+    { author: "James R.", text: "Great experience overall. Would definitely come back.", rating: 4 },
+    { author: "Emily W.", text: "Nice atmosphere and friendly staff. Worth the visit.", rating: 4 },
+    { author: "David K.", text: "A hidden gem! One of the best spots in the area.", rating: 5 },
+    { author: "Lisa T.", text: "Good location, easy to find. Enjoyed our time here.", rating: 4 },
+    { author: "Mike P.", text: "Exceeded expectations. Beautiful setting and great vibes.", rating: 5 },
+];
+
+/** Enrich a search result with Wikipedia description, image, and dummy reviews */
+async function enrichSearchResult(result: SearchResult): Promise<SearchResult> {
+    const enriched = { ...result };
+    try {
+        const searchQuery = `${result.name} ${result.address?.split(",").slice(-2).join(" ") || ""}`.trim();
+        const sUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&srlimit=1&format=json&origin=*`;
+        const sRes = await fetch(sUrl, { headers: { "User-Agent": "TriplyApp/1.0" } });
+        if (sRes.ok) {
+            const sData = await sRes.json();
+            const pageId = sData.query?.search?.[0]?.pageid;
+            if (pageId) {
+                const params = new URLSearchParams({ action: "query", format: "json", origin: "*", prop: "extracts|pageimages", exintro: "1", explaintext: "1", pithumbsize: "800", pageids: pageId.toString() });
+                const detailRes = await fetch(`https://en.wikipedia.org/w/api.php?${params}`);
+                const detailData = await detailRes.json();
+                const page = detailData.query?.pages?.[pageId];
+                if (page) {
+                    if (page.extract && !enriched.desc) {
+                        enriched.desc = page.extract.length > 300 ? page.extract.slice(0, 300) + "…" : page.extract;
+                    }
+                    if (page.thumbnail?.source && (!enriched.images || enriched.images.length === 0)) {
+                        enriched.images = [page.thumbnail.source];
+                    }
+                }
+            }
+        }
+    } catch { /* ignore enrichment errors */ }
+
+    // Add dummy reviews if none exist
+    if (!enriched.reviews || enriched.reviews.length === 0) {
+        const seed = enriched.name.length;
+        enriched.reviews = [
+            DUMMY_REVIEW_POOL[seed % DUMMY_REVIEW_POOL.length],
+            DUMMY_REVIEW_POOL[(seed + 3) % DUMMY_REVIEW_POOL.length],
+        ];
+    }
+    // Add dummy rating if none
+    if (!enriched.rating) {
+        enriched.rating = 4.0 + Math.round((enriched.name.length % 10) / 10 * 10) / 10;
+        if (enriched.rating > 5) enriched.rating = 4.7;
+        enriched.reviewCount = 100 + (enriched.name.length * 37) % 900;
+    }
+    return enriched;
 }
 
 // calculations
@@ -869,34 +939,7 @@ export default function TripMapPage() {
                         </Button>
                     </>
                 )}
-                {/* <div className="flex items-center bg-gray-100 rounded-full p-1 gap-0.5">
-                    {(["itinerary", "map"] as ViewMode[]).map((v) => (
-                        <button
-                            key={v}
-                            onClick={() => setView(v)}
-                            className={cn(
-                                "relative flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-full transition-colors duration-150",
-                                view === v ? "text-white" : "text-gray-500 hover:text-gray-900"
-                            )}
-                        >
-                            {view === v && (
-                                <motion.div
-                                    layoutId="view-pill"
-                                    className="absolute inset-0 bg-primary shadow-md rounded-full"
-                                    transition={{ type: "spring", stiffness: 500, damping: 38 }}
-                                />
-                            )}
-                            <span className="relative z-10 flex items-center gap-1.5 text-[12.5px]">
-                                {v === "itinerary" ? (
-                                    <List className="h-3.5 w-3.5" />
-                                ) : (
-                                    <MapIcon className="h-3.5 w-3.5" />
-                                )}
-                                {v === "itinerary" ? "Itinerary" : "Map View"}
-                            </span>
-                        </button>
-                    ))}
-                </div> */}
+                {/* View mode toggler moved to bottom of content area */}
             </header>
 
             {/* Day tabs */}
@@ -1026,8 +1069,13 @@ export default function TripMapPage() {
                                     setModalConfig({ isOpen: true, mode, eventId })
                                 }
                                 searchResults={DUMMY_SEARCH_RESULTS}
-                                onSearchResultClick={(r) => { setSelectedSearchResult(r); }}
+                                onSearchResultClick={async (r) => {
+                                    setSelectedSearchResult(r as SearchResult);
+                                    const enriched = await enrichSearchResult(r as SearchResult);
+                                    setSelectedSearchResult(enriched);
+                                }}
                                 onReorder={handleReorder}
+                                onChangeTransitMode={handleChangeTransitMode}
                             />
                         ) : (
                             <MapView
@@ -1039,9 +1087,11 @@ export default function TripMapPage() {
                                 transportMode={transportMode}
                                 searchQuery={searchQuery}
                                 setSearchQuery={setSearchQuery}
-                                onSearchResultClick={(r: SearchResult) => {
+                                onSearchResultClick={async (r: SearchResult) => {
                                     setSelectedSearchResult(r);
                                     setSearchQuery("");
+                                    const enriched = await enrichSearchResult(r);
+                                    setSelectedSearchResult(enriched);
                                 }}
                                 onOpenModal={(mode: ActionMode, eventId?: string) =>
                                     setModalConfig({ isOpen: true, mode: mode as any, eventId })
@@ -1053,6 +1103,38 @@ export default function TripMapPage() {
                             />
                         )}
                     </AnimatePresence>
+
+                    {/* View mode toggler — bottom-left */}
+                    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30">
+                        <div className="flex items-center bg-white/95 backdrop-blur-md rounded-full p-1 gap-0.5 shadow-lg border border-gray-200">
+                            {(["map", "itinerary"] as ViewMode[]).map((v) => (
+                                <button
+                                    key={v}
+                                    onClick={() => setView(v)}
+                                    className={cn(
+                                        "relative flex items-center gap-1.5 px-5 py-2 text-xs font-semibold rounded-full transition-colors duration-150",
+                                        view === v ? "text-white" : "text-gray-500 hover:text-gray-900"
+                                    )}
+                                >
+                                    {view === v && (
+                                        <motion.div
+                                            layoutId="view-pill"
+                                            className="absolute inset-0 bg-primary shadow-md rounded-full"
+                                            transition={{ type: "spring", stiffness: 500, damping: 38 }}
+                                        />
+                                    )}
+                                    <span className="relative z-10 flex items-center gap-1.5 text-[12.5px]">
+                                        {v === "itinerary" ? (
+                                            <List className="h-3.5 w-3.5" />
+                                        ) : (
+                                            <MapIcon className="h-3.5 w-3.5" />
+                                        )}
+                                        {v === "itinerary" ? "Itinerary" : "Map View"}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1320,14 +1402,20 @@ function SearchResultDrawer({
                         >
                             <X className="w-4 h-4" />
                         </button>
-                        <span className="absolute top-3 left-3 bg-black/40 backdrop-blur-sm text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                            {result.type}
+                        <span
+                            className="absolute top-3 left-3 backdrop-blur-sm text-white text-[11px] font-bold px-3 py-1 rounded-full uppercase tracking-wide"
+                            style={{ backgroundColor: (CATEGORY_COLORS[result.category || inferCategoryFromType(result.type)] || CATEGORY_COLORS.activity) + "CC" }}
+                        >
+                            {CATEGORY_LABELS[result.category || inferCategoryFromType(result.type)] || result.type}
                         </span>
                     </div>
                 ) : (
                     <div className="h-20 shrink-0 bg-linear-to-r from-blue-50 to-teal-50 flex items-center justify-between px-5">
-                        <span className="text-xs font-bold uppercase text-gray-400 tracking-wider">
-                            {result.type}
+                        <span
+                            className="text-xs font-bold uppercase tracking-wider"
+                            style={{ color: CATEGORY_COLORS[result.category || inferCategoryFromType(result.type)] || CATEGORY_COLORS.activity }}
+                        >
+                            {CATEGORY_LABELS[result.category || inferCategoryFromType(result.type)] || result.type}
                         </span>
                         <button onClick={onClose} className="text-gray-400 hover:text-gray-700">
                             <X className="w-5 h-5" />
@@ -1792,10 +1880,93 @@ function MapView({
         };
     }, [rawRoutes, highlightedTransitId]);
 
-    // Dash arrays are now per-layer (drive=solid, walk=dashed, transit=dot-dash)
-    const filtered = DUMMY_SEARCH_RESULTS.filter((r) =>
-        r.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    // --- Real search: Geoapify autocomplete + popular suggestions ---
+    const plannerDestinations = useTripStore((s) => s.plannerDestinations);
+    const currentDest = plannerDestinations[0]?.name || "";
+
+    const [searchResults, setSearchResults] = React.useState<SearchResult[]>([]);
+    const [suggestions, setSuggestions] = React.useState<SearchResult[]>([]);
+    const [isSearchFocused, setIsSearchFocused] = React.useState(false);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = React.useState(false);
+    const searchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const suggestionsLoaded = React.useRef(false);
+
+    // Fetch popular place suggestions on focus (once per destination)
+    const loadSuggestions = React.useCallback(async () => {
+        if (suggestionsLoaded.current || !currentDest) return;
+        suggestionsLoaded.current = true;
+        setIsLoadingSuggestions(true);
+        try {
+            const r = await fetch(`/api/places/popular?dest=${encodeURIComponent(currentDest)}&limit=12`);
+            const data = await r.json();
+            const items: SearchResult[] = (data.results || []).map((p: any, i: number) => ({
+                id: `sug-${i}-${p.placeId || i}`,
+                name: p.translatedName || p.name,
+                type: p.type || p.category || "Place",
+                category: (p.category as "meal" | "activity" | "location") || inferCategoryFromType(p.type || ""),
+                address: p.address || "",
+                lat: p.lat,
+                lng: p.lng,
+                desc: "",
+                images: p.imageUrl ? [p.imageUrl] : [],
+                url: p.detailsUrl || "",
+            }));
+            setSuggestions(items);
+        } catch { /* ignore */ }
+        setIsLoadingSuggestions(false);
+    }, [currentDest]);
+
+    // Debounced autocomplete search
+    React.useEffect(() => {
+        if (!searchQuery.trim()) {
+            setSearchResults([]);
+            return;
+        }
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(async () => {
+            try {
+                // Geoapify autocomplete, biased to destination area
+                let biasParam = "";
+                if (currentDest) {
+                    // Try to get coords for bias from existing place events on this day
+                    const firstPlace = day.events.find((e: EventItem) => e.lat && e.lng && e.type !== "transit");
+                    if (firstPlace) {
+                        biasParam = `&bias=proximity:${firstPlace.lng},${firstPlace.lat}`;
+                    }
+                }
+                const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(searchQuery)}${biasParam}&limit=8&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`;
+                const r = await fetch(url);
+                const data = await r.json();
+                const items: SearchResult[] = (data.features || []).map((f: any, i: number) => {
+                    const p = f.properties;
+                    const rawType = p.result_type === "amenity" ? (p.category || "Place") : (p.result_type || "Place");
+                    return {
+                        id: `ac-${i}-${p.place_id || i}`,
+                        name: p.name || p.formatted?.split(",")[0] || "Unknown",
+                        type: rawType,
+                        category: inferCategoryFromType(rawType),
+                        address: p.formatted || "",
+                        lat: p.lat,
+                        lng: p.lon,
+                        desc: "",
+                        images: [],
+                        url: "",
+                    };
+                });
+                setSearchResults(items);
+            } catch { setSearchResults([]); }
+        }, 300);
+        return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+    }, [searchQuery, currentDest, day.events]);
+
+    // Which results to show in the dropdown
+    const existingTitles = React.useMemo(() => new Set(
+        day.events.filter((e: EventItem) => e.type !== "transit").map((e: EventItem) => e.title.toLowerCase())
+    ), [day.events]);
+
+    const filtered = searchQuery.trim()
+        ? searchResults
+        : suggestions.filter(s => !existingTitles.has(s.name.toLowerCase()));
 
     // Clustering: build GeoJSON for place events
     const clusterGeoJson = React.useMemo(() => ({
@@ -2345,6 +2516,8 @@ function MapView({
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        onFocus={() => { setIsSearchFocused(true); loadSuggestions(); }}
+                        onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                         placeholder="Search places, restaurants..."
                         className="flex-1 text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none bg-transparent"
                     />
@@ -2358,50 +2531,71 @@ function MapView({
                     )}
                 </div>
                 <AnimatePresence>
-                    {searchQuery.trim().length > 0 && (
+                    {(searchQuery.trim().length > 0 || (isSearchFocused && !searchQuery.trim())) && (
                         <motion.div
                             initial={{ opacity: 0, y: -10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
                             className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200 overflow-hidden z-20"
                         >
+                            {!searchQuery.trim() && (
+                                <div className="px-3 pt-3 pb-1">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                        Suggestions in {currentDest || "your destination"}
+                                    </p>
+                                </div>
+                            )}
                             <div className="max-h-64 overflow-y-auto p-2 scrollbar-none">
-                                {filtered.length > 0 ? (
+                                {isLoadingSuggestions && !searchQuery.trim() ? (
+                                    <div className="p-4 flex items-center justify-center gap-2 text-sm text-gray-400">
+                                        <Loader2 className="w-4 h-4 animate-spin" /> Loading suggestions...
+                                    </div>
+                                ) : filtered.length > 0 ? (
                                     filtered.map((res) => (
                                         <div
                                             key={res.id}
                                             onClick={() => onSearchResultClick(res)}
-                                            className="flex flex-col p-3 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors group"
+                                            className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors group"
                                         >
-                                            <div className="flex items-center justify-between mb-0.5">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-bold text-sm text-gray-900">
+                                            {res.images?.[0] && (
+                                                <img src={res.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <span className="font-bold text-sm text-gray-900 truncate flex-1 min-w-0">
                                                         {res.name}
                                                     </span>
                                                     {res.rating && (
-                                                        <div className="flex items-center gap-0.5">
+                                                        <div className="flex items-center gap-0.5 shrink-0">
                                                             <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                                                             <span className="text-[11px] font-bold text-gray-600">
                                                                 {res.rating}
                                                             </span>
                                                         </div>
                                                     )}
+                                                    <span
+                                                        className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md shrink-0"
+                                                        style={{
+                                                            color: CATEGORY_COLORS[res.category || inferCategoryFromType(res.type)] || CATEGORY_COLORS.activity,
+                                                            backgroundColor: (CATEGORY_COLORS[res.category || inferCategoryFromType(res.type)] || CATEGORY_COLORS.activity) + "18",
+                                                        }}
+                                                    >
+                                                        {CATEGORY_LABELS[res.category || inferCategoryFromType(res.type)] || res.type}
+                                                    </span>
                                                 </div>
-                                                <span className="text-[10px] font-semibold uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
-                                                    {res.type}
+                                                <span className="text-xs text-gray-500 truncate block">
+                                                    {res.address}
                                                 </span>
                                             </div>
-                                            <span className="text-xs text-gray-500 truncate">
-                                                {res.address}
-                                            </span>
-                                            <span className="text-[11px] text-blue-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                                                Tap to view details →
-                                            </span>
                                         </div>
                                     ))
-                                ) : (
+                                ) : searchQuery.trim() ? (
                                     <div className="p-4 text-center text-sm text-gray-500">
                                         No places found matching &quot;{searchQuery}&quot;
+                                    </div>
+                                ) : (
+                                    <div className="p-4 text-center text-sm text-gray-500">
+                                        No suggestions available
                                     </div>
                                 )}
                             </div>
@@ -2629,12 +2823,17 @@ function TransitRow({
     // Gray by default, colored when highlighted
     const gray = "#9CA3AF";
     const color = isHighlighted ? (fromColor || gray) : gray;
-    const cardBg = isHighlighted ? `${fromColor}10` : `${gray}10`;
-    const cardBorder = isHighlighted ? `${fromColor}30` : `${gray}30`;
-    const badgeBg = isHighlighted ? `${fromColor}20` : `${gray}20`;
+    const badgeBg = isHighlighted ? `${fromColor || gray}33` : `${gray}1A`;
+    // Use rgba for gradient since 8-char hex doesn't work in CSS gradients
+    const hexToRgba = (hex: string, alpha: number) => {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r},${g},${b},${alpha})`;
+    };
     const cardStyle = isHighlighted && fromColor && toColor
-        ? { background: `linear-gradient(135deg, ${fromColor}10, ${toColor}10)`, borderColor: `${fromColor}30` }
-        : { backgroundColor: cardBg, borderColor: cardBorder };
+        ? { background: `linear-gradient(135deg, ${hexToRgba(fromColor, 0.12)}, ${hexToRgba(toColor, 0.12)})`, borderColor: hexToRgba(fromColor, 0.25) }
+        : { backgroundColor: hexToRgba(gray, 0.08), borderColor: hexToRgba(gray, 0.15) };
 
     const isLongWalk = currentMode === "walk" && (event.distanceKm || 0) > 2;
     const isLongTransit = currentMode === "transit" && (event.distanceKm || 0) > 20;
@@ -2701,11 +2900,11 @@ function TransitRow({
                                 const MIcon = modeIcons[m];
                                 const isActive = m === currentMode;
                                 const mColor = isHighlighted ? (fromColor || gray) : gray;
-                                const mBadgeBg = isHighlighted ? `${fromColor}20` : `${gray}20`;
+                                const mBadgeBg = isHighlighted ? hexToRgba(fromColor || gray, 0.15) : hexToRgba(gray, 0.12);
                                 return (
                                     <button
                                         key={m}
-                                        onClick={(e) => { e.stopPropagation(); onChangeMode(event.id, m); }}
+                                        onClick={(e) => { e.stopPropagation(); onChangeMode(event.id, m); if (onToggleHighlight && !isHighlighted) onToggleHighlight(); }}
                                         className={cn(
                                             "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all",
                                             isActive ? "shadow-sm" : "text-gray-400 hover:bg-gray-100"

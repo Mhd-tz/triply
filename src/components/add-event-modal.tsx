@@ -66,7 +66,7 @@ interface DayPlan { day: number; date: string; events: any[]; }
 
 interface SearchResultPrefill {
   name?: string; address?: string; lat?: number; lng?: number;
-  desc?: string; type?: string; images?: string[];
+  desc?: string; type?: string; category?: "meal" | "activity" | "location"; images?: string[];
   rating?: number; reviewCount?: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reviews?: any[]; url?: string;
@@ -527,7 +527,7 @@ export default function AddEventModal({
   const [endTime, setEndTime] = React.useState(event?.endTime || "13:00");
   const [address, setAddress] = React.useState(event?.address || prefill?.address || "");
   const [desc, setDesc] = React.useState(event?.desc || prefill?.desc || "");
-  const [type, setType] = React.useState(event?.type || (prefill?.type === "Restaurant" ? "meal" : "activity"));
+  const [type, setType] = React.useState(event?.type || prefill?.category || "activity");
   const [lat, setLat] = React.useState<number | undefined>(event?.lat || prefill?.lat);
   const [lng, setLng] = React.useState<number | undefined>(event?.lng || prefill?.lng);
   const [images, setImages] = React.useState<string[]>(event?.images || prefill?.images || []);
@@ -552,6 +552,23 @@ export default function AddEventModal({
       setAddress(""); setDesc(""); setType("activity");
       setLat(undefined); setLng(undefined); setImages([]);
       setSearchQuery(""); setStep("choose"); setTargetDay(activeDayIndex);
+      setTransportTo("walk");
+      setPlaceImage(null);
+      aiSavedRef.current = false;
+    } else if (config.isOpen && !prevOpenRef.current && config.mode === "add" && prefill) {
+      // Prefill from search result: populate form and go straight to manual entry
+      setTitle(prefill.name || "");
+      setAddress(prefill.address || "");
+      setDesc(prefill.desc || "");
+      setType(prefill.category || "activity");
+      setLat(prefill.lat);
+      setLng(prefill.lng);
+      setImages(prefill.images || []);
+      setSearchQuery("");
+      setStep("manual");
+      setTargetDay(activeDayIndex);
+      setTime("12:00");
+      setEndTime("13:00");
       setTransportTo("walk");
       setPlaceImage(null);
       aiSavedRef.current = false;

@@ -2170,6 +2170,33 @@ function FormModal({
     const [targetDay, setTargetDay] = React.useState<number>(activeDayIndex);
     const aiSavedRef = React.useRef(false);
 
+    // Reset/initialize form when modal reopens
+    const prevOpenRef = React.useRef(false);
+    React.useEffect(() => {
+        if (config.isOpen && !prevOpenRef.current && config.mode === "add") {
+            if (prefill) {
+                // Prefill from search result: populate form and go to manual entry
+                setTitle(prefill.name || "");
+                setAddress(prefill.address || "");
+                setDesc(prefill.desc || "");
+                const t = (prefill.type || "").toLowerCase();
+                const cat = ["restaurant", "café", "cafe", "bakery", "bar", "food"].some(k => t.includes(k)) ? "meal"
+                    : ["museum", "park", "monument", "attraction", "landmark", "temple", "church", "garden", "beach"].some(k => t.includes(k)) ? "location"
+                    : "activity";
+                setType(cat);
+                setStep("manual");
+            } else {
+                // Fresh add: reset all fields
+                setTitle(""); setAddress(""); setDesc("");
+                setType("activity"); setStep("choose");
+            }
+            setTime("12:00"); setEndTime("13:00");
+            setTargetDay(activeDayIndex);
+            aiSavedRef.current = false;
+        }
+        prevOpenRef.current = config.isOpen;
+    }, [config.isOpen, config.mode, prefill, activeDayIndex]);
+
     const handleAI = () => {
         if (aiSavedRef.current) return;
         setStep("ai_loading");

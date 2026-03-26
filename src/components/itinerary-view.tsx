@@ -6,9 +6,11 @@ import { motion, AnimatePresence } from "motion/react";
 import {
     Clock, Star, Edit2, Trash2, ChevronDown,
     Bus, Car, PersonStanding, Plus,
-    Navigation, Search, X, GripVertical,
+    Navigation, Search, X, GripVertical, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTripStore } from "@/lib/trip-store";
+import { CATEGORY_COLORS } from "@/components/add-event-modal";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent, DragOverlay } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -73,6 +75,7 @@ interface ItineraryViewProps {
     onSearchResultClick: (result: SearchResult) => void;
     searchResults: SearchResult[];
     onReorder?: (newPlaceEvents: EventItem[]) => void;
+    onChangeTransitMode?: (transitId: string, mode: TransportMode) => void;
 }
 
 // colors
@@ -115,79 +118,118 @@ function StarRating({ rating }: { rating: number }) {
     );
 }
 
-// transit row
+// transit row — per-segment mode switching (matches map view)
 function TransitRow({
     event,
-    transportMode,
+    onChangeMode,
+    isHighlighted,
+    onToggleHighlight,
+    fromColor,
+    toColor,
 }: {
     event: EventItem;
-    transportMode: TransportMode;
+    onChangeMode?: (transitId: string, mode: TransportMode) => void;
+    isHighlighted?: boolean;
+    onToggleHighlight?: () => void;
+    fromColor?: string;
+    toColor?: string;
 }) {
-    const configs = {
-        drive: {
-            Icon: Car,
-            label: "Car",
-            color: "#888780",
-            cardBg: "#88878010",
-            cardBorder: "#88878030",
-            badgeBg: "#88878020",
-        },
-        transit: {
-            Icon: Bus,
-            label: "Bus",
-            color: "#85B7EB",
-            cardBg: "#85B7EB10",
-            cardBorder: "#85B7EB30",
-            badgeBg: "#85B7EB20",
-        },
-        walk: {
-            Icon: PersonStanding,
-            label: "Walk",
-            color: "#1D9E75",
-            cardBg: "#1D9E7510",
-            cardBorder: "#1D9E7530",
-            badgeBg: "#1D9E7520",
-        },
+    const modeIcons: Record<TransportMode, typeof Car> = { drive: Car, transit: Bus, walk: PersonStanding };
+    const modeLabels: Record<TransportMode, string> = { drive: "Car", transit: "Bus", walk: "Walk" };
+    const currentMode = event.transitMode || "walk";
+    const Icon = modeIcons[currentMode];
+    const label = modeLabels[currentMode];
+
+    const gray = "#9CA3AF";
+    const color = isHighlighted ? (fromColor || gray) : gray;
+    const hexToRgba = (hex: string, alpha: number) => {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r},${g},${b},${alpha})`;
     };
-    const { Icon, label, color, cardBg, cardBorder, badgeBg } = configs[transportMode];
+    const badgeBg = isHighlighted ? hexToRgba(fromColor || gray, 0.2) : hexToRgba(gray, 0.1);
+    const cardStyle = isHighlighted && fromColor && toColor
+        ? { background: `linear-gradient(135deg, ${hexToRgba(fromColor, 0.12)}, ${hexToRgba(toColor, 0.12)})`, borderColor: hexToRgba(fromColor, 0.25) }
+        : { backgroundColor: hexToRgba(gray, 0.08), borderColor: hexToRgba(gray, 0.15) };
+
+    const allModes: TransportMode[] = ["walk", "transit", "drive"];
 
     return (
-        <div className="flex items-stretch">
+        <div className="flex cursor-pointer" onClick={onToggleHighlight}>
             <div className="w-[52px] shrink-0" />
-            <div className="w-7 shrink-0 flex flex-col items-center py-1">
-                {[...Array(6)].map((_, i) => (
-                    <motion.div
-                        key={i}
-                        initial={{ opacity: 0, scaleY: 0 }}
-                        animate={{ opacity: 1, scaleY: 1 }}
-                        transition={{ delay: i * 0.04 }}
-                        className="w-[2px] h-[4px] rounded-full mb-[3px]"
-                        style={{ backgroundColor: COLORS[transportMode] }}
-                    />
-                ))}
+            <div className="w-7 shrink-0 flex flex-col items-center justify-center relative overflow-visible">
+                <div className="absolute -top-4 -bottom-4 left-1/2 -translate-x-1/2 w-[2px] bg-gray-200 z-0" />
+                <div className="flex flex-col gap-[4px] items-center relative z-10 py-1">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, scaleY: 0 }}
+                            animate={{ opacity: 1, scaleY: 1 }}
+                            transition={{ delay: i * 0.04 }}
+                            className="w-[2px] h-[4px] rounded-full"
+                            style={{ backgroundColor: color }}
+                        />
+                    ))}
+                </div>
             </div>
-            <div className="flex-1 pl-3 py-1 pb-3">
+            <div className="flex-1 min-w-0 pl-3 py-1 pb-3">
                 <motion.div
                     initial={{ opacity: 0, x: -6 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="flex items-center gap-2.5 rounded-lg border px-3 py-2"
-                    style={{ backgroundColor: cardBg, borderColor: cardBorder }}
+                    className="rounded-xl border px-3 py-2.5 overflow-hidden transition-all"
+                    style={cardStyle}
                 >
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: badgeBg, color }}>
-                        <Icon className="w-3.5 h-3.5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1">
-                            <span className="text-[13px] font-bold" style={{ color }}>{event.duration}</span>
-                            <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md" style={{ backgroundColor: badgeBg, color }}>
-                                {label}
-                            </span>
+                    <div className="flex items-center gap-2.5">
+                        <div
+                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: badgeBg, color }}
+                        >
+                            <Icon className="w-3.5 h-3.5" />
                         </div>
-                        <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                            {event.distanceKm ? `${event.distanceKm} km · ` : ""}{event.title}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                                <span className="text-[13px] font-bold" style={{ color }}>
+                                    {event.duration}
+                                </span>
+                                <span
+                                    className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md shrink-0"
+                                    style={{ backgroundColor: badgeBg, color }}
+                                >
+                                    {label}
+                                </span>
+                            </div>
+                            <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                                {event.distanceKm ? `${event.distanceKm} km · ` : ""}
+                                {event.title}
+                            </p>
+                        </div>
                     </div>
+                    {onChangeMode && (
+                        <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-200/50">
+                            {allModes.map((m) => {
+                                const MIcon = modeIcons[m];
+                                const isActive = m === currentMode;
+                                const mColor = isHighlighted ? (fromColor || gray) : gray;
+                                const mBadgeBg = isHighlighted ? hexToRgba(fromColor || gray, 0.15) : hexToRgba(gray, 0.12);
+                                return (
+                                    <button
+                                        key={m}
+                                        onClick={(e) => { e.stopPropagation(); onChangeMode(event.id, m); if (onToggleHighlight && !isHighlighted) onToggleHighlight(); }}
+                                        className={cn(
+                                            "flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-all",
+                                            isActive ? "shadow-sm" : "text-gray-400 hover:bg-gray-100"
+                                        )}
+                                        style={isActive ? { backgroundColor: mBadgeBg, color: mColor } : undefined}
+                                    >
+                                        <MIcon className="w-3 h-3" />
+                                        {modeLabels[m]}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </motion.div>
             </div>
         </div>
@@ -377,33 +419,104 @@ function PlaceRow({
     );
 }
 
-function Legend({ transportMode }: { transportMode: TransportMode }) {
-    return (
-        <div className="shrink-0 border-t border-gray-100 bg-white/95 backdrop-blur-sm px-4 py-3 flex items-center justify-center gap-5 flex-wrap">
-            {(["meal", "activity", "location", transportMode] as const).map((type) => {
-                const color = COLORS[type];
-                return (
-                    <div key={type} className="flex items-center gap-1.5">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{TYPE_LABELS[type]}</span>
-                    </div>
-                );
-            })}
-        </div>
-    );
+/** Map a specific place type string to our 3 categories */
+function inferCategoryFromType(type: string): "meal" | "activity" | "location" {
+    const t = type.toLowerCase();
+    if (["restaurant", "café", "cafe", "bakery", "bar", "food", "catering", "fast_food", "pub"].some(k => t.includes(k)))
+        return "meal";
+    if (["museum", "park", "monument", "attraction", "landmark", "heritage", "temple", "church", "castle", "palace", "tower", "bridge", "garden", "beach", "viewpoint", "zoo", "aquarium"].some(k => t.includes(k)))
+        return "location";
+    return "activity";
 }
 
+const CAT_LABELS: Record<string, string> = { meal: "Meal", activity: "Activity", location: "Location" };
+
 function RightPanelSearch({
-    searchResults,
+    day,
     onSearchResultClick,
 }: {
-    searchResults: SearchResult[];
+    day: DayPlan;
     onSearchResultClick: (result: SearchResult) => void;
 }) {
+    const plannerDestinations = useTripStore((s) => s.plannerDestinations);
+    const currentDest = plannerDestinations[0]?.name || "";
+
     const [query, setQuery] = React.useState("");
-    const filtered = searchResults.filter((r) =>
-        r.name.toLowerCase().includes(query.toLowerCase())
-    );
+    const [searchResults, setSearchResults] = React.useState<SearchResult[]>([]);
+    const [suggestions, setSuggestions] = React.useState<SearchResult[]>([]);
+    const [isFocused, setIsFocused] = React.useState(false);
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = React.useState(false);
+    const searchTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+    const suggestionsLoaded = React.useRef(false);
+
+    // Fetch popular place suggestions on focus
+    const loadSuggestions = React.useCallback(async () => {
+        if (suggestionsLoaded.current || !currentDest) return;
+        suggestionsLoaded.current = true;
+        setIsLoadingSuggestions(true);
+        try {
+            const r = await fetch(`/api/places/popular?dest=${encodeURIComponent(currentDest)}&limit=12`);
+            const data = await r.json();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const items: SearchResult[] = (data.results || []).map((p: any, i: number) => ({
+                id: `sug-${i}-${p.placeId || i}`,
+                name: p.translatedName || p.name,
+                type: p.type || p.category || "Place",
+                category: (p.category as "meal" | "activity" | "location") || inferCategoryFromType(p.type || ""),
+                address: p.address || "",
+                lat: p.lat,
+                lng: p.lng,
+                desc: "",
+                images: p.imageUrl ? [p.imageUrl] : [],
+                url: p.detailsUrl || "",
+            }));
+            setSuggestions(items);
+        } catch { /* ignore */ }
+        setIsLoadingSuggestions(false);
+    }, [currentDest]);
+
+    // Debounced autocomplete
+    React.useEffect(() => {
+        if (!query.trim()) { setSearchResults([]); return; }
+        if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+        searchTimerRef.current = setTimeout(async () => {
+            try {
+                let biasParam = "";
+                const firstPlace = day.events.find((e) => e.lat && e.lng && e.type !== "transit");
+                if (firstPlace) biasParam = `&bias=proximity:${firstPlace.lng},${firstPlace.lat}`;
+                const url = `https://api.geoapify.com/v1/geocode/autocomplete?text=${encodeURIComponent(query)}${biasParam}&limit=8&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`;
+                const r = await fetch(url);
+                const data = await r.json();
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const items: SearchResult[] = (data.features || []).map((f: any, i: number) => {
+                    const p = f.properties;
+                    const rawType = p.result_type === "amenity" ? (p.category || "Place") : (p.result_type || "Place");
+                    return {
+                        id: `ac-${i}-${p.place_id || i}`,
+                        name: p.name || p.formatted?.split(",")[0] || "Unknown",
+                        type: rawType,
+                        category: inferCategoryFromType(rawType),
+                        address: p.formatted || "",
+                        lat: p.lat,
+                        lng: p.lon,
+                        desc: "",
+                        images: [],
+                        url: "",
+                    };
+                });
+                setSearchResults(items);
+            } catch { setSearchResults([]); }
+        }, 300);
+        return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+    }, [query, day.events]);
+
+    const existingTitles = React.useMemo(() => new Set(
+        day.events.filter((e) => e.type !== "transit").map((e) => e.title.toLowerCase())
+    ), [day.events]);
+
+    const filtered = query.trim()
+        ? searchResults
+        : suggestions.filter(s => !existingTitles.has(s.name.toLowerCase()));
 
     return (
         <div className="relative">
@@ -413,6 +526,8 @@ function RightPanelSearch({
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
+                    onFocus={() => { setIsFocused(true); loadSuggestions(); }}
+                    onBlur={() => setTimeout(() => setIsFocused(false), 200)}
                     placeholder="Search places, restaurants..."
                     className="flex-1 text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-none bg-transparent"
                 />
@@ -424,7 +539,7 @@ function RightPanelSearch({
             </div>
 
             <AnimatePresence>
-                {query.trim().length > 0 && (
+                {(query.trim().length > 0 || (isFocused && !query.trim())) && (
                     <motion.div
                         initial={{ opacity: 0, y: -6 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -432,37 +547,59 @@ function RightPanelSearch({
                         transition={{ duration: 0.15 }}
                         className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden z-30"
                     >
+                        {!query.trim() && (
+                            <div className="px-3 pt-3 pb-1">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                    Suggestions in {currentDest || "your destination"}
+                                </p>
+                            </div>
+                        )}
                         <div className="max-h-60 overflow-y-auto p-2" style={{ scrollbarWidth: "none" }}>
-                            {filtered.length > 0 ? (
-                                filtered.map((res) => (
-                                    <div
-                                        key={res.id}
-                                        onClick={() => { onSearchResultClick(res); setQuery(""); }}
-                                        className="flex flex-col p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors group"
-                                    >
-                                        <div className="flex items-center justify-between mb-0.5">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-sm text-gray-900">{res.name}</span>
-                                                {res.rating && (
-                                                    <div className="flex items-center gap-0.5">
-                                                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                                                        <span className="text-[11px] font-bold text-gray-600">{res.rating}</span>
-                                                    </div>
-                                                )}
+                            {isLoadingSuggestions && !query.trim() ? (
+                                <div className="p-4 flex items-center justify-center gap-2 text-sm text-gray-400">
+                                    <Loader2 className="w-4 h-4 animate-spin" /> Loading suggestions...
+                                </div>
+                            ) : filtered.length > 0 ? (
+                                filtered.map((res) => {
+                                    const cat = (res as any).category || inferCategoryFromType(res.type);
+                                    const catColor = CATEGORY_COLORS[cat as keyof typeof CATEGORY_COLORS] || CATEGORY_COLORS.activity;
+                                    return (
+                                        <div
+                                            key={res.id}
+                                            onClick={() => { onSearchResultClick(res); setQuery(""); }}
+                                            className="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-xl cursor-pointer transition-colors group"
+                                        >
+                                            {res.images?.[0] && (
+                                                <img src={res.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-0.5">
+                                                    <span className="font-bold text-sm text-gray-900 truncate flex-1 min-w-0">{res.name}</span>
+                                                    {res.rating && (
+                                                        <div className="flex items-center gap-0.5 shrink-0">
+                                                            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                                            <span className="text-[11px] font-bold text-gray-600">{res.rating}</span>
+                                                        </div>
+                                                    )}
+                                                    <span
+                                                        className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-md shrink-0"
+                                                        style={{ color: catColor, backgroundColor: catColor + "18" }}
+                                                    >
+                                                        {CAT_LABELS[cat] || res.type}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs text-gray-500 truncate block">{res.address}</span>
                                             </div>
-                                            <span className="text-[10px] font-semibold uppercase text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md shrink-0">
-                                                {res.type}
-                                            </span>
                                         </div>
-                                        <span className="text-xs text-gray-500 truncate">{res.address}</span>
-                                        <span className="text-[11px] text-blue-500 mt-1 opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                                            Tap to view details →
-                                        </span>
-                                    </div>
-                                ))
-                            ) : (
+                                    );
+                                })
+                            ) : query.trim() ? (
                                 <div className="p-4 text-center text-sm text-gray-500">
                                     No places found matching &quot;{query}&quot;
+                                </div>
+                            ) : (
+                                <div className="p-4 text-center text-sm text-gray-500">
+                                    No suggestions available
                                 </div>
                             )}
                         </div>
@@ -477,13 +614,11 @@ function DaySummaryPanel({
     day,
     expandedEvent,
     setExpandedEvent,
-    searchResults,
     onSearchResultClick,
 }: {
     day: DayPlan;
     expandedEvent: string | null;
     setExpandedEvent: (id: string | null) => void;
-    searchResults: SearchResult[];
     onSearchResultClick: (result: SearchResult) => void;
 }) {
     const placeEvents = day.events.filter(
@@ -494,86 +629,146 @@ function DaySummaryPanel({
         <div className="flex-1 overflow-y-auto p-5 space-y-5" style={{ scrollbarWidth: "none" }}>
 
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-                <RightPanelSearch searchResults={searchResults} onSearchResultClick={onSearchResultClick} />
+                <RightPanelSearch day={day} onSearchResultClick={onSearchResultClick} />
             </motion.div>
 
-            {/* <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.08 }}
-                className="grid grid-cols-2 gap-3"
-            >
-                {[
-                    {
-                        label: "Stops",
-                        value: placeEvents.length,
-                        sub: `${mealCount} meals · ${siteCount} sites`,
-                        icon: <MapPin className="w-4 h-4" />,
-                        color: "#1D4983",
-                        bg: "bg-blue-50",
-                    },
-                    {
-                        label: "Travel time",
-                        value: `${totalMins}m`,
-                        sub: `${totalDist.toFixed(1)} km total`,
-                        icon: <Navigation className="w-4 h-4" />,
-                        color: "#16a34a",
-                        bg: "bg-green-50",
-                    },
-                ].map((s) => (
-                    <div
-                        key={s.label}
-                        className={cn("rounded-2xl p-4 border border-white/60 flex flex-col gap-1", s.bg)}
+            {(() => {
+                const transitEvents = day.events.filter((e) => e.type === "transit" && e.fromId);
+                const totalTransitMins = transitEvents.reduce((sum, e) => sum + (e.durationMins || 0), 0);
+                const totalDistKm = transitEvents.reduce((sum, e) => sum + (e.distanceKm || 0), 0);
+                const mealCount = placeEvents.filter((e) => e.type === "meal").length;
+                const activityCount = placeEvents.filter((e) => e.type === "activity").length;
+                const locationCount = placeEvents.filter((e) => e.type === "location").length;
+
+                // Estimate total hours: assume ~1.5hr per stop + transit time
+                const estimatedStopHours = placeEvents.length * 1.5;
+                const totalHours = estimatedStopHours + totalTransitMins / 60;
+                const formatH = (h: number) => h < 1 ? `${Math.round(h * 60)}m` : `${Math.round(h * 10) / 10}h`;
+
+                // Transport mode breakdown
+                const walkTransits = transitEvents.filter(e => e.transitMode === "walk");
+                const busTransits = transitEvents.filter(e => e.transitMode === "transit");
+                const carTransits = transitEvents.filter(e => e.transitMode === "drive");
+
+                return (
+                    <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.12 }}
+                        className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden"
                     >
-                        <div
-                            className="w-7 h-7 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: `${s.color}20`, color: s.color }}
-                        >
-                            {s.icon}
-                        </div>
-                        <div className="text-2xl font-bold leading-none mt-1" style={{ color: s.color }}>
-                            {s.value}
-                        </div>
-                        <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{s.label}</div>
-                        <div className="text-[10px] text-gray-400">{s.sub}</div>
-                    </div>
-                ))}
-            </motion.div> */}
-
-            <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.12 }}
-                className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm"
-            >
-                <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-3 flex items-center gap-1.5">
-                    {/* <TrendingUp className="w-3.5 h-3.5" /> */}
-                    Day breakdown
-                </p>
-                <div className="flex h-2.5 rounded-full overflow-hidden gap-[2px] mb-3">
-                    {placeEvents.map((p) => (
-                        <div
-                            key={p.id}
-                            className="flex-1 rounded-sm transition-all duration-300 cursor-pointer opacity-80 hover:opacity-100"
-                            style={{ backgroundColor: p.color }}
-                            onClick={() => setExpandedEvent(expandedEvent === p.id ? null : p.id)}
-                            title={p.title}
-                        />
-                    ))}
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-                    {(["meal", "activity", "location"] as const)
-                        .filter((type) => placeEvents.some((e) => e.type === type))
-                        .map((type) => (
-                            <div key={type} className="flex items-center gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[type] }} />
-                                <span className="text-[11px] font-semibold text-gray-500 capitalize">
-                                    {type} ({placeEvents.filter((e) => e.type === type).length})
-                                </span>
+                        {/* Stats row */}
+                        <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+                            <div className="p-3.5 text-center">
+                                <p className="text-lg font-bold text-gray-900">{placeEvents.length}</p>
+                                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Stops</p>
                             </div>
-                        ))}
-                </div>
-            </motion.div>
+                            <div className="p-3.5 text-center">
+                                <p className="text-lg font-bold text-gray-900">{formatH(totalHours)}</p>
+                                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Est. time</p>
+                            </div>
+                            <div className="p-3.5 text-center">
+                                <p className="text-lg font-bold text-gray-900">{totalDistKm > 0 ? `${Math.round(totalDistKm * 10) / 10}` : "0"}<span className="text-xs font-medium text-gray-400 ml-0.5">km</span></p>
+                                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Distance</p>
+                            </div>
+                        </div>
+
+                        <div className="p-4">
+                            {/* Timeline bar */}
+                            {placeEvents.length > 0 && (
+                                <div className="flex h-2 rounded-full overflow-hidden gap-[2px] mb-3">
+                                    {placeEvents.map((p) => (
+                                        <div
+                                            key={p.id}
+                                            className="flex-1 rounded-sm transition-all duration-300 cursor-pointer opacity-80 hover:opacity-100"
+                                            style={{ backgroundColor: p.color }}
+                                            onClick={() => setExpandedEvent(expandedEvent === p.id ? null : p.id)}
+                                            title={p.title}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Category counts */}
+                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mb-3">
+                                {mealCount > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.meal }} />
+                                        <span className="text-[11px] font-semibold text-gray-500">{mealCount} Meal{mealCount > 1 ? "s" : ""}</span>
+                                    </div>
+                                )}
+                                {activityCount > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.activity }} />
+                                        <span className="text-[11px] font-semibold text-gray-500">{activityCount} Activit{activityCount > 1 ? "ies" : "y"}</span>
+                                    </div>
+                                )}
+                                {locationCount > 0 && (
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS.location }} />
+                                        <span className="text-[11px] font-semibold text-gray-500">{locationCount} Location{locationCount > 1 ? "s" : ""}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Transport breakdown */}
+                            {transitEvents.length > 0 && (
+                                <div className="border-t border-gray-100 pt-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-2">Transportation</p>
+                                    <div className="flex flex-col gap-1.5">
+                                        {walkTransits.length > 0 && (
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100">
+                                                        <PersonStanding className="w-3 h-3 text-gray-500" />
+                                                    </div>
+                                                    <span className="text-[11px] font-medium text-gray-600">Walking</span>
+                                                </div>
+                                                <span className="text-[11px] text-gray-400">
+                                                    {walkTransits.length} segment{walkTransits.length > 1 ? "s" : ""} · {Math.round(walkTransits.reduce((s, e) => s + (e.distanceKm || 0), 0) * 10) / 10} km
+                                                </span>
+                                            </div>
+                                        )}
+                                        {busTransits.length > 0 && (
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100">
+                                                        <Bus className="w-3 h-3 text-gray-500" />
+                                                    </div>
+                                                    <span className="text-[11px] font-medium text-gray-600">Transit</span>
+                                                </div>
+                                                <span className="text-[11px] text-gray-400">
+                                                    {busTransits.length} segment{busTransits.length > 1 ? "s" : ""} · {Math.round(busTransits.reduce((s, e) => s + (e.distanceKm || 0), 0) * 10) / 10} km
+                                                </span>
+                                            </div>
+                                        )}
+                                        {carTransits.length > 0 && (
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 rounded flex items-center justify-center bg-gray-100">
+                                                        <Car className="w-3 h-3 text-gray-500" />
+                                                    </div>
+                                                    <span className="text-[11px] font-medium text-gray-600">Driving</span>
+                                                </div>
+                                                <span className="text-[11px] text-gray-400">
+                                                    {carTransits.length} segment{carTransits.length > 1 ? "s" : ""} · {Math.round(carTransits.reduce((s, e) => s + (e.distanceKm || 0), 0) * 10) / 10} km
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50">
+                                        <span className="text-[11px] font-bold text-gray-600">Total travel</span>
+                                        <span className="text-[11px] font-bold text-gray-600">
+                                            {totalTransitMins < 60 ? `${totalTransitMins} min` : `${Math.floor(totalTransitMins / 60)}h ${totalTransitMins % 60}m`}
+                                            {totalDistKm > 0 ? ` · ${Math.round(totalDistKm * 10) / 10} km` : ""}
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                );
+            })()}
 
             {placeEvents.filter((p) => p.desc).length > 0 && (
                 <motion.div
@@ -614,16 +809,16 @@ export default function ItineraryView({
     expandedEvent,
     setExpandedEvent,
     transportMode,
-    setTransportMode,
     onOpenModal,
     onSearchResultClick,
-    searchResults,
     onReorder,
+    onChangeTransitMode,
 }: ItineraryViewProps) {
     const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
     const [activePlaceDragId, setActivePlaceDragId] = React.useState<string | null>(null);
+    const [highlightedTransitId, setHighlightedTransitId] = React.useState<string | null>(null);
 
-    const placeEvents = day.events.filter((e) => !(e.type === "transit" && e.fromId));
+    const placeEvents = day.events.filter((e) => !(e.type === "transit" && e.fromId) && !e.id.startsWith("flight-") && !e.id.startsWith("hotel-"));
     const placeIds = placeEvents.map((e) => e.id);
 
     const handleDragEnd = (evt: DragEndEvent) => {
@@ -650,32 +845,11 @@ export default function ItineraryView({
                 className="w-[420px] shrink-0 flex flex-col bg-white border-r border-gray-200 shadow-sm overflow-hidden"
             >
                 <div className="shrink-0 px-5 py-4 border-b border-gray-100">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between">
                         <span className="font-bold text-gray-900 text-[16px]">Day {day.day} Timeline</span>
-                        <div className="flex items-center bg-gray-100 rounded-full p-1 gap-0.5 w-fit">
-                            {(
-                                [
-                                    { mode: "drive" as TransportMode, Icon: Car, label: "Car" },
-                                    { mode: "transit" as TransportMode, Icon: Bus, label: "Bus" },
-                                    { mode: "walk" as TransportMode, Icon: PersonStanding, label: "Walk" },
-                                ] as const
-                            ).map(({ mode, Icon, label }) => (
-                                <button
-                                    key={mode}
-                                    onClick={() => setTransportMode(mode)}
-                                    title={label}
-                                    className={cn(
-                                        "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all",
-                                        transportMode === mode
-                                            ? "bg-white shadow text-[#1D4983]"
-                                            : "text-gray-400 hover:text-gray-600"
-                                    )}
-                                >
-                                    <Icon className="w-3.5 h-3.5" />
-                                    {label}
-                                </button>
-                            ))}
-                        </div>
+                        <span className="text-gray-500 font-medium text-xs bg-gray-100 px-3 py-1.5 rounded-md">
+                            {day.date}
+                        </span>
                     </div>
                 </div>
 
@@ -697,8 +871,37 @@ export default function ItineraryView({
                                 let placeIndex = 0;
                                 return day.events.map((event, i) => {
                                     const isTransit = event.type === "transit" && !!event.fromId;
-                                    if (isTransit) {
-                                        return <TransitRow key={event.id} event={event} transportMode={transportMode} />;
+                                    const isFlight = event.id.startsWith("flight-");
+                                    const isHotel = event.id.startsWith("hotel-");
+                                    if (isTransit && !isFlight) {
+                                        const fromEvt = day.events.find((e: EventItem) => e.id === event.fromId);
+                                        const toEvt = day.events.find((e: EventItem) => e.id === event.toId);
+                                        return (
+                                            <TransitRow
+                                                key={event.id}
+                                                event={event}
+                                                onChangeMode={onChangeTransitMode}
+                                                isHighlighted={highlightedTransitId === event.id}
+                                                onToggleHighlight={() => setHighlightedTransitId(highlightedTransitId === event.id ? null : event.id)}
+                                                fromColor={fromEvt?.color}
+                                                toColor={toEvt?.color}
+                                            />
+                                        );
+                                    }
+                                    if (isFlight || isHotel) {
+                                        const currentPlaceIndex = placeIndex;
+                                        return (
+                                            <PlaceRow
+                                                key={event.id}
+                                                event={event}
+                                                isExpanded={expandedEvent === event.id}
+                                                isLast={i === day.events.length - 1}
+                                                index={currentPlaceIndex}
+                                                onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
+                                                onEdit={() => onOpenModal("edit", event.id)}
+                                                onRemove={() => onOpenModal("remove", event.id)}
+                                            />
+                                        );
                                     }
                                     const currentPlaceIndex = placeIndex++;
                                     const isLast =
@@ -735,7 +938,14 @@ export default function ItineraryView({
                     </DndContext>
                 </div>
 
-                <Legend transportMode={transportMode} />
+                <div className="shrink-0 border-t border-gray-100 bg-white/95 backdrop-blur-sm px-4 py-3 flex items-center justify-center gap-5 flex-wrap">
+                    {(["meal", "activity", "location"] as const).map((type) => (
+                        <div key={type} className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS[type] }} />
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{TYPE_LABELS[type]}</span>
+                        </div>
+                    ))}
+                </div>
             </motion.div>
 
             <motion.div
@@ -764,7 +974,6 @@ export default function ItineraryView({
                     day={day}
                     expandedEvent={expandedEvent}
                     setExpandedEvent={setExpandedEvent}
-                    searchResults={searchResults}
                     onSearchResultClick={onSearchResultClick}
                 />
             </motion.div>
