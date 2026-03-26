@@ -616,14 +616,15 @@ export default function TripMapPage() {
     const linkedStay = useTripStore((s) => s.linkedStay);
     const plannerFlightsAll = useTripStore((s) => s.plannerFlights);
     const removePlannerFlight = useTripStore((s) => s.removePlannerFlight);
+    const plannerHotelsAll = useTripStore((s) => s.plannerHotels);
 
-    /* sync plannerFlights into day timelines */
+    /* sync plannerFlights + plannerHotels into day timelines */
     React.useEffect(() => {
         setTripData(prev => {
             return prev.map((dayPlan, dayIdx) => {
                 const dayNum = dayIdx + 1;
-                // Remove old flight events
-                const nonFlightEvents = dayPlan.events.filter(e => !e.id.startsWith("flight-"));
+                // Remove old flight and hotel events
+                const cleanEvents = dayPlan.events.filter(e => !e.id.startsWith("flight-") && !e.id.startsWith("hotel-"));
                 // Add flight events for this day
                 const flightEvents: EventItem[] = plannerFlightsAll
                     .filter(f => f.dayNum === dayNum)
@@ -638,10 +639,26 @@ export default function TripMapPage() {
                             ? `Booking Ref: ${f.bookingRef}`
                             : `${f.airline} ${f.flightNo}${f.price && f.price !== "0" ? ` · $${f.price}` : ""}`,
                     }));
-                return { ...dayPlan, events: [...flightEvents, ...nonFlightEvents] };
+                // Add hotel events for this day
+                const hotelEvents: EventItem[] = plannerHotelsAll
+                    .filter(h => h.dayNum === dayNum)
+                    .map(h => ({
+                        id: `hotel-${h.id}`,
+                        time: h.checkIn || "3:00 PM",
+                        title: `🏨 ${h.name}`,
+                        type: "activity" as const,
+                        color: "#d97706",
+                        lat: h.lat,
+                        lng: h.lng,
+                        address: h.address,
+                        desc: h.alreadyBooked
+                            ? `Booking Ref: ${h.bookingRef || "—"}${h.roomType ? ` · ${h.roomType}` : ""}${h.guestName ? ` · Guest: ${h.guestName}` : ""}`
+                            : `$${h.pricePerNight}/night${h.rating ? ` · ★ ${h.rating}` : ""}`,
+                    }));
+                return { ...dayPlan, events: [...flightEvents, ...hotelEvents, ...cleanEvents] };
             });
         });
-    }, [plannerFlightsAll, initialTripData]);
+    }, [plannerFlightsAll, plannerHotelsAll, initialTripData]);
 
     const { setOpen: openSignIn, setOnSignInSuccess } = useSignInDialog();
     type SyncPhase = "idle" | "syncing" | "complete";
@@ -787,6 +804,7 @@ export default function TripMapPage() {
                 <div className="flex-1 min-w-0 h-full flex items-center gap-1 overflow-x-auto scrollbar-none z-10 pr-4 mask-[linear-gradient(to_right,white_calc(100%-24px),transparent)] mr-2">
                     {tripData.map((d, i) => {
                         const hasFlight = plannerFlightsAll.some(f => f.dayNum === d.day);
+                        const hotelCount = plannerHotelsAll.filter(h => h.dayNum === d.day).length;
                         return (
                             <button
                                 key={d.day}
@@ -810,6 +828,13 @@ export default function TripMapPage() {
                                     </span>
                                     {hasFlight && (
                                         <div className="absolute -top-0.5 -right-1 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-white" />
+                                    )}
+                                    {hotelCount > 0 && (
+                                        <div className="absolute -bottom-2 -left-1 min-w-[14px] h-3.5 rounded-full bg-amber-500 border-2 border-white flex items-center justify-center">
+                                            {hotelCount > 1 && (
+                                                <span className="text-[7px] font-bold text-white leading-none">{hotelCount}</span>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                                 Day {d.day}

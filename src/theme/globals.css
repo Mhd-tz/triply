@@ -184,6 +184,7 @@
     cursor: pointer;
   }
 }
+
 @layer utilities {
   .scrollbar-none {
     -ms-overflow-style: none;

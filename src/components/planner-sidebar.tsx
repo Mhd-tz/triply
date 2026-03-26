@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Plane, Bed, Wallet, PanelLeftClose } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PlannerFlightForm from "./planner-flight-form";
+import PlannerHotelForm from "./planner-hotel-form";
 import PlannerBudgetForm from "./planner-trip-form";
 import { Button } from "@/components/ui/button";
 import {
@@ -115,7 +116,7 @@ export default function PlannerSidebar() {
                             </div>
 
                             <div className="flex-1 overflow-y-auto overflow-x-hidden w-full relative">
-                                <AnimatePresence mode="wait" initial={false} custom={direction}>
+                                <AnimatePresence mode="popLayout" initial={false} custom={direction}>
                                     <motion.div
                                         key={expandedTab}
                                         custom={direction}
@@ -132,10 +133,7 @@ export default function PlannerSidebar() {
                                             <PlannerFlightForm onClose={() => setExpandedTab(null)} />
                                         )}
                                         {expandedTab === "hotels" && (
-                                            <div className="p-6 text-center text-sm text-gray-500">
-                                                <Bed className="w-8 h-8 mx-auto mb-3 text-gray-300" />
-                                                Hotels search integration coming soon.
-                                            </div>
+                                            <PlannerHotelForm onClose={() => setExpandedTab(null)} />
                                         )}
                                     </motion.div>
                                 </AnimatePresence>

@@ -19,6 +19,25 @@ export interface PlannerFlight {
   dayNum?: number;
 }
 
+export interface PlannerHotel {
+  id: string;
+  name: string;
+  address: string;
+  rating?: number;
+  pricePerNight?: string;
+  image?: string;
+  dayNum?: number;
+  date?: string;
+  alreadyBooked?: boolean;
+  bookingRef?: string;
+  guestName?: string;
+  roomType?: string;
+  checkIn?: string;
+  checkOut?: string;
+  lat?: number;
+  lng?: number;
+}
+
 interface TripStore {
   linkedTransport: string | null;
   linkedStay: string | null;
@@ -28,6 +47,7 @@ interface TripStore {
   plannerCurrency: string;
   plannerNotes: string;
   plannerFlights: PlannerFlight[];
+  plannerHotels: PlannerHotel[];
   plannerActiveDay: number;
 
   setLinkedTransport: (v: string | null) => void;
@@ -42,6 +62,8 @@ interface TripStore {
   setPlannerFlights: (v: PlannerFlight[]) => void;
   addPlannerFlight: (f: PlannerFlight) => void;
   removePlannerFlight: (id: string) => void;
+  addPlannerHotel: (h: PlannerHotel) => void;
+  removePlannerHotel: (id: string) => void;
   setPlannerActiveDay: (v: number) => void;
   resetPlanningState: () => void;
   clearAll: () => void;
@@ -56,6 +78,7 @@ export const useTripStore = create<TripStore>((set) => ({
   plannerCurrency: "USD",
   plannerNotes: "",
   plannerFlights: [],
+  plannerHotels: [],
   plannerActiveDay: 0,
 
   setLinkedTransport: (v) => set({ linkedTransport: v }),
@@ -74,9 +97,18 @@ export const useTripStore = create<TripStore>((set) => ({
     set((s) => ({
       plannerFlights: s.plannerFlights.filter((x) => x.id !== id),
     })),
+  addPlannerHotel: (h) =>
+    set((s) => ({
+      plannerHotels: [...s.plannerHotels.filter((x) => x.id !== h.id), h],
+    })),
+  removePlannerHotel: (id) =>
+    set((s) => ({
+      plannerHotels: s.plannerHotels.filter((x) => x.id !== id),
+    })),
   setPlannerActiveDay: (v) => set({ plannerActiveDay: v }),
   resetPlanningState: () => set({
     plannerFlights: [],
+    plannerHotels: [],
     linkedTransport: null,
     linkedStay: null,
     plannerNotes: "",
@@ -91,6 +123,7 @@ export const useTripStore = create<TripStore>((set) => ({
       plannerCurrency: "USD",
       plannerNotes: "",
       plannerFlights: [],
+      plannerHotels: [],
       plannerActiveDay: 0,
     }),
 }));
