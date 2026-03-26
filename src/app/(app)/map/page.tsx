@@ -224,13 +224,13 @@ const generateId = (prefix: string) =>
 
 // colors
 const COLORS = {
-    meal: "#e8820c",
-    activity: "#1D4983",
-    location: "#0f9a8e",
-    transit: "#16a34a",
+    meal: "#EF9F27",
+    activity: "#4E8B3A",
+    location: "#D4537E",
+    transit: "#85B7EB",
     note: "#94a3b8",
-    drive: "#4a98f7",
-    walk: "#7c3aed",
+    drive: "#888780",
+    walk: "#1D9E75",
 };
 
 // mock search results
@@ -694,9 +694,19 @@ export default function TripMapPage() {
                         </button>
                     ))}
                 </div>
+                {/* <div className="flex items-center gap-3"> */}
+                {/* <Button asChild
+                        variant="outline"
+                        size='sm'
+                    >
+                        <Link href="/">
+                            Plan New Trip
+                        </Link>
+                    </Button> */}
                 <Link href="/">
                     <Image src={Logo} alt="Triply Logo" className="w-auto h-9" />
                 </Link>
+                {/* </div> */}
             </header>
 
             <div className="px-5 bg-white border-b border-gray-200 flex items-center justify-between">
@@ -1760,27 +1770,30 @@ function TransitRow({
     const configs = {
         drive: {
             Icon: Car,
-            label: "Drive",
-            card: "bg-blue-50 border-blue-100",
-            text: "text-blue-600",
-            badge: "bg-blue-100 text-blue-600",
+            label: "Car",
+            color: "#888780",
+            cardBg: "#88878010",
+            cardBorder: "#88878030",
+            badgeBg: "#88878020",
         },
         transit: {
-            Icon: Train,
-            label: "Transit",
-            card: "bg-green-50 border-green-100",
-            text: "text-green-700",
-            badge: "bg-green-100 text-green-700",
+            Icon: Bus,
+            label: "Bus",
+            color: "#85B7EB",
+            cardBg: "#85B7EB10",
+            cardBorder: "#85B7EB30",
+            badgeBg: "#85B7EB20",
         },
         walk: {
             Icon: PersonStanding,
             label: "Walk",
-            card: "bg-violet-50 border-violet-100",
-            text: "text-violet-600",
-            badge: "bg-violet-100 text-violet-600",
+            color: "#1D9E75",
+            cardBg: "#1D9E7510",
+            cardBorder: "#1D9E7530",
+            badgeBg: "#1D9E7520",
         },
     };
-    const { Icon, label, card, text, badge } = configs[transportMode];
+    const { Icon, label, color, cardBg, cardBorder, badgeBg } = configs[transportMode];
 
     return (
         <div className="flex">
@@ -1794,7 +1807,7 @@ function TransitRow({
                             animate={{ opacity: 1, scaleY: 1 }}
                             transition={{ delay: i * 0.04 }}
                             className="w-[2px] h-[4px] rounded-full"
-                            style={{ backgroundColor: COLORS.transit }}
+                            style={{ backgroundColor: color }}
                         />
                     ))}
                 </div>
@@ -1804,29 +1817,23 @@ function TransitRow({
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.25 }}
-                    className={cn(
-                        "flex items-center gap-2.5 rounded-xl border px-3 py-2.5",
-                        card
-                    )}
+                    className="flex items-center gap-2.5 rounded-xl border px-3 py-2.5"
+                    style={{ backgroundColor: cardBg, borderColor: cardBorder }}
                 >
                     <div
-                        className={cn(
-                            "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
-                            badge
-                        )}
+                        className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: badgeBg, color }}
                     >
                         <Icon className="w-3.5 h-3.5" />
                     </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                            <span className={cn("text-[13px] font-bold", text)}>
+                            <span className="text-[13px] font-bold" style={{ color }}>
                                 {event.duration}
                             </span>
                             <span
-                                className={cn(
-                                    "text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md",
-                                    badge
-                                )}
+                                className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md"
+                                style={{ backgroundColor: badgeBg, color }}
                             >
                                 {label}
                             </span>
@@ -2162,6 +2169,33 @@ function FormModal({
     const [type, setType] = React.useState(event?.type || "activity");
     const [targetDay, setTargetDay] = React.useState<number>(activeDayIndex);
     const aiSavedRef = React.useRef(false);
+
+    // Reset/initialize form when modal reopens
+    const prevOpenRef = React.useRef(false);
+    React.useEffect(() => {
+        if (config.isOpen && !prevOpenRef.current && config.mode === "add") {
+            if (prefill) {
+                // Prefill from search result: populate form and go to manual entry
+                setTitle(prefill.name || "");
+                setAddress(prefill.address || "");
+                setDesc(prefill.desc || "");
+                const t = (prefill.type || "").toLowerCase();
+                const cat = ["restaurant", "café", "cafe", "bakery", "bar", "food"].some(k => t.includes(k)) ? "meal"
+                    : ["museum", "park", "monument", "attraction", "landmark", "temple", "church", "garden", "beach"].some(k => t.includes(k)) ? "location"
+                    : "activity";
+                setType(cat);
+                setStep("manual");
+            } else {
+                // Fresh add: reset all fields
+                setTitle(""); setAddress(""); setDesc("");
+                setType("activity"); setStep("choose");
+            }
+            setTime("12:00"); setEndTime("13:00");
+            setTargetDay(activeDayIndex);
+            aiSavedRef.current = false;
+        }
+        prevOpenRef.current = config.isOpen;
+    }, [config.isOpen, config.mode, prefill, activeDayIndex]);
 
     const handleAI = () => {
         if (aiSavedRef.current) return;

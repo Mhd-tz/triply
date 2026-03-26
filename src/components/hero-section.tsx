@@ -203,7 +203,51 @@ export default function HeroSection() {
     // transport and stay
     const [activeTransportTab, setActiveTransportTab] = React.useState<TransportTab>("flights");
     const [activeStayTab, setActiveStayTab] = React.useState<StayTab>("search");
-    const [origin, setOrigin] = React.useState("Coquitlam, BC");
+    const [origin, setOrigin] = React.useState("");
+
+    React.useEffect(() => {
+        if (!origin) {
+            const detect = async () => {
+                try {
+                    const getCoords = (): Promise<GeolocationCoordinates | null> =>
+                        new Promise(resolve => {
+                            if (!navigator.geolocation) { resolve(null); return; }
+                            navigator.geolocation.getCurrentPosition(
+                                pos => resolve(pos.coords),
+                                () => resolve(null),
+                                { timeout: 5000 }
+                            );
+                        });
+
+                    const coords = await getCoords();
+
+                    if (coords) {
+                        const { latitude, longitude } = coords;
+                        const r = await fetch(
+                            `https://api.geoapify.com/v1/geocode/reverse?lat=${latitude}&lon=${longitude}&format=json&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`
+                        );
+                        const d = await r.json();
+                        const city = d.results?.[0]?.city || d.results?.[0]?.county || "";
+                        const country = d.results?.[0]?.country_code?.toUpperCase() || "";
+                        const originCity = city ? `${city}${country ? `, ${country}` : ""}` : "";
+                        setOrigin(originCity);
+                    } else {
+                        const r = await fetch("https://api.bigdatacloud.net/data/reverse-geocode-client");
+                        const d = await r.json();
+                        if (d.city) {
+                            const originCity = d.city + (d.countryCode ? `, ${d.countryCode}` : "");
+                            setOrigin(originCity);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Location detection failed", e);
+                }
+            };
+            detect();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const [syncTransRef, setSyncTransRef] = React.useState("");
     const [syncTransProv, setSyncTransProv] = React.useState("");
     const [syncStayRef, setSyncStayRef] = React.useState("");
@@ -1203,7 +1247,7 @@ export default function HeroSection() {
                                                 initial={{ opacity: 0, y: 8 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 transition={{ delay: 0.3, duration: 0.4 }}
-                                                className="mt-1"
+                                            // className="mt-1"
                                             >
                                                 {user ? (
                                                     <Button
@@ -1224,6 +1268,21 @@ export default function HeroSection() {
                                                         Sign in to confirm
                                                     </motion.button>
                                                 )}
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: 8 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    transition={{ delay: 0.3, duration: 0.4 }}
+                                                    className="mt-3"
+                                                >
+                                                    <Button asChild
+                                                        variant="outline"
+                                                        className="w-full h-12 hover:bg-gray-100 hover:text-gray-900"
+                                                    >
+                                                        <Link href="/map">
+                                                            Open Full Itinerary Map
+                                                        </Link>
+                                                    </Button>
+                                                </motion.div>
                                             </motion.div>
                                         </div>
                                     </div>

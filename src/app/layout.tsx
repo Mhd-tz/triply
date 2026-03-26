@@ -28,6 +28,7 @@ export const metadata: Metadata = {
 
 import { SignInDialogProvider } from "@/components/signin-dialog";
 import { AuthProvider } from "@/lib/auth-context";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export default function RootLayout({
   children,
@@ -40,9 +41,11 @@ export default function RootLayout({
         className={`${cabin.variable} ${hind.variable} ${heebo.variable} antialiased`}
       >
         <AuthProvider>
-          <SignInDialogProvider>
-            {children}
-          </SignInDialogProvider>
+          <TooltipProvider>
+            <SignInDialogProvider>
+              {children}
+            </SignInDialogProvider>
+          </TooltipProvider>
         </AuthProvider>
       </body>
     </html>

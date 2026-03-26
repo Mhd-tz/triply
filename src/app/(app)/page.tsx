@@ -1,4 +1,5 @@
-import HeroSection from "@/components/hero-section";
+// import HeroSection from "@/components/hero-section";
+import HeroSection from "@/components/hero";
 import OtherServices from "@/components/otherservices";
 import FeaturedStays from "@/components/featured-stays";
 import AppDownloadBanner from "@/components/app-downloader";

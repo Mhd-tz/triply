@@ -62,11 +62,11 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.15 0.03 240);
 
-  /* primary — navy #1D4983 */
+  /* primary - navy #1D4983 */
   --primary: oklch(0.37 0.12 248);
   --primary-foreground: oklch(0.99 0 0);
 
-  /* secondary — sky #53D8FB */
+  /* secondary - sky #53D8FB */
   --secondary: oklch(0.83 0.12 210);
   --secondary-foreground: oklch(0.2 0.08 240);
 
@@ -74,11 +74,11 @@
   --muted: oklch(0.96 0.01 230);
   --muted-foreground: oklch(0.52 0.04 240);
 
-  /* accent — peach #FFD29C */
+  /* accent - peach #FFD29C */
   --accent: oklch(76.439% 0.11976 67.437);
   --accent-foreground: oklch(0.25 0.06 50);
 
-  /* destructive — coral #FF5964 */
+  /* destructive - coral #FF5964 */
   --destructive: oklch(0.65 0.22 18);
   --destructive-foreground: oklch(0.99 0 0);
 
@@ -97,7 +97,7 @@
   --chart-4: oklch(0.87 0.09 70); /* peach  #FFD29C */
   --chart-5: oklch(0.65 0.22 18); /* coral  #FF5964 */
 
-  /* sidebar — navy */
+  /* sidebar - navy */
   --sidebar: oklch(0.37 0.12 248);
   --sidebar-foreground: oklch(0.97 0 0);
   --sidebar-primary: oklch(0.83 0.12 210);
@@ -176,4 +176,21 @@
 .banner.is-visible {
   opacity: 1; /* Fully opaque (visible) */
   visibility: visible; /* Element is visible */
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
 }
