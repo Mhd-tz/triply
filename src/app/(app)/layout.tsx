@@ -1,12 +1,13 @@
 import SiteHeader from "@/components/layout/site-header";
 
+//applayout.tsx
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
-    return (
-        <div className="h-screen">
-            <SiteHeader />
-            {children}
-        </div>
-    );
+  return (
+    <div className="h-screen">
+      <SiteHeader />
+      {children}
+    </div>
+  );
 };
 
 export default AppLayout;
