@@ -124,7 +124,7 @@ export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Ta
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20 }}
-                            className="absolute inset-0 flex flex-col bg-white z-20"
+                            className="absolute top-0 left-0 bottom-0 w-[380px] flex flex-col bg-white z-20"
                         >
                             {/* Header with Title / Collapse */}
                             <div className="flex items-center gap-1 px-3 py-3 border-b border-gray-100 bg-gray-50/50">
@@ -148,10 +148,10 @@ export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Ta
                                     <motion.div
                                         key={expandedTab}
                                         custom={direction}
-                                        initial={{ opacity: 0, x: direction > 0 ? 20 : -20 }}
+                                        initial={{ opacity: 0, x: direction > 0 ? 80 : -80 }}
                                         animate={{ opacity: 1, x: 0 }}
-                                        exit={{ opacity: 0, x: direction > 0 ? -20 : 20 }}
-                                        transition={{ duration: 0.25, ease: "easeInOut" }}
+                                        exit={{ opacity: 0, x: direction > 0 ? -80 : 80 }}
+                                        transition={{ duration: 0.3, ease: "easeInOut" }}
                                         className="h-full w-full"
                                     >
                                         {expandedTab === "trip" && (
@@ -173,9 +173,9 @@ export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Ta
                                     <AnimatePresence initial={false}>
                                         {canGoBack && (
                                             <motion.div
-                                                initial={{ opacity: 0, scale: 0.95, x: -5 }}
+                                                initial={{ opacity: 0, scale: 0.95, x: -10 }}
                                                 animate={{ opacity: 1, scale: 1, x: 0 }}
-                                                exit={{ opacity: 0, scale: 0.95, x: -5 }}
+                                                exit={{ opacity: 0, scale: 0.95, x: -10 }}
                                                 transition={{ duration: 0.2, ease: "easeOut" }}
                                                 className="flex-1"
                                             >
@@ -192,9 +192,9 @@ export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Ta
                                     <AnimatePresence initial={false}>
                                         {canGoNext && (
                                             <motion.div
-                                                initial={{ opacity: 0, scale: 0.95, x: 5 }}
+                                                initial={{ opacity: 0, scale: 0.95, x: 10 }}
                                                 animate={{ opacity: 1, scale: 1, x: 0 }}
-                                                exit={{ opacity: 0, scale: 0.95, x: 5 }}
+                                                exit={{ opacity: 0, scale: 0.95, x: 10 }}
                                                 transition={{ duration: 0.2, ease: "easeOut" }}
                                                 className="flex-1"
                                             >
