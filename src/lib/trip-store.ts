@@ -1,5 +1,7 @@
 import { create } from "zustand";
 
+export type CabinClass = "economy" | "premium_economy" | "business" | "first";
+
 export interface PlannerFlight {
   id: string;
   from: string;
@@ -17,6 +19,9 @@ export interface PlannerFlight {
   toCoords?: [number, number];
   date?: string;
   dayNum?: number;
+  cabinClass?: CabinClass;
+  stops?: number;
+  stopCities?: string[];
 }
 
 export interface PlannerHotel {
