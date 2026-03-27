@@ -15,6 +15,7 @@ import {
     MapPin,
     ChevronUp,
     ChevronDown,
+    Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,6 +36,7 @@ export default function HeroSection() {
     const [destination, setDestination] = React.useState("");
     const [travelers, setTravelers] = React.useState("2");
     const [showDatePicker, setShowDatePicker] = React.useState(false);
+    const [isNavigating, setIsNavigating] = React.useState(false);
 
     const [dateMode, setDateMode] = React.useState<DateMode>("exact");
     const [startDate, setStartDate] = React.useState<Date | null>(null);
@@ -100,9 +102,13 @@ export default function HeroSection() {
     const canGoPrev = calendarYear > today.getFullYear() ||
         (calendarYear === today.getFullYear() && calendarMonth > today.getMonth());
 
+    const hasDateSelected = dateMode === "exact"
+        ? !!(startDate || endDate)
+        : flexMonths.length > 0;
+
     const renderSummaryDate = () => {
         if (dateMode === "exact") {
-            if (!startDate && !endDate) return "Any Dates";
+            if (!startDate && !endDate) return "Select dates";
             if (startDate && !endDate) return startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
             return `${startDate?.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${endDate?.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
         } else {
@@ -265,8 +271,9 @@ export default function HeroSection() {
                                     {/* Search */}
                                     <div className="w-full md:w-auto mt-2 md:mt-0">
                                         <Button
-                                            disabled={!destination}
+                                            disabled={!destination || !hasDateSelected || isNavigating}
                                             onClick={() => {
+                                                setIsNavigating(true);
                                                 const params = new URLSearchParams();
                                                 if (destination) {
                                                     const parsed = parseDestinations(destination);
@@ -274,7 +281,7 @@ export default function HeroSection() {
                                                 }
                                                 if (travelers) params.set("travelers", travelers);
                                                 params.set("dateMode", dateMode);
-                                                
+
                                                 if (dateMode === "exact") {
                                                     if (startDate) params.set("start", formatDateToYYYYMMDD(startDate));
                                                     if (endDate) params.set("end", formatDateToYYYYMMDD(endDate));
@@ -283,11 +290,16 @@ export default function HeroSection() {
                                                     if (flexMonths.length > 0) params.set("flexMonths", flexMonths.join(","));
                                                 }
 
-                                                router.push(`/planner?${params.toString()}`);
+                                                const url = `/planner?${params.toString()}`;
+                                                setTimeout(() => router.push(url), 1500);
                                             }}
                                             className="w-full md:w-auto h-11 px-8 font-semibold"
                                         >
-                                            Plan
+                                            {isNavigating ? (
+                                                <><Loader2 className="h-4 w-4 animate-spin" />Please wait...</>
+                                            ) : (
+                                                "Plan"
+                                            )}
                                         </Button>
                                     </div>
                                 </div>

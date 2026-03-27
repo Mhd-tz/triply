@@ -20,19 +20,20 @@ const TAB_ORDER: Tab[] = ["trip", "flights", "hotels"];
 const TAB_LABELS: Record<string, string> = { trip: "Trip", flights: "Flights", hotels: "Hotels" };
 
 export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Tab) => void } = {}) {
-    const [expandedTab, setExpandedTabRaw] = React.useState<Tab>(null);
+    const [expandedTab, setExpandedTabRaw] = React.useState<Tab>("trip");
     const setExpandedTab = React.useCallback((tab: Tab) => {
         setExpandedTabRaw(tab);
         onTabChange?.(tab);
     }, [onTabChange]);
     const [direction, setDirection] = React.useState(0);
-    const [showOnboarding, setShowOnboarding] = React.useState(true);
+    const [showOnboarding, setShowOnboarding] = React.useState(false);
+    // Show blur overlay only on initial page load when sidebar auto-opens
+    const [showOverlay, setShowOverlay] = React.useState(true);
 
+    // Notify parent of initial "trip" tab on mount
     React.useEffect(() => {
-        const timer = setTimeout(() => {
-            setShowOnboarding(false);
-        }, 4000);
-        return () => clearTimeout(timer);
+        onTabChange?.("trip");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const currentIdx = expandedTab ? TAB_ORDER.indexOf(expandedTab) : -1;
@@ -52,11 +53,34 @@ export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Ta
         }
     };
 
+    const dismissOverlay = React.useCallback(() => {
+        setShowOverlay(false);
+    }, []);
+
+    const handleSkipToPlanning = React.useCallback(() => {
+        dismissOverlay();
+        setExpandedTab(null);
+    }, [dismissOverlay, setExpandedTab]);
+
     return (
         <div className="flex h-full shrink-0 z-40 relative">
+            {/* Blur overlay – only on first visit, positioned below header + day tabs */}
+            <AnimatePresence>
+                {showOverlay && expandedTab && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="fixed left-0 right-0 bottom-0 z-30 bg-black/30 backdrop-blur-sm"
+                        style={{ top: "calc(4rem + 3.5rem)" }}
+                        onClick={handleSkipToPlanning}
+                    />
+                )}
+            </AnimatePresence>
             <motion.div
                 className={cn(
-                    "flex flex-col bg-white border-r border-gray-200 shadow-sm relative overflow-hidden",
+                    "flex flex-col bg-white border-r border-gray-200 shadow-sm relative overflow-hidden z-40",
                     expandedTab ? "w-[380px]" : "w-[55px]"
                 )}
                 animate={{ width: expandedTab ? 380 : 55 }}
@@ -111,7 +135,7 @@ export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Ta
 
                                 {/* Collapse */}
                                 <button
-                                    onClick={() => setExpandedTab(null)}
+                                    onClick={() => { dismissOverlay(); setExpandedTab(null); }}
                                     className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-500 shrink-0"
                                     title="Collapse sidebar"
                                 >
@@ -144,44 +168,55 @@ export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Ta
                             </div>
 
                             {/* Footer Navigation */}
-                            <div className="p-4 border-t border-gray-100 flex gap-3 bg-white shrink-0 min-h-[72px]">
-                                <AnimatePresence initial={false}>
-                                    {canGoBack && (
-                                        <motion.div
-                                            initial={{ opacity: 0, scale: 0.95, x: -5 }}
-                                            animate={{ opacity: 1, scale: 1, x: 0 }}
-                                            exit={{ opacity: 0, scale: 0.95, x: -5 }}
-                                            transition={{ duration: 0.2, ease: "easeOut" }}
-                                            className="flex-1"
-                                        >
-                                            <Button
-                                                variant="outline"
-                                                onClick={goBack}
-                                                className="w-full h-11 rounded-xl font-bold text-sm"
+                            <div className="p-4 border-t border-gray-100 flex flex-col gap-2 bg-white shrink-0">
+                                <div className="flex gap-3 min-h-[44px]">
+                                    <AnimatePresence initial={false}>
+                                        {canGoBack && (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.95, x: -5 }}
+                                                animate={{ opacity: 1, scale: 1, x: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95, x: -5 }}
+                                                transition={{ duration: 0.2, ease: "easeOut" }}
+                                                className="flex-1"
                                             >
-                                                Back: {TAB_LABELS[TAB_ORDER[currentIdx - 1]!]}
-                                            </Button>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                                <AnimatePresence initial={false}>
-                                    {canGoNext && (
-                                        <motion.div
-                                            initial={{ opacity: 0, scale: 0.95, x: 5 }}
-                                            animate={{ opacity: 1, scale: 1, x: 0 }}
-                                            exit={{ opacity: 0, scale: 0.95, x: 5 }}
-                                            transition={{ duration: 0.2, ease: "easeOut" }}
-                                            className="flex-1"
-                                        >
-                                            <Button
-                                                onClick={goNext}
-                                                className="w-full h-11 rounded-xl font-bold text-sm"
+                                                <Button
+                                                    variant="outline"
+                                                    onClick={goBack}
+                                                    className="w-full h-11 rounded-xl font-bold text-sm"
+                                                >
+                                                    Back: {TAB_LABELS[TAB_ORDER[currentIdx - 1]!]}
+                                                </Button>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    <AnimatePresence initial={false}>
+                                        {canGoNext && (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.95, x: 5 }}
+                                                animate={{ opacity: 1, scale: 1, x: 0 }}
+                                                exit={{ opacity: 0, scale: 0.95, x: 5 }}
+                                                transition={{ duration: 0.2, ease: "easeOut" }}
+                                                className="flex-1"
                                             >
-                                                Next: {TAB_LABELS[TAB_ORDER[currentIdx + 1]!]}
-                                            </Button>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                                                <Button
+                                                    onClick={goNext}
+                                                    className="w-full h-11 rounded-xl font-bold text-sm"
+                                                >
+                                                    Next: {TAB_LABELS[TAB_ORDER[currentIdx + 1]!]}
+                                                </Button>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                                {showOverlay && (
+                                    <Button
+                                        variant="ghost"
+                                        onClick={handleSkipToPlanning}
+                                        className="w-full h-9 text-sm text-gray-500 hover:text-gray-700"
+                                    >
+                                        Skip to planning
+                                    </Button>
+                                )}
                             </div>
                         </motion.div>
                     )}
