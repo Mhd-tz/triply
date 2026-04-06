@@ -4,13 +4,95 @@ import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { searchAviationstackFlights } from "@/app/actions/flights";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { DestinationAutocomplete } from "@/components/search-bar-components";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Plane, Search, Ticket, CheckCircle2, Trash2, SlidersHorizontal, ArrowUpDown, Clock, CircleDot, ChevronDown, X, Info, Wifi, Plug, Monitor, Utensils } from "lucide-react";
+import { Plane, Search, Ticket, CheckCircle2, Trash2, SlidersHorizontal, ArrowUpDown, Clock, CircleDot, X, Info, Wifi, Plug, Monitor, Utensils, LocateFixed, CornerDownRight, Plus, Repeat, ArrowRight } from "lucide-react";
 import { useTripStore, type PlannerFlight, type CabinClass } from "@/lib/trip-store";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
+
+/* ── Nearest airport lookup (client-side, no extra API) ── */
+const AIRPORTS: { city: string; country: string; iata: string; lat: number; lon: number }[] = [
+    { city: "Vancouver", country: "CA", iata: "YVR", lat: 49.1967, lon: -123.1815 },
+    { city: "Toronto", country: "CA", iata: "YYZ", lat: 43.6777, lon: -79.6248 },
+    { city: "Montreal", country: "CA", iata: "YUL", lat: 45.4706, lon: -73.7408 },
+    { city: "Calgary", country: "CA", iata: "YYC", lat: 51.1215, lon: -114.0076 },
+    { city: "Edmonton", country: "CA", iata: "YEG", lat: 53.3097, lon: -113.5827 },
+    { city: "New York", country: "US", iata: "JFK", lat: 40.6413, lon: -73.7781 },
+    { city: "Los Angeles", country: "US", iata: "LAX", lat: 33.9425, lon: -118.4081 },
+    { city: "Chicago", country: "US", iata: "ORD", lat: 41.9742, lon: -87.9073 },
+    { city: "San Francisco", country: "US", iata: "SFO", lat: 37.6213, lon: -122.379 },
+    { city: "Seattle", country: "US", iata: "SEA", lat: 47.4502, lon: -122.3088 },
+    { city: "Miami", country: "US", iata: "MIA", lat: 25.7959, lon: -80.287 },
+    { city: "Dallas", country: "US", iata: "DFW", lat: 32.8998, lon: -97.0403 },
+    { city: "Atlanta", country: "US", iata: "ATL", lat: 33.6407, lon: -84.4277 },
+    { city: "Denver", country: "US", iata: "DEN", lat: 39.8561, lon: -104.6737 },
+    { city: "Boston", country: "US", iata: "BOS", lat: 42.3656, lon: -71.0096 },
+    { city: "Las Vegas", country: "US", iata: "LAS", lat: 36.085, lon: -115.1522 },
+    { city: "Houston", country: "US", iata: "IAH", lat: 29.9902, lon: -95.3368 },
+    { city: "Washington", country: "US", iata: "IAD", lat: 38.9531, lon: -77.4565 },
+    { city: "Phoenix", country: "US", iata: "PHX", lat: 33.4373, lon: -112.0078 },
+    { city: "Orlando", country: "US", iata: "MCO", lat: 28.4294, lon: -81.309 },
+    { city: "Mexico City", country: "MX", iata: "MEX", lat: 19.4363, lon: -99.0721 },
+    { city: "London", country: "GB", iata: "LHR", lat: 51.4775, lon: -0.4614 },
+    { city: "Paris", country: "FR", iata: "CDG", lat: 49.0097, lon: 2.5479 },
+    { city: "Amsterdam", country: "NL", iata: "AMS", lat: 52.3086, lon: 4.7639 },
+    { city: "Frankfurt", country: "DE", iata: "FRA", lat: 50.0379, lon: 8.5622 },
+    { city: "Madrid", country: "ES", iata: "MAD", lat: 40.4983, lon: -3.5676 },
+    { city: "Rome", country: "IT", iata: "FCO", lat: 41.8003, lon: 12.2389 },
+    { city: "Barcelona", country: "ES", iata: "BCN", lat: 41.2974, lon: 2.0833 },
+    { city: "Munich", country: "DE", iata: "MUC", lat: 48.3538, lon: 11.7861 },
+    { city: "Zurich", country: "CH", iata: "ZRH", lat: 47.4647, lon: 8.5492 },
+    { city: "Vienna", country: "AT", iata: "VIE", lat: 48.1103, lon: 16.5697 },
+    { city: "Istanbul", country: "TR", iata: "IST", lat: 41.2753, lon: 28.7519 },
+    { city: "Moscow", country: "RU", iata: "SVO", lat: 55.9726, lon: 37.4146 },
+    { city: "Dubai", country: "AE", iata: "DXB", lat: 25.2532, lon: 55.3657 },
+    { city: "Doha", country: "QA", iata: "DOH", lat: 25.2609, lon: 51.6138 },
+    { city: "Abu Dhabi", country: "AE", iata: "AUH", lat: 24.4430, lon: 54.6511 },
+    { city: "Riyadh", country: "SA", iata: "RUH", lat: 24.9576, lon: 46.6988 },
+    { city: "Tehran", country: "IR", iata: "IKA", lat: 35.4161, lon: 51.1522 },
+    { city: "Beirut", country: "LB", iata: "BEY", lat: 33.8209, lon: 35.4884 },
+    { city: "Tel Aviv", country: "IL", iata: "TLV", lat: 32.0114, lon: 34.8867 },
+    { city: "Singapore", country: "SG", iata: "SIN", lat: 1.3644, lon: 103.9915 },
+    { city: "Bangkok", country: "TH", iata: "BKK", lat: 13.6811, lon: 100.7472 },
+    { city: "Kuala Lumpur", country: "MY", iata: "KUL", lat: 2.7456, lon: 101.7072 },
+    { city: "Hong Kong", country: "HK", iata: "HKG", lat: 22.3080, lon: 113.9185 },
+    { city: "Tokyo", country: "JP", iata: "HND", lat: 35.5494, lon: 139.7798 },
+    { city: "Seoul", country: "KR", iata: "ICN", lat: 37.4602, lon: 126.4407 },
+    { city: "Beijing", country: "CN", iata: "PEK", lat: 40.0799, lon: 116.6031 },
+    { city: "Shanghai", country: "CN", iata: "PVG", lat: 31.1443, lon: 121.8083 },
+    { city: "New Delhi", country: "IN", iata: "DEL", lat: 28.5562, lon: 77.1 },
+    { city: "Mumbai", country: "IN", iata: "BOM", lat: 19.0896, lon: 72.8656 },
+    { city: "Sydney", country: "AU", iata: "SYD", lat: -33.9399, lon: 151.1753 },
+    { city: "Melbourne", country: "AU", iata: "MEL", lat: -37.6733, lon: 144.8430 },
+    { city: "Auckland", country: "NZ", iata: "AKL", lat: -37.0082, lon: 174.7917 },
+    { city: "Cairo", country: "EG", iata: "CAI", lat: 30.1219, lon: 31.4056 },
+    { city: "Johannesburg", country: "ZA", iata: "JNB", lat: -26.1367, lon: 28.246 },
+    { city: "Nairobi", country: "KE", iata: "NBO", lat: -1.3192, lon: 36.9275 },
+    { city: "São Paulo", country: "BR", iata: "GRU", lat: -23.4356, lon: -46.4731 },
+    { city: "Buenos Aires", country: "AR", iata: "EZE", lat: -34.8222, lon: -58.5358 },
+    { city: "Baku", country: "AZ", iata: "GYD", lat: 40.4675, lon: 50.0467 },
+    { city: "Tbilisi", country: "GE", iata: "TBS", lat: 41.6692, lon: 44.9547 },
+    { city: "Yerevan", country: "AM", iata: "EVN", lat: 40.1473, lon: 44.3959 },
+];
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function findNearestAirport(lat: number, lon: number) {
+    const a = AIRPORTS.reduce((best, airport) => {
+        const d = haversineKm(lat, lon, airport.lat, airport.lon);
+        return d < best.dist ? { airport, dist: d } : best;
+    }, { airport: AIRPORTS[0], dist: Infinity }).airport;
+    return { ...a, label: `${a.city}, ${a.country}` };
+}
 
 /* ── cabin class config ── */
 const CABIN_CLASSES: { value: CabinClass; label: string; short: string }[] = [
@@ -58,221 +140,6 @@ const AMENITY_ICON_MAP: Record<string, React.ReactNode> = {
     "Meals": <Utensils className="w-3.5 h-3.5" />,
 };
 
-/* ── Mock flights database (expanded with segments) ── */
-const MOCK_FLIGHTS_DB: FlightResult[] = [
-    {
-        id: "f1", airline: "Air Canada", logo: "https://logo.clearbit.com/aircanada.com",
-        departTime: "1:45 PM", arriveTime: "4:25 PM", duration: "10h 40m", durationMin: 640,
-        price: "1897", flightNo: "AC 82", stops: 0, stopCities: [], cabinClass: "economy",
-        segments: [{
-            airline: "Air Canada", logo: "https://logo.clearbit.com/aircanada.com", flightNo: "AC 82",
-            aircraft: "Boeing 787-9", from: "Toronto", fromCode: "YYZ", fromTerminal: "Terminal 1",
-            to: "Tokyo", toCode: "NRT", toTerminal: "Terminal 1",
-            departTime: "1:45 PM", departDate: "Fri, Apr 10", arriveTime: "4:25 PM", arriveDate: "Sat, Apr 11",
-            duration: "10h 40m", cabin: "Economy", distance: "10,340 km",
-            amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-        }],
-        layovers: [],
-    },
-    {
-        id: "f2", airline: "ANA", logo: "https://logo.clearbit.com/ana.co.jp",
-        departTime: "4:45 PM", arriveTime: "9:50 PM", duration: "13h 5m", durationMin: 785,
-        price: "899", flightNo: "NH 115", stops: 1, stopCities: ["Vancouver"], cabinClass: "economy",
-        segments: [
-            {
-                airline: "ANA", logo: "https://logo.clearbit.com/ana.co.jp", flightNo: "NH 115",
-                aircraft: "Boeing 777-300ER", from: "Toronto", fromCode: "YYZ", fromTerminal: "Terminal 3",
-                to: "Vancouver", toCode: "YVR", toTerminal: "Domestic",
-                departTime: "4:45 PM", departDate: "Fri, Apr 10", arriveTime: "7:05 PM", arriveDate: "Fri, Apr 10",
-                duration: "4h 20m", cabin: "Economy", distance: "3,356 km",
-                amenities: ["WiFi", "Entertainment"],
-            },
-            {
-                airline: "ANA", logo: "https://logo.clearbit.com/ana.co.jp", flightNo: "NH 116",
-                aircraft: "Boeing 787-9", from: "Vancouver", fromCode: "YVR", fromTerminal: "International",
-                to: "Tokyo", toCode: "NRT", toTerminal: "Terminal 1",
-                departTime: "9:30 PM", departDate: "Fri, Apr 10", arriveTime: "9:50 PM", arriveDate: "Sat, Apr 11",
-                duration: "9h 20m", cabin: "Economy", distance: "7,560 km",
-                amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-            },
-        ],
-        layovers: [{ city: "Vancouver", airport: "Vancouver Intl. (YVR)", duration: "2h 25m", changePlanes: true }],
-    },
-    {
-        id: "f3", airline: "Delta", logo: "https://logo.clearbit.com/delta.com",
-        departTime: "11:30 AM", arriveTime: "3:15 PM", duration: "11h 45m", durationMin: 705,
-        price: "1245", flightNo: "DL 201", stops: 0, stopCities: [], cabinClass: "economy",
-        segments: [{
-            airline: "Delta", logo: "https://logo.clearbit.com/delta.com", flightNo: "DL 201",
-            aircraft: "Airbus A350-900", from: "New York", fromCode: "JFK", fromTerminal: "Terminal 4",
-            to: "Tokyo", toCode: "HND", toTerminal: "Terminal 3",
-            departTime: "11:30 AM", departDate: "Fri, Apr 10", arriveTime: "3:15 PM", arriveDate: "Sat, Apr 11",
-            duration: "11h 45m", cabin: "Economy", distance: "10,870 km",
-            amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-        }],
-        layovers: [],
-    },
-    {
-        id: "f4", airline: "United Airlines", logo: "https://logo.clearbit.com/united.com",
-        departTime: "6:15 AM", arriveTime: "11:40 AM", duration: "11h 25m", durationMin: 685,
-        price: "1050", flightNo: "UA 837", stops: 0, stopCities: [], cabinClass: "economy",
-        segments: [{
-            airline: "United Airlines", logo: "https://logo.clearbit.com/united.com", flightNo: "UA 837",
-            aircraft: "Boeing 777-200", from: "San Francisco", fromCode: "SFO", fromTerminal: "International G",
-            to: "Tokyo", toCode: "NRT", toTerminal: "Terminal 1",
-            departTime: "6:15 AM", departDate: "Fri, Apr 10", arriveTime: "11:40 AM", arriveDate: "Sat, Apr 11",
-            duration: "11h 25m", cabin: "Economy", distance: "8,280 km",
-            amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-        }],
-        layovers: [],
-    },
-    {
-        id: "f5", airline: "Japan Airlines", logo: "https://logo.clearbit.com/jal.co.jp",
-        departTime: "10:00 PM", arriveTime: "5:30 AM", duration: "13h 30m", durationMin: 810,
-        price: "780", flightNo: "JL 5", stops: 1, stopCities: ["Seoul"], cabinClass: "economy",
-        segments: [
-            {
-                airline: "Japan Airlines", logo: "https://logo.clearbit.com/jal.co.jp", flightNo: "JL 5",
-                aircraft: "Boeing 787-8", from: "Chicago", fromCode: "ORD", fromTerminal: "Terminal 5",
-                to: "Seoul", toCode: "ICN", toTerminal: "Terminal 2",
-                departTime: "10:00 PM", departDate: "Fri, Apr 10", arriveTime: "2:30 AM", arriveDate: "Sun, Apr 12",
-                duration: "12h 30m", cabin: "Economy", distance: "10,600 km",
-                amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-            },
-            {
-                airline: "Japan Airlines", logo: "https://logo.clearbit.com/jal.co.jp", flightNo: "JL 954",
-                aircraft: "Airbus A350-900", from: "Seoul", fromCode: "ICN", fromTerminal: "Terminal 2",
-                to: "Tokyo", toCode: "NRT", toTerminal: "Terminal 2",
-                departTime: "5:10 AM", departDate: "Sun, Apr 12", arriveTime: "5:30 AM", arriveDate: "Sun, Apr 12",
-                duration: "2h 20m", cabin: "Economy", distance: "1,200 km",
-                amenities: ["Entertainment", "Meals"],
-            },
-        ],
-        layovers: [{ city: "Seoul", airport: "Incheon Intl. (ICN)", duration: "2h 40m", changePlanes: false }],
-    },
-    {
-        id: "f6", airline: "Air Canada", logo: "https://logo.clearbit.com/aircanada.com",
-        departTime: "3:20 PM", arriveTime: "6:10 PM", duration: "10h 50m", durationMin: 650,
-        price: "3450", flightNo: "AC 83", stops: 0, stopCities: [], cabinClass: "business",
-        segments: [{
-            airline: "Air Canada", logo: "https://logo.clearbit.com/aircanada.com", flightNo: "AC 83",
-            aircraft: "Boeing 787-9 Dreamliner", from: "Toronto", fromCode: "YYZ", fromTerminal: "Terminal 1",
-            to: "Tokyo", toCode: "NRT", toTerminal: "Terminal 1",
-            departTime: "3:20 PM", departDate: "Fri, Apr 10", arriveTime: "6:10 PM", arriveDate: "Sat, Apr 11",
-            duration: "10h 50m", cabin: "Business", distance: "10,340 km",
-            amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-        }],
-        layovers: [],
-    },
-    {
-        id: "f7", airline: "Korean Air", logo: "https://logo.clearbit.com/koreanair.com",
-        departTime: "12:30 AM", arriveTime: "10:15 AM", duration: "15h 45m", durationMin: 945,
-        price: "650", flightNo: "KE 94", stops: 2, stopCities: ["Seoul", "Osaka"], cabinClass: "economy",
-        segments: [
-            {
-                airline: "Korean Air", logo: "https://logo.clearbit.com/koreanair.com", flightNo: "KE 94",
-                aircraft: "Boeing 747-8", from: "Los Angeles", fromCode: "LAX", fromTerminal: "Tom Bradley",
-                to: "Seoul", toCode: "ICN", toTerminal: "Terminal 2",
-                departTime: "12:30 AM", departDate: "Fri, Apr 10", arriveTime: "5:15 AM", arriveDate: "Sat, Apr 11",
-                duration: "12h 45m", cabin: "Economy", distance: "9,600 km",
-                amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-            },
-            {
-                airline: "Korean Air", logo: "https://logo.clearbit.com/koreanair.com", flightNo: "KE 723",
-                aircraft: "Boeing 737 MAX 8", from: "Seoul", fromCode: "ICN", fromTerminal: "Terminal 2",
-                to: "Osaka", toCode: "KIX", toTerminal: "Terminal 1",
-                departTime: "7:00 AM", departDate: "Sat, Apr 11", arriveTime: "8:50 AM", arriveDate: "Sat, Apr 11",
-                duration: "1h 50m", cabin: "Economy", distance: "920 km",
-                amenities: ["Entertainment"],
-            },
-            {
-                airline: "Korean Air", logo: "https://logo.clearbit.com/koreanair.com", flightNo: "KE 725",
-                aircraft: "Airbus A321neo", from: "Osaka", fromCode: "KIX", fromTerminal: "Terminal 1",
-                to: "Tokyo", toCode: "NRT", toTerminal: "Terminal 1",
-                departTime: "9:30 AM", departDate: "Sat, Apr 11", arriveTime: "10:15 AM", arriveDate: "Sat, Apr 11",
-                duration: "1h 45m", cabin: "Economy", distance: "500 km",
-                amenities: ["Entertainment"],
-            },
-        ],
-        layovers: [
-            { city: "Seoul", airport: "Incheon Intl. (ICN)", duration: "1h 45m", changePlanes: true },
-            { city: "Osaka", airport: "Kansai Intl. (KIX)", duration: "40m", changePlanes: false },
-        ],
-    },
-    {
-        id: "f8", airline: "Singapore Airlines", logo: "https://logo.clearbit.com/singaporeair.com",
-        departTime: "8:30 AM", arriveTime: "2:00 PM", duration: "17h 30m", durationMin: 1050,
-        price: "5200", flightNo: "SQ 12", stops: 1, stopCities: ["Singapore"], cabinClass: "first",
-        segments: [
-            {
-                airline: "Singapore Airlines", logo: "https://logo.clearbit.com/singaporeair.com", flightNo: "SQ 12",
-                aircraft: "Airbus A380-800", from: "New York", fromCode: "JFK", fromTerminal: "Terminal 4",
-                to: "Singapore", toCode: "SIN", toTerminal: "Terminal 3",
-                departTime: "8:30 AM", departDate: "Fri, Apr 10", arriveTime: "5:00 AM", arriveDate: "Sat, Apr 11",
-                duration: "14h 30m", cabin: "First (Suites)", distance: "15,340 km",
-                amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-            },
-            {
-                airline: "Singapore Airlines", logo: "https://logo.clearbit.com/singaporeair.com", flightNo: "SQ 638",
-                aircraft: "Airbus A350-900", from: "Singapore", fromCode: "SIN", fromTerminal: "Terminal 3",
-                to: "Tokyo", toCode: "NRT", toTerminal: "Terminal 1",
-                departTime: "8:00 AM", departDate: "Sat, Apr 11", arriveTime: "2:00 PM", arriveDate: "Sat, Apr 11",
-                duration: "6h 0m", cabin: "First", distance: "5,310 km",
-                amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-            },
-        ],
-        layovers: [{ city: "Singapore", airport: "Changi Airport (SIN)", duration: "3h 0m", changePlanes: true }],
-    },
-    {
-        id: "f9", airline: "ANA", logo: "https://logo.clearbit.com/ana.co.jp",
-        departTime: "5:00 PM", arriveTime: "9:45 PM", duration: "12h 45m", durationMin: 765,
-        price: "2100", flightNo: "NH 110", stops: 0, stopCities: [], cabinClass: "premium_economy",
-        segments: [{
-            airline: "ANA", logo: "https://logo.clearbit.com/ana.co.jp", flightNo: "NH 110",
-            aircraft: "Boeing 777-300ER", from: "New York", fromCode: "JFK", fromTerminal: "Terminal 7",
-            to: "Tokyo", toCode: "HND", toTerminal: "Terminal 3",
-            departTime: "5:00 PM", departDate: "Fri, Apr 10", arriveTime: "9:45 PM", arriveDate: "Sat, Apr 11",
-            duration: "12h 45m", cabin: "Premium Economy", distance: "10,870 km",
-            amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-        }],
-        layovers: [],
-    },
-    {
-        id: "f10", airline: "Cathay Pacific", logo: "https://logo.clearbit.com/cathaypacific.com",
-        departTime: "9:15 PM", arriveTime: "6:00 AM", duration: "16h 45m", durationMin: 1005,
-        price: "720", flightNo: "CX 865", stops: 2, stopCities: ["Hong Kong", "Taipei"], cabinClass: "economy",
-        segments: [
-            {
-                airline: "Cathay Pacific", logo: "https://logo.clearbit.com/cathaypacific.com", flightNo: "CX 865",
-                aircraft: "Airbus A350-1000", from: "Vancouver", fromCode: "YVR", fromTerminal: "International",
-                to: "Hong Kong", toCode: "HKG", toTerminal: "Terminal 1",
-                departTime: "9:15 PM", departDate: "Fri, Apr 10", arriveTime: "3:45 AM", arriveDate: "Sun, Apr 12",
-                duration: "12h 30m", cabin: "Economy", distance: "10,350 km",
-                amenities: ["WiFi", "In-seat power", "Entertainment", "Meals"],
-            },
-            {
-                airline: "Cathay Pacific", logo: "https://logo.clearbit.com/cathaypacific.com", flightNo: "CX 530",
-                aircraft: "Airbus A330-300", from: "Hong Kong", fromCode: "HKG", fromTerminal: "Terminal 1",
-                to: "Taipei", toCode: "TPE", toTerminal: "Terminal 1",
-                departTime: "5:30 AM", departDate: "Sun, Apr 12", arriveTime: "7:15 AM", arriveDate: "Sun, Apr 12",
-                duration: "1h 45m", cabin: "Economy", distance: "810 km",
-                amenities: ["Entertainment"],
-            },
-            {
-                airline: "Cathay Pacific", logo: "https://logo.clearbit.com/cathaypacific.com", flightNo: "CX 450",
-                aircraft: "Boeing 777-300", from: "Taipei", fromCode: "TPE", toTerminal: "Terminal 1",
-                to: "Tokyo", toCode: "NRT", fromTerminal: "Terminal 1",
-                departTime: "8:30 AM", departDate: "Sun, Apr 12", arriveTime: "6:00 AM", arriveDate: "Sun, Apr 12",
-                duration: "3h 30m", cabin: "Economy", distance: "2,100 km",
-                amenities: ["WiFi", "Entertainment", "Meals"],
-            },
-        ],
-        layovers: [
-            { city: "Hong Kong", airport: "Hong Kong Intl. (HKG)", duration: "1h 45m", changePlanes: true },
-            { city: "Taipei", airport: "Taoyuan Intl. (TPE)", duration: "1h 15m", changePlanes: false },
-        ],
-    },
-];
 
 interface FlightSegment {
     airline: string;
@@ -346,15 +213,22 @@ function parseDurationMin(dur: string): number {
     return (hMatch ? parseInt(hMatch[1]) * 60 : 0) + (mMatch ? parseInt(mMatch[1]) : 0);
 }
 
-function enrichApiFlights(raw: Record<string, string>[]): FlightResult[] {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function enrichApiFlights(raw: any[]): FlightResult[] {
     return raw.map((f, i) => ({
-        ...f,
         id: f.id || `api-${i}`,
-        durationMin: f.duration ? parseDurationMin(f.duration) : 0,
-        stops: Math.floor(Math.random() * 3),
-        stopCities: [],
-        cabinClass: "economy" as CabinClass,
-    })) as unknown as FlightResult[];
+        airline: f.airline || "Unknown",
+        logo: f.logo,
+        departTime: f.departTime || "TBD",
+        arriveTime: f.arriveTime || "TBD",
+        duration: f.duration || "See airline",
+        durationMin: f.durationMin || (f.duration ? parseDurationMin(f.duration) : 0),
+        price: String(f.price || "0"),
+        flightNo: f.flightNo || "N/A",
+        stops: typeof f.stops === "number" ? f.stops : Math.floor(Math.random() * 3),
+        stopCities: f.stopCities || [],
+        cabinClass: (f.cabinClass || "economy") as CabinClass,
+    }));
 }
 
 async function geocodeFlight(q: string): Promise<[number, number] | null> {
@@ -366,6 +240,13 @@ async function geocodeFlight(q: string): Promise<[number, number] | null> {
     } catch { /* empty */ }
     return null;
 }
+
+/* ── trip type ── */
+type TripType = "one-way" | "round-trip";
+const TRIP_TYPES: { value: TripType; label: string; icon: React.ReactNode }[] = [
+    { value: "one-way", label: "One Way", icon: <CornerDownRight className="w-3.5 h-3.5" /> },
+    { value: "round-trip", label: "Round Trip", icon: <Repeat className="w-3.5 h-3.5" /> },
+];
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () => void }) {
@@ -420,32 +301,101 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
     const legs = React.useMemo(() => {
         const arr: { id: string; from: string; to: string; label: string; date: Date | null; destId: string }[] = [];
         if (plannerOrigin && plannerDestinations[0]?.name) {
-            arr.push({ id: `leg-0`, from: plannerOrigin, to: plannerDestinations[0].name, label: `${plannerOrigin.split(",")[0]} → ${plannerDestinations[0].name.split(",")[0]}`, date: plannerDestinations[0].date, destId: plannerDestinations[0].id });
+            arr.push({ id: `leg-0`, from: plannerOrigin, to: plannerDestinations[0].name, label: `${plannerOrigin.split(",")[0]} ⟶ ${plannerDestinations[0].name.split(",")[0]}`, date: plannerDestinations[0].date, destId: plannerDestinations[0].id });
         }
         for (let i = 0; i < plannerDestinations.length - 1; i++) {
             const fromD = plannerDestinations[i].name;
             const toD = plannerDestinations[i + 1].name;
             if (fromD && toD) {
-                arr.push({ id: `leg-${i + 1}`, from: fromD, to: toD, label: `${fromD.split(",")[0]} → ${toD.split(",")[0]}`, date: plannerDestinations[i + 1].date, destId: plannerDestinations[i + 1].id });
+                arr.push({ id: `leg-${i + 1}`, from: fromD, to: toD, label: `${fromD.split(",")[0]} ⟶ ${toD.split(",")[0]}`, date: plannerDestinations[i + 1].date, destId: plannerDestinations[i + 1].id });
             }
         }
         return arr;
     }, [plannerOrigin, plannerDestinations]);
 
+    /* ── trip type state ── */
+    const [tripType, setTripType] = React.useState<TripType>("one-way");
+
+    // Build effective legs based on trip type
+    const effectiveLegs = React.useMemo(() => {
+        const base = [...legs];
+        if (tripType === "round-trip" && base.length > 0) {
+            const first = base[0];
+            const last = base[base.length - 1];
+            base.push({
+                id: `leg-return`,
+                from: last.to,
+                to: first.from,
+                label: `${last.to.split(",")[0]} ⟶ ${first.from.split(",")[0]} (Return)`,
+                date: null,
+                destId: "return",
+            });
+        }
+        return base;
+    }, [legs, tripType]);
+
     const [selectedLegIdx, setSelectedLegIdx] = React.useState<number>(0);
     const [manualFrom, setManualFrom] = React.useState("");
     const [manualTo, setManualTo] = React.useState("");
+    const [locating, setLocating] = React.useState(false);
+    const [locationDenied, setLocationDenied] = React.useState(false);
+    const nearestAirportRef = React.useRef<string | null>(null);
+
+    // Resolve a city name to its nearest airport label
+    const resolveToAirport = React.useCallback((cityName: string): string => {
+        // If it already matches an airport city, return as-is
+        const match = AIRPORTS.find(a => a.city.toLowerCase() === cityName.split(",")[0].trim().toLowerCase());
+        if (match) return `${match.city}, ${match.country}`;
+        // Otherwise geocode-style: find nearest airport by name similarity or use the geolocated one
+        if (nearestAirportRef.current) return nearestAirportRef.current;
+        return cityName;
+    }, []);
+
+    // Auto-detect nearest airport on mount
+    React.useEffect(() => {
+        if (!navigator.geolocation || manualFrom) return;
+        setLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const nearest = findNearestAirport(pos.coords.latitude, pos.coords.longitude);
+                nearestAirportRef.current = nearest.label;
+                setManualFrom(nearest.label);
+                setLocating(false);
+            },
+            () => { setLocating(false); setLocationDenied(true); },
+            { timeout: 8000 }
+        );
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleLocateMe = () => {
+        if (!navigator.geolocation) return;
+        setLocating(true);
+        setLocationDenied(false);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const nearest = findNearestAirport(pos.coords.latitude, pos.coords.longitude);
+                nearestAirportRef.current = nearest.label;
+                setManualFrom(nearest.label);
+                setLocating(false);
+            },
+            () => { setLocating(false); setLocationDenied(true); },
+            { timeout: 8000 }
+        );
+    };
     const [selectedDay, setSelectedDay] = React.useState<number | null>(null);
 
     React.useEffect(() => {
-        if (legs.length > selectedLegIdx) {
-            setManualFrom(legs[selectedLegIdx].from);
-            setManualTo(legs[selectedLegIdx].to);
+        if (effectiveLegs.length > selectedLegIdx) {
+            // Resolve from/to to valid airport cities (prevents "Could not find airport" errors)
+            setManualFrom(resolveToAirport(effectiveLegs[selectedLegIdx].from));
+            setManualTo(resolveToAirport(effectiveLegs[selectedLegIdx].to));
         }
-    }, [legs, selectedLegIdx]);
+    }, [effectiveLegs, selectedLegIdx, resolveToAirport]);
 
     const [mode, setMode] = React.useState<"idle" | "search" | "booked" | "results">("idle");
     const [allFlights, setAllFlights] = React.useState<FlightResult[]>([]);
+    const [apiError, setApiError] = React.useState<string | null>(null);
     const [searching, setSearching] = React.useState(false);
     const [bookingRef, setBookingRef] = React.useState("");
 
@@ -512,22 +462,24 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
 
     // Check if this leg already has a selected flight
     const existingFlight = React.useMemo(() => {
-        if (!legs[selectedLegIdx]) return null;
-        return plannerFlights.find(f => f.from === legs[selectedLegIdx].from && f.to === legs[selectedLegIdx].to);
-    }, [plannerFlights, legs, selectedLegIdx]);
+        if (!effectiveLegs[selectedLegIdx]) return null;
+        return plannerFlights.find(f => f.from === effectiveLegs[selectedLegIdx].from && f.to === effectiveLegs[selectedLegIdx].to);
+    }, [plannerFlights, effectiveLegs, selectedLegIdx]);
 
     // Auto-select day based on existing flight or leg index
     React.useEffect(() => {
         if (existingFlight?.dayNum) {
             setSelectedDay(existingFlight.dayNum);
         } else if (dateOptions.days.length > 0 && selectedDay === null) {
-            setSelectedDay(Math.min(selectedLegIdx + 1, dateOptions.days.length));
+            // For return legs, default to last day
+            const isReturn = effectiveLegs[selectedLegIdx]?.id === "leg-return";
+            setSelectedDay(isReturn ? dateOptions.days.length : Math.min(selectedLegIdx + 1, dateOptions.days.length));
         }
-    }, [dateOptions.days.length, selectedLegIdx, selectedDay, existingFlight?.id, existingFlight?.dayNum]);
+    }, [dateOptions.days.length, selectedLegIdx, selectedDay, existingFlight?.id, existingFlight?.dayNum, effectiveLegs]);
 
     const handleSearch = async () => {
-        const fromCityName = manualFrom || (legs[selectedLegIdx]?.from);
-        const toCityName = manualTo || (legs[selectedLegIdx]?.to);
+        const fromCityName = manualFrom || (effectiveLegs[selectedLegIdx]?.from);
+        const toCityName = manualTo || (effectiveLegs[selectedLegIdx]?.to);
 
         if (!fromCityName || !toCityName) return;
 
@@ -537,12 +489,18 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         const fromArg = fromCityName.split(",")[0].trim();
         const toArg = toCityName.split(",")[0].trim();
 
+        setApiError(null);
         try {
             const res = await searchAviationstackFlights(fromArg, toArg);
-            const flightsData = res?.error ? MOCK_FLIGHTS_DB : enrichApiFlights(res?.flights || []);
-            setAllFlights(flightsData.length > 0 ? flightsData : MOCK_FLIGHTS_DB);
-        } catch {
-            setAllFlights(MOCK_FLIGHTS_DB);
+            if (res?.error) {
+                setApiError(res.error);
+                setAllFlights([]);
+            } else {
+                setAllFlights(enrichApiFlights(res?.flights || []));
+            }
+        } catch (e: unknown) {
+            setApiError(e instanceof Error ? e.message : "Search failed");
+            setAllFlights([]);
         } finally {
             setSearching(false);
             setMode("results");
@@ -550,8 +508,8 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
     };
 
     const handleSelectFlight = async (f: FlightResult) => {
-        const fromCity = manualFrom || legs[selectedLegIdx]?.from || "";
-        const toCity = manualTo || legs[selectedLegIdx]?.to || "";
+        const fromCity = manualFrom || effectiveLegs[selectedLegIdx]?.from || "";
+        const toCity = manualTo || effectiveLegs[selectedLegIdx]?.to || "";
 
         const dayLabel = selectedDay && dateOptions.days.length > 0
             ? dateOptions.days.find(d => d.dayNum === selectedDay)?.label
@@ -587,6 +545,16 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
             stopCities: f.stopCities,
         };
 
+        // Remove any existing flights for this same from/to leg before adding
+        const fromCity_ = fromCity.split(",")[0].toLowerCase().trim();
+        const toCity_ = toCity.split(",")[0].toLowerCase().trim();
+        const duplicates = plannerFlights.filter(f => {
+            const fFrom = f.from.split(",")[0].toLowerCase().trim();
+            const fTo = f.to.split(",")[0].toLowerCase().trim();
+            return fFrom === fromCity_ && fTo === toCity_;
+        });
+        duplicates.forEach(d => removePlannerFlight(d.id));
+
         addPlannerFlight(flight);
         setMode("idle");
 
@@ -600,8 +568,8 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
     const handleSyncBooking = async () => {
         if (!bookingRef.trim()) return;
 
-        const fromCity = manualFrom || legs[selectedLegIdx]?.from || "";
-        const toCity = manualTo || legs[selectedLegIdx]?.to || "";
+        const fromCity = manualFrom || effectiveLegs[selectedLegIdx]?.from || "";
+        const toCity = manualTo || effectiveLegs[selectedLegIdx]?.to || "";
 
         setLinkedTransport(`Booked Ref: ${bookingRef}`);
 
@@ -656,25 +624,69 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
 
     return (
         <div className="p-4 space-y-5">
-            {/* Leg selector */}
-            {legs.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 custom-scrollbar">
-                    {legs.map((leg, idx) => (
+            {/* Trip Type Selector */}
+            <div className="space-y-1">
+                <label className="text-xs font-semibold text-gray-500 uppercase">Trip Type</label>
+                <div className="grid grid-cols-2 gap-1.5">
+                    {TRIP_TYPES.map(tt => (
                         <button
-                            key={leg.id}
-                            onClick={() => { setSelectedLegIdx(idx); setMode("idle"); setSelectedDay(idx + 1); }}
-                            className={`shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full border ${selectedLegIdx === idx ? "bg-primary text-primary-foreground border-primary" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}
+                            key={tt.value}
+                            onClick={() => { setTripType(tt.value); setSelectedLegIdx(0); setMode("idle"); setSelectedDay(null); }}
+                            className={cn(
+                                "flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg border text-[10px] font-bold uppercase leading-tight transition-all",
+                                tripType === tt.value
+                                    ? "bg-primary text-white border-primary shadow-sm"
+                                    : "bg-white text-gray-500 border-gray-200 hover:border-primary hover:bg-primary/5"
+                            )}
                         >
-                            Leg {idx + 1}: {leg.label}
+                            {tt.icon}
+                            {tt.label}
                         </button>
                     ))}
+                </div>
+            </div>
+
+            {/* Leg selector */}
+            {effectiveLegs.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 custom-scrollbar">
+                    {effectiveLegs.map((leg, idx) => {
+                        const hasBooked = plannerFlights.some(f => f.from === leg.from && f.to === leg.to);
+                        return (
+                            <button
+                                key={leg.id}
+                                onClick={() => { setSelectedLegIdx(idx); setMode("idle"); setSelectedDay(null); }}
+                                className={cn(
+                                    "shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full border flex items-center gap-1.5",
+                                    selectedLegIdx === idx ? "bg-primary text-primary-foreground border-primary" : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                                )}
+                            >
+                                {hasBooked && <CheckCircle2 className="w-3 h-3 text-green-500" />}
+                                {leg.id === "leg-return" ? "Return" : `Leg ${idx + 1}`}: {leg.label}
+                            </button>
+                        );
+                    })}
                 </div>
             )}
 
             <div className="space-y-3">
                 {/* From / To */}
                 <div className="space-y-1">
-                    <label className="text-xs font-semibold text-gray-500 uppercase">From</label>
+                    <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-gray-500 uppercase">From</label>
+                        {locating && (
+                            <span className="flex items-center gap-1 text-[10px] text-gray-400">
+                                <LocateFixed className="w-3 h-3 animate-spin" /> Detecting…
+                            </span>
+                        )}
+                        {locationDenied && !locating && (
+                            <button
+                                onClick={handleLocateMe}
+                                className="flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline"
+                            >
+                                <LocateFixed className="w-3 h-3" /> Use my location
+                            </button>
+                        )}
+                    </div>
                     <DestinationAutocomplete
                         value={manualFrom}
                         onChange={setManualFrom}
@@ -1027,26 +1039,51 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                                     </div>
 
                                     {/* Price range */}
-                                    <div className="space-y-1.5">
-                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                                            Price Range: ${priceRange[0]} – ${priceRange[1] >= 10000 ? "Any" : priceRange[1]}
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                                            <span>Price Range</span>
+                                            <span className="text-primary font-semibold normal-case text-[11px]">
+                                                ${priceRange[0].toLocaleString()} – {priceRange[1] >= 10000 ? "Any" : `$${priceRange[1].toLocaleString()}`}
+                                            </span>
                                         </label>
-                                        <div className="flex items-center gap-2">
-                                            <Input
-                                                type="number"
-                                                value={priceRange[0]}
-                                                onChange={e => setPriceRange([parseInt(e.target.value) || 0, priceRange[1]])}
-                                                className="h-8 text-xs w-20"
-                                                placeholder="Min"
-                                            />
-                                            <span className="text-gray-400 text-xs">to</span>
-                                            <Input
-                                                type="number"
-                                                value={priceRange[1] >= 10000 ? "" : priceRange[1]}
-                                                onChange={e => setPriceRange([priceRange[0], parseInt(e.target.value) || 10000])}
-                                                className="h-8 text-xs w-20"
-                                                placeholder="Max"
-                                            />
+                                        <Slider
+                                            min={0}
+                                            max={10000}
+                                            step={50}
+                                            value={priceRange}
+                                            onValueChange={(val) => setPriceRange(val as [number, number])}
+                                            className="py-1"
+                                        />
+                                        <div className="flex items-center gap-2 pt-1">
+                                            <div className="relative flex-1">
+                                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">$</span>
+                                                <Input
+                                                    inputMode="numeric"
+                                                    value={priceRange[0] === 0 ? "" : String(priceRange[0])}
+                                                    onChange={e => {
+                                                        const raw = e.target.value.replace(/[^0-9]/g, "");
+                                                        const val = raw === "" ? 0 : Math.min(parseInt(raw), priceRange[1]);
+                                                        setPriceRange([val, priceRange[1]]);
+                                                    }}
+                                                    className="h-8 text-xs pl-6"
+                                                    placeholder="Min"
+                                                />
+                                            </div>
+                                            <span className="text-gray-400 text-xs shrink-0">to</span>
+                                            <div className="relative flex-1">
+                                                <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none">$</span>
+                                                <Input
+                                                    inputMode="numeric"
+                                                    value={priceRange[1] >= 10000 ? "" : String(priceRange[1])}
+                                                    onChange={e => {
+                                                        const raw = e.target.value.replace(/[^0-9]/g, "");
+                                                        const val = raw === "" ? 10000 : Math.max(parseInt(raw), priceRange[0]);
+                                                        setPriceRange([priceRange[0], val > 10000 ? 10000 : val]);
+                                                    }}
+                                                    className="h-8 text-xs pl-6"
+                                                    placeholder="Any"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1104,9 +1141,22 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
 
                     {/* Flight cards */}
                     {filteredFlights.length === 0 ? (
-                        <div className="py-8 text-center">
-                            <p className="text-sm text-gray-400 font-semibold">No flights match your filters</p>
-                            <button onClick={clearFilters} className="text-xs text-primary hover:underline mt-1">Clear filters</button>
+                        <div className="py-8 text-center space-y-1">
+                            <Plane className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                            {apiError ? (
+                                <>
+                                    <p className="text-sm text-gray-500 font-semibold">No live flights found</p>
+                                    <p className="text-xs text-gray-400 max-w-[260px] mx-auto leading-relaxed">{apiError}</p>
+                                    <button onClick={() => setMode("booked")} className="text-xs text-primary hover:underline mt-2 block mx-auto">
+                                        Add a booking reference instead
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-sm text-gray-400 font-semibold">No flights match your filters</p>
+                                    <button onClick={clearFilters} className="text-xs text-primary hover:underline">Clear filters</button>
+                                </>
+                            )}
                         </div>
                     ) : (
                         filteredFlights.map((f) => (
@@ -1165,15 +1215,13 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
 
                                 {/* Row 4: Action buttons */}
                                 <div className="flex items-center gap-1.5 pt-0.5">
-                                    {f.segments && f.segments.length > 0 && (
-                                        <button
-                                            onClick={() => setDetailFlight(f)}
-                                            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-600 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all"
-                                        >
-                                            <Info className="w-3 h-3" />
-                                            Details
-                                        </button>
-                                    )}
+                                    <button
+                                        onClick={() => setDetailFlight(f)}
+                                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 text-[11px] font-semibold text-gray-600 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all"
+                                    >
+                                        <Info className="w-3 h-3" />
+                                        Details
+                                    </button>
                                     <Button size="sm" onClick={() => handleSelectFlight(f)} variant="outline" className="h-7 text-[11px] font-bold px-3 shrink-0 ml-auto">
                                         Select
                                     </Button>
@@ -1235,8 +1283,31 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
 
                         <DialogTitle className="sr-only">{detailFlight.airline} {detailFlight.flightNo} Flight Details</DialogTitle>
 
-                        {/* Segments */}
+                        {/* Segments — or basic info for API flights */}
                         <div className="p-4 space-y-0">
+                            {(!detailFlight.segments || detailFlight.segments.length === 0) && (
+                                <div className="py-4 space-y-3">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-500 font-medium">Flight</span>
+                                        <span className="font-bold text-gray-800">{detailFlight.flightNo}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-500 font-medium">Departure</span>
+                                        <span className="font-bold text-gray-800">{detailFlight.departTime}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-500 font-medium">Arrival</span>
+                                        <span className="font-bold text-gray-800">{detailFlight.arriveTime}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-gray-500 font-medium">Cabin</span>
+                                        <span className="font-bold text-gray-800">{CABIN_CLASSES.find(c => c.value === detailFlight.cabinClass)?.label}</span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 pt-2 text-center">
+                                        Detailed segment info is not available for live-tracked flights.
+                                    </p>
+                                </div>
+                            )}
                             {detailFlight.segments?.map((seg, idx) => (
                                 <React.Fragment key={idx}>
                                     {/* Segment card */}
@@ -1382,8 +1453,8 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                                 }
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-gray-800 truncate">
-                                    {flight.from.split(",")[0]} → {flight.to.split(",")[0]}
+                                <p className="text-xs font-semibold text-gray-800 truncate flex items-center gap-1">
+                                    {flight.from.split(",")[0]} <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" /> {flight.to.split(",")[0]}
                                 </p>
                                 <p className="text-[10px] text-gray-500 truncate">
                                     {flight.alreadyBooked ? `Ref: ${flight.bookingRef}` : `${flight.airline} ${flight.flightNo}`}
@@ -1391,6 +1462,30 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                                     {flight.cabinClass && flight.cabinClass !== "economy" ? ` · ${CABIN_CLASSES.find(c => c.value === flight.cabinClass)?.label}` : ""}
                                     {flight.stops !== undefined && flight.stops > 0 ? ` · ${flight.stops} stop${flight.stops > 1 ? "s" : ""}` : ""}
                                 </p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                    onClick={() => {
+                                        // Find the matching leg and switch to search for replacement
+                                        const legIdx = effectiveLegs.findIndex(l => l.from === flight.from && l.to === flight.to);
+                                        if (legIdx >= 0) setSelectedLegIdx(legIdx);
+                                        handleRemoveFlight(flight.id);
+                                        setManualFrom(resolveToAirport(flight.from));
+                                        setManualTo(resolveToAirport(flight.to));
+                                        setMode("idle");
+                                    }}
+                                    className="p-1.5 hover:bg-blue-100 rounded-lg text-gray-400 hover:text-blue-600 transition-colors"
+                                    title="Change flight"
+                                >
+                                    <Search className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={() => handleRemoveFlight(flight.id)}
+                                    className="p-1.5 hover:bg-red-100 rounded-lg text-gray-400 hover:text-red-500 transition-colors"
+                                    title="Remove flight"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                             </div>
                         </div>
                     ))}

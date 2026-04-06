@@ -41,6 +41,8 @@ import {
   GripVertical,
   Smartphone,
   AlertTriangle,
+  Bed,
+  Plane,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseYYYYMMDD } from "@/lib/utils";
@@ -110,6 +112,8 @@ interface EventItem {
   url?: string;
   reviews?: { author: string; text: string; rating: number }[];
   transitMode?: TransportMode;
+  endTitle?: string;
+  arriveTime?: string;
 }
 
 interface DayPlan {
@@ -1049,13 +1053,15 @@ export default function TripMapPage() {
               f.departTime && f.departTime !== "-"
                 ? f.departTime.replace(/\s?(AM|PM)/i, (_, m) => ` ${m}`)
                 : "TBD",
-            title: `✈ ${f.from.split(",")[0]} → ${f.to.split(",")[0]}`,
+            title: `✈ ${f.from.split(",")[0]}`,
+            endTitle: f.to.split(",")[0],
             type: "transit" as const,
             duration: f.duration || "",
             color: "#378ADD",
             desc: f.alreadyBooked
               ? `Booking Ref: ${f.bookingRef}`
               : `${f.airline} ${f.flightNo}${f.price && f.price !== "0" ? ` · $${f.price}` : ""}`,
+            arriveTime: f.arriveTime && f.arriveTime !== "-" ? f.arriveTime.replace(/\s?(AM|PM)/i, (_, m: string) => ` ${m}`) : undefined,
           }));
         // Add hotel events for this day
         const hotelEvents: EventItem[] = plannerHotelsAll
@@ -1902,6 +1908,7 @@ function MapView({
   // Flight arcs from store
   const plannerFlights = useTripStore((s) => s.plannerFlights);
   const plannerOrigin = useTripStore((s) => s.plannerOrigin);
+  const plannerHotelsForMap = useTripStore((s) => s.plannerHotels);
 
   const flightsWithCoords = plannerFlights.filter(
     (f) => f.fromCoords && f.toCoords,
@@ -2082,6 +2089,47 @@ function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showFlightRoutes]);
 
+  // Re-fly camera when flights are added/removed while flights tab is already open
+  const prevFlightKey = React.useRef("");
+  React.useEffect(() => {
+    if (!mapRef.current || sidebarTab !== "flights") {
+      prevFlightKey.current = "";
+      return;
+    }
+    // Use a serialized key so we detect both count changes and coord updates
+    const key = flightsWithCoords.map(f => `${f.id}-${f.fromCoords?.[0]}-${f.toCoords?.[0]}`).join("|");
+    if (key === prevFlightKey.current || flightsWithCoords.length === 0) {
+      prevFlightKey.current = key;
+      return;
+    }
+    prevFlightKey.current = key;
+    const map = mapRef.current.getMap();
+    if (!map) return;
+    const pts = flightsWithCoords.flatMap(
+      (f) => [f.fromCoords, f.toCoords].filter(Boolean) as [number, number][],
+    );
+    if (pts.length >= 2) {
+      const lngs = pts.map((p) => p[0]);
+      const lats = pts.map((p) => p[1]);
+      const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+      const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+      const lngSpan = Math.max(...lngs) - Math.min(...lngs) + 30;
+      const latSpan = Math.max(...lats) - Math.min(...lats) + 20;
+      const zoom = Math.min(
+        Math.log2(360 / lngSpan),
+        Math.log2(180 / latSpan),
+        5,
+      );
+      map.flyTo({
+        center: [centerLng, centerLat],
+        zoom: Math.max(1.2, zoom),
+        duration: 1200,
+        essential: true,
+        offset: [200, 0],
+      });
+    }
+  }, [flightsWithCoords, sidebarTab]);
+
   // Initial camera: geocode destination from URL and fly to show it + origin
   const searchParamsMap = useSearchParams();
   const initialFlyDone = React.useRef(false);
@@ -2171,9 +2219,17 @@ function MapView({
       ),
     [day.events],
   );
-  const selectedEventObj = placeEvents.find(
-    (e: EventItem) => e.id === expandedEvent,
-  );
+  const selectedEventObj = React.useMemo(() => {
+    if (!expandedEvent) return undefined;
+    // Check place events first
+    const placeMatch = placeEvents.find((e: EventItem) => e.id === expandedEvent);
+    if (placeMatch) return placeMatch;
+    // Check hotel events (they have lat/lng)
+    const hotelMatch = day.events.find(
+      (e: EventItem) => e.id === expandedEvent && e.id.startsWith("hotel-") && e.lat && e.lng
+    );
+    return hotelMatch;
+  }, [expandedEvent, placeEvents, day.events]);
 
   React.useEffect(() => {
     if (!mapRef.current) return;
@@ -2595,7 +2651,7 @@ function MapView({
           <NavigationControl position="bottom-right" />
 
           {/* Flight arcs */}
-          {sidebarTab === "flights" && flightsWithCoords.length > 0 && (
+          {((sidebarTab === "flights" || expandedEvent?.startsWith("flight-")) && flightsWithCoords.length > 0) && (
             <>
               <Source id="flight-arcs" type="geojson" data={flightArcs}>
                 <Layer
@@ -2668,6 +2724,37 @@ function MapView({
               ))}
             </>
           )}
+
+          {/* Hotel markers */}
+          {(() => {
+            const hotelsWithCoords = plannerHotelsForMap.filter(h => h.lat && h.lng);
+            // De-duplicate by name+coords
+            const seen = new Set<string>();
+            const uniqueHotels = hotelsWithCoords.filter(h => {
+              const key = `${h.name}-${h.lat}-${h.lng}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+            return uniqueHotels.map(hotel => (
+              <Marker
+                key={`hotel-pin-${hotel.id}`}
+                longitude={hotel.lng!}
+                latitude={hotel.lat!}
+                anchor="bottom"
+                style={{ zIndex: 45 }}
+              >
+                <div className="relative flex flex-col items-center">
+                  <div className="w-8 h-8 rounded-full bg-[#7F77DD] border-[3px] border-white shadow-lg flex items-center justify-center">
+                    <Bed className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <div className="absolute top-[calc(100%+2px)] left-1/2 -translate-x-1/2 bg-white text-gray-900 text-[9px] font-bold px-1.5 py-0.5 rounded border border-gray-200 shadow-md whitespace-nowrap max-w-[120px] truncate">
+                    {hotel.name}
+                  </div>
+                </div>
+              </Marker>
+            ));
+          })()}
 
           {/* Cluster layer */}
           {showClusters && (
@@ -3451,7 +3538,7 @@ function MapView({
   );
 
   function handleItemInteract(event: EventItem) {
-    if (event.type === "transit") return;
+    if (event.type === "transit" && !event.id.startsWith("flight-")) return;
     if (actionMode === "remove") {
       onOpenModal("remove", event.id);
       return;
@@ -3460,6 +3547,44 @@ function MapView({
       onOpenModal("edit", event.id);
       return;
     }
+
+    const isFlight = event.id.startsWith("flight-");
+
+    if (isFlight) {
+      // Toggle this flight; if it was already expanded, collapse it
+      const newExpanded = expandedEvent === event.id ? null : event.id;
+      setExpandedEvent(newExpanded);
+
+      // Fly camera to show the flight route
+      if (newExpanded && mapRef.current) {
+        const flightId = event.id.replace("flight-", "");
+        const flight = plannerFlights.find(f => f.id === flightId);
+        if (flight?.fromCoords && flight?.toCoords) {
+          const pts = [flight.fromCoords, flight.toCoords];
+          const lngs = pts.map(p => p[0]);
+          const lats = pts.map(p => p[1]);
+          const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+          const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
+          const lngSpan = Math.max(...lngs) - Math.min(...lngs) + 30;
+          const latSpan = Math.max(...lats) - Math.min(...lats) + 20;
+          const zoom = Math.min(
+            Math.log2(360 / lngSpan),
+            Math.log2(180 / latSpan),
+            5,
+          );
+          mapRef.current.flyTo({
+            center: [centerLng, centerLat],
+            zoom: Math.max(1.2, zoom),
+            duration: 1200,
+            essential: true,
+            offset: [200, 0],
+          });
+        }
+      }
+      return;
+    }
+
+    // For non-flight items, just toggle expand (this will collapse any flight too)
     setExpandedEvent(expandedEvent === event.id ? null : event.id);
   }
 }
@@ -3792,14 +3917,31 @@ function StaticPlaceRow(props: {
   onClick: () => void;
   hideTime?: boolean;
 }) {
+  const isFlight = props.event.id.startsWith("flight-");
+
+  // If it's a flight, extract extra info from the store
+  const flightDetails = React.useMemo(() => {
+    if (!isFlight) return null;
+    const flightId = props.event.id.replace("flight-", "");
+    const flights = useTripStore.getState().plannerFlights;
+    return flights.find(f => f.id === flightId) || null;
+  }, [isFlight, props.event.id]);
+
   return (
     <div>
       <div className="flex group cursor-pointer" onClick={props.onClick}>
         <div className="w-[40px] shrink-0 pt-[10px] pr-3 text-right">
           {!props.hideTime && (
-            <span className="text-[12px] font-bold text-gray-600">
-              {props.event.time}
-            </span>
+            <div className="flex flex-col items-end">
+              <span className="text-[12px] font-bold text-gray-600">
+                {props.event.time}
+              </span>
+              {isFlight && props.event.arriveTime && (
+                <span className="text-[10px] text-gray-400 mt-0.5">
+                  {props.event.arriveTime}
+                </span>
+              )}
+            </div>
           )}
         </div>
         <div className="w-5 shrink-0 flex flex-col items-center relative overflow-visible">
@@ -3825,11 +3967,19 @@ function StaticPlaceRow(props: {
               className="px-4 py-3 flex items-center justify-between gap-2"
               style={{ backgroundColor: props.event.color }}
             >
-              <p className="text-[15px] font-bold text-white truncate flex-1">
-                {props.event.title.length > 19
-                  ? props.event.title.substring(0, 19) + "..."
-                  : props.event.title}
-              </p>
+              {isFlight && props.event.endTitle ? (
+                <p className="text-[15px] font-bold text-white truncate flex-1 flex items-center gap-1.5">
+                  <span>{props.event.title}</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-white/80 shrink-0" />
+                  <span>{props.event.endTitle}</span>
+                </p>
+              ) : (
+                <p className="text-[15px] font-bold text-white truncate flex-1">
+                  {props.event.title.length > 19
+                    ? props.event.title.substring(0, 19) + "..."
+                    : props.event.title}
+                </p>
+              )}
               {props.isSelected ? (
                 <ChevronUp className="w-4 h-4 text-white opacity-80 shrink-0" />
               ) : (
@@ -3844,13 +3994,69 @@ function StaticPlaceRow(props: {
                   exit={{ height: 0, opacity: 0 }}
                   className="bg-white"
                 >
-                  {props.event.desc && (
+                  {isFlight && flightDetails ? (
+                    <div className="p-4 space-y-2.5">
+                      <div className="flex items-center gap-2">
+                        {flightDetails.logo ? (
+                          <img src={flightDetails.logo} alt={flightDetails.airline} className="h-4 object-contain max-w-[40px]" />
+                        ) : (
+                          <Plane className="w-4 h-4 text-[#378ADD]" />
+                        )}
+                        <span className="text-[13px] font-bold text-gray-800">{flightDetails.airline}</span>
+                        <span className="text-[11px] text-gray-500">{flightDetails.flightNo}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-center">
+                          <p className="text-[14px] font-bold text-gray-900">{flightDetails.departTime}</p>
+                          <p className="text-[10px] text-gray-400">{flightDetails.from.split(",")[0]}</p>
+                        </div>
+                        <div className="flex-1 flex items-center gap-1 px-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                          <div className="flex-1 border-t border-dashed border-gray-300 relative">
+                            <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 text-[9px] text-gray-400 font-medium whitespace-nowrap bg-white px-1">
+                              {flightDetails.duration || ""}
+                            </div>
+                          </div>
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#378ADD]" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[14px] font-bold text-gray-900">{flightDetails.arriveTime}</p>
+                          <p className="text-[10px] text-gray-400">{flightDetails.to.split(",")[0]}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {flightDetails.price && flightDetails.price !== "0" && (
+                          <span className="text-[10px] font-bold text-[#378ADD] bg-blue-50 px-2 py-0.5 rounded">
+                            ${flightDetails.price}
+                          </span>
+                        )}
+                        {flightDetails.stops !== undefined && (
+                          <span className={cn(
+                            "text-[10px] font-medium px-2 py-0.5 rounded",
+                            flightDetails.stops === 0 ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"
+                          )}>
+                            {flightDetails.stops === 0 ? "Non-stop" : `${flightDetails.stops} stop${flightDetails.stops > 1 ? "s" : ""}`}
+                          </span>
+                        )}
+                        {flightDetails.cabinClass && (
+                          <span className="text-[10px] font-medium bg-gray-100 text-gray-600 px-2 py-0.5 rounded capitalize">
+                            {flightDetails.cabinClass.replace("_", " ")}
+                          </span>
+                        )}
+                        {flightDetails.date && (
+                          <span className="text-[10px] text-gray-500 px-1">
+                            {flightDetails.date}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : props.event.desc ? (
                     <div className="p-4">
                       <p className="text-[13px] text-gray-600 line-clamp-2 leading-relaxed">
                         {props.event.desc}
                       </p>
                     </div>
-                  )}
+                  ) : null}
                 </motion.div>
               )}
             </AnimatePresence>

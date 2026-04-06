@@ -1183,6 +1183,35 @@ function MapView({
     const [activeSidebarDragId, setActiveSidebarDragId] = React.useState<string | null>(null);
     const sidebarDndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
+    /* Hotel markers */
+    const plannerHotels = useTripStore((s) => s.plannerHotels);
+    const hotelMarkers = React.useMemo(() => {
+        const seen = new Set<string>();
+        return plannerHotels.filter(h => {
+            if (!h.lat || !h.lng || seen.has(h.name)) return false;
+            seen.add(h.name);
+            return true;
+        });
+    }, [plannerHotels]);
+    const [hoveredHotel, setHoveredHotel] = React.useState<string | null>(null);
+    const prevHotelCountRef = React.useRef(plannerHotels.length);
+
+    // Fly to newly added hotel
+    React.useEffect(() => {
+        if (plannerHotels.length > prevHotelCountRef.current && mapRef.current) {
+            const newest = plannerHotels[plannerHotels.length - 1];
+            if (newest?.lat && newest?.lng) {
+                mapRef.current.flyTo({
+                    center: [newest.lng, newest.lat],
+                    zoom: 14.5,
+                    pitch: 30,
+                    duration: 1400,
+                });
+            }
+        }
+        prevHotelCountRef.current = plannerHotels.length;
+    }, [plannerHotels]);
+
     const placeEvents: EventItem[] = day.events.filter(
         (e: EventItem) => e.type !== "transit" && e.lat && e.lng
     );
@@ -1369,6 +1398,65 @@ function MapView({
                             </Marker>
                         );
                     })}
+                    {/* Hotel markers */}
+                    {hotelMarkers.map((hotel) => {
+                        const isHovered = hoveredHotel === hotel.id;
+                        return (
+                            <Marker
+                                key={`hotel-${hotel.id}`}
+                                longitude={hotel.lng!}
+                                latitude={hotel.lat!}
+                                anchor="bottom"
+                                style={{ zIndex: isHovered ? 45 : 8 }}
+                            >
+                                <div
+                                    onMouseEnter={() => setHoveredHotel(hotel.id)}
+                                    onMouseLeave={() => setHoveredHotel(null)}
+                                    className="relative flex flex-col items-center cursor-pointer transition-all duration-300 hover:scale-110"
+                                >
+                                    <AnimatePresence>
+                                        {isHovered && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 5 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: 5 }}
+                                                className="absolute bottom-full mb-1 bg-gray-900 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap z-50 pointer-events-none max-w-[200px]"
+                                            >
+                                                <p className="truncate">{hotel.name}</p>
+                                                {hotel.pricePerNight && <p className="text-[9px] text-gray-300 font-normal">${hotel.pricePerNight}/night</p>}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    <div
+                                        className={cn(
+                                            "rounded-xl border-[3px] bg-white shadow-lg relative z-10 overflow-hidden flex items-center justify-center transition-all duration-300",
+                                            isHovered ? "w-14 h-14 border-4 shadow-2xl" : "w-11 h-11"
+                                        )}
+                                        style={{ borderColor: "#8B5CF6" }}
+                                    >
+                                        {hotel.image ? (
+                                            <img
+                                                src={hotel.image}
+                                                alt={hotel.name}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <Bed className="w-5 h-5 text-purple-500" />
+                                        )}
+                                    </div>
+                                    {/* Hotel badge */}
+                                    <div className="absolute -top-1 -right-1 bg-purple-500 text-white rounded-full w-5 h-5 flex items-center justify-center z-20 shadow-md border-2 border-white">
+                                        <Bed className="w-2.5 h-2.5" />
+                                    </div>
+                                    <div
+                                        className="w-0 h-0 border-l-8 border-r-8 border-t-12 border-l-transparent border-r-transparent -mt-1 relative z-0"
+                                        style={{ borderTopColor: "#8B5CF6" }}
+                                    />
+                                </div>
+                            </Marker>
+                        );
+                    })}
+
                     {selectedEventObj && actionMode === "view" && (
                         <Popup
                             longitude={selectedEventObj.lng!}

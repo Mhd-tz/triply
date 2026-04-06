@@ -360,7 +360,7 @@ export default function PlannerHotelForm({ onClose: _onClose }: { onClose: () =>
                                         {dateLabel && <span className={cn("text-[9px] mt-0.5", isInRange ? "text-white/80" : "text-gray-400")}>{dateLabel}</span>}
                                         {hotelCount > 0 && (
                                             <div className={cn("absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full text-[9px] font-bold flex items-center justify-center px-1",
-                                                isInRange ? "bg-amber-400 text-amber-900" : "bg-amber-500 text-white")}>{hotelCount}</div>
+                                                isInRange ? "bg-[#9B93E6] text-white" : "bg-[#7F77DD] text-white")}>{hotelCount}</div>
                                         )}
                                     </button>
                                 );
@@ -565,38 +565,62 @@ export default function PlannerHotelForm({ onClose: _onClose }: { onClose: () =>
                         {/* Hotel cards */}
                         {filteredHotels.map((h) => (
                             <div key={h.id} className="border border-gray-100 rounded-xl hover:shadow-md transition-shadow bg-white overflow-hidden">
-                                {h.images[0] && <img src={h.images[0]} alt={h.name} className="w-full h-28 object-cover" />}
-                                <div className="p-3 space-y-2">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <div className="min-w-0">
-                                            <div className="flex items-center gap-1.5">
-                                                <p className="text-sm font-bold text-gray-900 truncate">{h.name}</p>
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <a href={h.website} target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-700 shrink-0">
-                                                                <ExternalLink className="w-3 h-3" />
-                                                            </a>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent side="top">
-                                                            <p>Link to {h.name}</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
-                                            </div>
-                                            <div className="flex items-center gap-1 mt-0.5">
-                                                <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                                                <span className="text-[11px] text-gray-500 truncate">{h.address}</span>
-                                            </div>
-                                            <span className="inline-block mt-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">{h.type}</span>
+                                {/* Image with overlay badges */}
+                                {h.images[0] && (
+                                    <div className="relative h-32 overflow-hidden">
+                                        <img src={h.images[0]} alt={h.name} className="w-full h-full object-cover" />
+                                        <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                                            <span className="bg-black/50 backdrop-blur-sm text-white text-[9px] font-bold uppercase px-2 py-0.5 rounded-full">{h.type}</span>
                                         </div>
-                                        <div className="text-right shrink-0">
-                                            <span className="text-sm font-bold text-primary">${h.pricePerNight} <span className="text-[10px] text-gray-400 font-normal">/night</span></span>
+                                        <div className="absolute top-2 right-2">
+                                            <div className="bg-white/90 backdrop-blur-sm rounded-lg px-2 py-1 flex items-center gap-1 shadow-sm">
+                                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                                <span className="text-[11px] font-bold text-gray-800">{h.rating}</span>
+                                                <span className="text-[9px] text-gray-500">({h.reviewCount.toLocaleString()})</span>
+                                            </div>
                                         </div>
                                     </div>
+                                )}
+                                <div className="p-3 space-y-2.5">
+                                    {/* Name + address */}
+                                    <div>
+                                        <div className="flex items-center gap-1.5">
+                                            <p className="text-sm font-bold text-gray-900 truncate">{h.name}</p>
+                                            <TooltipProvider>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <a href={h.website} target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-700 shrink-0">
+                                                            <ExternalLink className="w-3 h-3" />
+                                                        </a>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent side="top">
+                                                        <p>Visit {h.name} website</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        </div>
+                                        <div className="flex items-center gap-1 mt-0.5">
+                                            <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                                            <span className="text-[11px] text-gray-500 truncate">{h.address}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Amenities inline */}
+                                    <div className="flex flex-wrap gap-1">
+                                        {h.amenities.slice(0, 4).map(a => (
+                                            <div key={a} className="flex items-center gap-1 px-1.5 py-0.5 bg-gray-50 rounded border border-gray-100">
+                                                <span className="text-gray-400">{AMENITY_ICONS[a] || null}</span>
+                                                <span className="text-[9px] font-medium text-gray-600">{a}</span>
+                                            </div>
+                                        ))}
+                                        {h.amenities.length > 4 && (
+                                            <span className="text-[9px] font-medium text-gray-400 px-1.5 py-0.5">+{h.amenities.length - 4} more</span>
+                                        )}
+                                    </div>
+
                                     {/* Room + bed info */}
-                                    <div className="space-y-2">
-                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Select Room</p>
+                                    <div className="space-y-1.5">
+                                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Room</p>
                                         <div className="flex flex-wrap gap-1.5 overflow-x-auto scrollbar-none pb-0.5">
                                             {h.rooms.map((room, i) => {
                                                 const isSelected = (localSelectedRoom[h.id] ?? 0) === i;
@@ -614,14 +638,15 @@ export default function PlannerHotelForm({ onClose: _onClose }: { onClose: () =>
                                             <span className="truncate">{(h.rooms[localSelectedRoom[h.id] ?? 0] || h.rooms[0]).name} · {getBedLabel(h.rooms[localSelectedRoom[h.id] ?? 0] || h.rooms[0], travelers)}</span>
                                         </div>
                                     </div>
-                                    {/* Rating + actions */}
-                                    <div className="flex items-center justify-between pt-1">
-                                        <div className="flex items-center gap-1">
-                                            {[...Array(5)].map((_, i) => (
-                                                <Star key={i} className={cn("w-3 h-3",
-                                                    i < Math.floor(h.rating) ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-200")} />
-                                            ))}
-                                            <span className="text-[11px] font-bold text-gray-700 ml-0.5">{h.rating}</span>
+
+                                    {/* Total cost estimate + actions */}
+                                    <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                                        <div className="text-[10px] text-gray-500">
+                                            {rangeStart && rangeEnd && (
+                                                <span>
+                                                    <span className="font-bold text-gray-700">${h.pricePerNight * ((rangeEnd - rangeStart) + 1)}</span> total for {(rangeEnd - rangeStart) + 1} night{(rangeEnd - rangeStart) + 1 > 1 ? "s" : ""}
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-1.5">
                                             <Button size="sm" variant="ghost" onClick={() => { setDetailHotel(h); setDetailImgIdx(0); }}

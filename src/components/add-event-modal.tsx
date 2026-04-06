@@ -701,7 +701,7 @@ export default function AddEventModal({
   const destinations = useTripStore((s) => s.plannerDestinations);
 
   const [step, setStep] = React.useState<"choose" | "ai_loading" | "manual">(
-    config.mode === "edit" || prefill ? "manual" : "choose",
+    "manual",
   );
 
   // Form state
@@ -763,7 +763,7 @@ export default function AddEventModal({
       setLng(undefined);
       setImages([]);
       setSearchQuery("");
-      setStep("choose");
+      setStep("manual");
       setTargetDay(activeDayIndex);
       setTransportTo("walk");
       setPlaceImage(null);
@@ -900,31 +900,158 @@ export default function AddEventModal({
     setStep("manual");
   };
 
-  const handleAI = () => {
+  const handleAI = async () => {
     if (aiSavedRef.current) return;
     setStep("ai_loading");
-    setTimeout(() => {
+
+    try {
+      // Fetch popular places for the destination
+      const destNames = activeDests.map((d) => d.name).join(",");
+
+      // Build set of already-added place names to avoid duplicates
+      const addedNames = new Set<string>();
+      tripData.forEach((day) => {
+        day.events.forEach((e: { title?: string; placeId?: string }) => {
+          if (e.title) addedNames.add(e.title.toLowerCase());
+          if (e.placeId) addedNames.add(e.placeId);
+        });
+      });
+
+      // Determine which categories are underrepresented on the target day
+      const dayEvents = tripData[targetDay]?.events || [];
+      const categoryCounts: Record<string, number> = { meal: 0, activity: 0, location: 0 };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      dayEvents.forEach((e: any) => {
+        if (e.type in categoryCounts) categoryCounts[e.type]++;
+      });
+
+      // Rotate categories: prefer underrepresented ones
+      const categoryPriority = Object.entries(categoryCounts)
+        .sort((a, b) => a[1] - b[1])
+        .map(([k]) => k);
+
+      // Try fetching popular places for each category until we find one
+      let selectedPlace: PopularPlace | null = null;
+      let selectedCategory = categoryPriority[0] || "activity";
+
+      for (const cat of categoryPriority) {
+        try {
+          const url = `/api/places/popular?destinations=${encodeURIComponent(destNames)}&category=${cat}`;
+          const res = await fetch(url);
+          if (!res.ok) continue;
+          const data = await res.json();
+          const results = (data.results || []) as PopularPlace[];
+          const available = results.filter(
+            (p) =>
+              !addedNames.has(p.name.toLowerCase()) &&
+              !addedNames.has(p.placeId),
+          );
+          if (available.length > 0) {
+            // Pick a random one from top results for variety
+            selectedPlace = available[Math.floor(Math.random() * Math.min(available.length, 5))];
+            selectedCategory = cat;
+            break;
+          }
+        } catch {
+          /* try next category */
+        }
+      }
+
+      // Find a non-overlapping time slot on the target day
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const occupiedSlots = dayEvents
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .filter((e: any) => e.type !== "transit" && !e.fromId)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .map((e: any) => ({
+          start: timeToMins(e.time),
+          end: e.endTime ? timeToMins(e.endTime) : timeToMins(e.time) + 60,
+        }))
+        .sort((a: { start: number }, b: { start: number }) => a.start - b.start);
+
+      // Duration based on category
+      const durationMins = selectedCategory === "meal" ? 60 : 90;
+
+      // Try time slots from 8am to 10pm in 30-min increments
+      let bestStart = -1;
+      for (let t = 480; t <= 1320 - durationMins; t += 30) {
+        const candidateEnd = t + durationMins;
+        const overlaps = occupiedSlots.some(
+          (slot: { start: number; end: number }) => t < slot.end && candidateEnd > slot.start,
+        );
+        if (!overlaps) {
+          bestStart = t;
+          break;
+        }
+      }
+
+      // If no slot found, try to find earliest gap
+      if (bestStart === -1) bestStart = 600; // fallback to 10am
+
+      const startH = Math.floor(bestStart / 60);
+      const startM = bestStart % 60;
+      const endMins = bestStart + durationMins;
+      const endH = Math.floor(endMins / 60);
+      const endM = endMins % 60;
+      const fmtTime = (h: number, m: number) =>
+        `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+
       if (aiSavedRef.current) return;
       aiSavedRef.current = true;
-      onSave(
-        {
-          id: generateId("ai"),
-          title: "Roppongi Hills Deck",
-          time: "18:00",
-          endTime: "20:00",
-          type: "location",
-          color: CATEGORY_COLORS.location,
-          lat: 35.6605,
-          lng: 139.7291,
-          desc: "Recommended: Best place to see Tokyo Tower illuminated at night.",
-          address: "6 Chome-10-1 Roppongi, Minato City",
-          images: [
-            "https://images.unsplash.com/photo-1536640751915-770ceaf3e717?w=400&auto=format&fit=crop",
-          ],
-        },
-        targetDay,
-      );
-    }, 2000);
+
+      if (selectedPlace) {
+        const displayName = selectedPlace.translatedName || selectedPlace.name;
+        const catColor =
+          CATEGORY_COLORS[selectedCategory as keyof typeof CATEGORY_COLORS] ||
+          "#94a3b8";
+
+        const kidFriendlyTypes = ["park", "garden", "zoo", "aquarium", "museum", "playground", "theme park"];
+        const isKidFriendly = kidFriendlyTypes.some((t) =>
+          (selectedPlace!.type || "").toLowerCase().includes(t) ||
+          (selectedPlace!.name || "").toLowerCase().includes(t),
+        );
+
+        onSave(
+          {
+            id: generateId("ai"),
+            title: displayName,
+            time: fmtTime(startH, startM),
+            endTime: fmtTime(endH, endM),
+            type: selectedCategory,
+            color: catColor,
+            lat: selectedPlace.lat,
+            lng: selectedPlace.lng,
+            desc: `${selectedPlace.description || `AI Recommended: ${displayName}`}${isKidFriendly ? " · Great for kids!" : ""}`,
+            address: selectedPlace.address || "",
+            images: selectedPlace.imageUrl
+              ? [selectedPlace.imageUrl]
+              : [getFallbackImage(selectedPlace.placeId || displayName)],
+          },
+          targetDay,
+        );
+      } else {
+        // Fallback: no popular places found
+        const catColor =
+          CATEGORY_COLORS[selectedCategory as keyof typeof CATEGORY_COLORS] ||
+          "#94a3b8";
+        onSave(
+          {
+            id: generateId("ai"),
+            title: "Explore the area",
+            time: fmtTime(startH, startM),
+            endTime: fmtTime(endH, endM),
+            type: selectedCategory,
+            color: catColor,
+            desc: "AI suggested: Explore popular spots nearby.",
+          },
+          targetDay,
+        );
+      }
+    } catch {
+      // On error, reset state so user can try again
+      aiSavedRef.current = false;
+      setStep("manual");
+    }
   };
 
   const handleSave = () => {
@@ -1011,46 +1138,8 @@ export default function AddEventModal({
         <div className="flex-1 overflow-y-auto scrollbar-none">
           {step === "choose" && (
             <div className="flex flex-col min-h-full relative">
-              {/* Scrollable Content */}
+              {/* Redirects to manual automatically */}
               <div className="flex-1 px-5 py-4 space-y-4 pb-0">
-                <button
-                  onClick={handleAI}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-purple-200 p-2.5 rounded-xl text-purple-700">
-                      <Wand2 className="h-5 w-5" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-bold text-sm text-gray-900 group-hover:text-purple-800">
-                        Quick Add
-                      </p>
-                      <p className="text-[11px] text-gray-500 mt-0.5">
-                        Find the perfect next spot.
-                      </p>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-purple-400 group-hover:text-purple-600" />
-                </button>
-                <button
-                  onClick={() => setStep("manual")}
-                  className="w-full flex items-center justify-between p-4 rounded-2xl border border-gray-200 hover:border-blue-400 hover:bg-gray-50 transition-colors group"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-gray-100 group-hover:bg-blue-100 p-2.5 rounded-xl text-gray-600 group-hover:text-blue-600 transition-colors">
-                      <MapPin className="h-5 w-5" />
-                    </div>
-                    <div className="text-left">
-                      <p className="font-bold text-sm text-gray-900 group-hover:text-blue-600">
-                        Manual Entry
-                      </p>
-                      <p className="text-[11px] text-gray-500 mt-0.5">
-                        Search or pin a specific place.
-                      </p>
-                    </div>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-gray-300 group-hover:text-blue-400" />
-                </button>
                 <PopularPlacesSection
                   destinations={destinations}
                   onSelect={handlePlaceSelect}
@@ -1319,29 +1408,29 @@ export default function AddEventModal({
                   />
                 </div>
 
+                {/* AI Suggestion */}
+                {config.mode === "add" && !prefill && !title && (
+                  <button
+                    onClick={handleAI}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors group"
+                  >
+                    <div className="bg-purple-200 p-2 rounded-lg text-purple-700 shrink-0">
+                      <Wand2 className="h-4 w-4" />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className="font-bold text-[12px] text-gray-900 group-hover:text-purple-800">
+                        Suggest a place
+                      </p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">
+                        AI-powered · Kid-friendly options included
+                      </p>
+                    </div>
+                    <Sparkles className="h-4 w-4 text-purple-400 group-hover:text-purple-600 shrink-0" />
+                  </button>
+                )}
+
                 {/* Actions */}
                 <div className="flex gap-3 pt-2 border-t border-gray-100">
-                  {config.mode === "add" && !prefill && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setStep("choose");
-                        setType("activity");
-                        setTitle("");
-                        setAddress("");
-                        setSearchQuery("");
-                        setDesc("");
-                        setLat(undefined);
-                        setLng(undefined);
-                        setImages([]);
-                        setPlaceImage(null);
-                        setHasUserSelectedPlace(false);
-                      }}
-                      className="flex-1 h-11 rounded-xl border-gray-200 text-gray-600"
-                    >
-                      Back
-                    </Button>
-                  )}
                   <Button
                     onClick={handleSave}
                     disabled={!title || !!conflictEvent}

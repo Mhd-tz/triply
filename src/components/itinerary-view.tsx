@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "motion/react";
 import {
     Clock, Star, Edit2, Trash2, ChevronDown,
     Bus, Car, PersonStanding, Plus,
-    Navigation, Search, X, GripVertical, Loader2,
+    Navigation, Search, X, GripVertical, Loader2, ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTripStore } from "@/lib/trip-store";
@@ -41,6 +41,8 @@ export interface EventItem {
     url?: string;
     reviews?: { author: string; text: string; rating: number }[];
     transitMode?: TransportMode;
+    endTitle?: string;
+    arriveTime?: string;
 }
 
 export interface DayPlan {
@@ -294,7 +296,14 @@ function PlaceRow({
             className="flex group"
         >
             <div className="w-[52px] shrink-0 pt-[13px] pr-2 text-right">
-                {!hideTime && <span className="text-[11px] font-bold text-gray-500">{event.time}</span>}
+                {!hideTime && (
+                    <div className="flex flex-col items-end">
+                        <span className="text-[11px] font-bold text-gray-500">{event.time}</span>
+                        {event.id.startsWith("flight-") && event.arriveTime && (
+                            <span className="text-[9px] text-gray-400 mt-0.5">{event.arriveTime}</span>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="w-7 shrink-0 flex flex-col items-center relative">
@@ -332,11 +341,19 @@ function PlaceRow({
                             ) : (
                                 <span className="w-4 h-4" />
                             )}
-                            <span className="text-[14px] font-bold text-white truncate">
-                                {
-                                    event.title.length > 18 ? event.title.substring(0, 18) + "..." : event.title
-                                }
-                            </span>
+                            {event.id.startsWith("flight-") && event.endTitle ? (
+                                <span className="text-[14px] font-bold text-white truncate flex items-center gap-1">
+                                    {event.title}
+                                    <ArrowRight className="w-3 h-3 text-white/80 shrink-0" />
+                                    {event.endTitle}
+                                </span>
+                            ) : (
+                                <span className="text-[14px] font-bold text-white truncate">
+                                    {
+                                        event.title.length > 18 ? event.title.substring(0, 18) + "..." : event.title
+                                    }
+                                </span>
+                            )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
                             {!hideTypeBadge && (
