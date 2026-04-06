@@ -53,6 +53,8 @@ interface TripStore {
   plannerNotes: string;
   plannerFlights: PlannerFlight[];
   plannerHotels: PlannerHotel[];
+  editingHotelId: string | null;
+  setEditingHotelId: (id: string | null) => void;
   plannerActiveDay: number;
 
   setLinkedTransport: (v: string | null) => void;
@@ -84,7 +86,9 @@ export const useTripStore = create<TripStore>((set) => ({
   plannerNotes: "",
   plannerFlights: [],
   plannerHotels: [],
-  plannerActiveDay: 0,
+  editingHotelId: null,
+  setEditingHotelId: (id) => set({ editingHotelId: id }),
+  plannerActiveDay: 1,
 
   setLinkedTransport: (v) => set({ linkedTransport: v }),
   setLinkedStay: (v) => set({ linkedStay: v }),

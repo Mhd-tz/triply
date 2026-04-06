@@ -145,11 +145,14 @@ function getBedLabel(room: HotelTemplate["rooms"][0], travelers: number) {
 
 
 // Main Component
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function PlannerHotelForm({ onClose: _onClose }: { onClose: () => void }) {
+    const handleClose = () => {
+        useTripStore.getState().setEditingHotelId(null);
+        _onClose();
+    };
     const {
         plannerDestinations, plannerHotels, addPlannerHotel, removePlannerHotel,
-        setPlannerActiveDay, setLinkedStay,
+        setPlannerActiveDay, setLinkedStay, editingHotelId
     } = useTripStore();
     const searchParams = useSearchParams();
     const travelers = parseInt(searchParams.get("travelers") || "2") || 2;
@@ -198,6 +201,26 @@ export default function PlannerHotelForm({ onClose: _onClose }: { onClose: () =>
     const [bookedRoomType, setBookedRoomType] = React.useState("");
     const [localSelectedRoom, setLocalSelectedRoom] = React.useState<Record<string, number>>({});
     const idCounter = React.useRef(0);
+
+    // Edit mode sync
+    React.useEffect(() => {
+        if (!editingHotelId) return;
+        const h = plannerHotels.find((x) => x.id === editingHotelId);
+        if (h) {
+            setMode(h.alreadyBooked ? "booked" : "idle"); // If it wasn't booked, we just reset or handle accordingly
+            setBookingRef(h.bookingRef || "");
+            setBookedHotelName(h.name || "");
+            setGuestName(h.guestName || "");
+            setBookedRoomType(h.roomType || "");
+            const stayDays = plannerHotels.filter(oh => oh.name === h.name).map(oh => oh.dayNum);
+            if (stayDays.length > 0) {
+                const min = Math.min(...stayDays.filter(d => d !== undefined));
+                const max = Math.max(...stayDays.filter(d => d !== undefined));
+                setRangeStart(min);
+                setRangeEnd(max);
+            }
+        }
+    }, [editingHotelId, plannerHotels]);
 
     /* filters/sort */
     const [showFilters, setShowFilters] = React.useState(false);
@@ -435,7 +458,7 @@ export default function PlannerHotelForm({ onClose: _onClose }: { onClose: () =>
                                 Add to Itinerary
                             </Button>
                         </div>
-                        <button onClick={() => setMode("idle")} className="text-xs font-semibold text-gray-500 hover:text-gray-900 w-full text-center">Cancel</button>
+                        <button onClick={handleClose} className="text-xs font-semibold text-gray-500 hover:text-gray-900 w-full text-center">Cancel</button>
                     </motion.div>
                 )}
 
@@ -649,6 +672,7 @@ export default function PlannerHotelForm({ onClose: _onClose }: { onClose: () =>
                                             )}
                                         </div>
                                         <div className="flex items-center gap-1.5">
+                                            <Button variant="ghost" className="h-9" onClick={handleClose}>Cancel</Button>
                                             <Button size="sm" variant="ghost" onClick={() => { setDetailHotel(h); setDetailImgIdx(0); }}
                                                 className="h-7 text-[11px] font-semibold px-2 text-gray-400 hover:text-gray-900">Details</Button>
                                             <Button size="sm" onClick={() => handleSelectHotel(h)} className="h-7 text-[11px] font-bold px-3">
@@ -776,6 +800,15 @@ export default function PlannerHotelForm({ onClose: _onClose }: { onClose: () =>
                                     {hotel.alreadyBooked ? `Ref: ${hotel.bookingRef || "-"}` : `$${hotel.pricePerNight}/night`}
                                     {hotel.date ? ` · ${hotel.date}` : ""}
                                 </p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                    onClick={() => handleRemoveHotel(hotel.id)}
+                                    className="p-1.5 hover:bg-red-100 rounded-lg text-gray-400 hover:text-red-500 transition-colors"
+                                    title="Remove hotel"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                             </div>
                         </div>
                     ))}

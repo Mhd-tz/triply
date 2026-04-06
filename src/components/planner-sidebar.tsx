@@ -19,12 +19,19 @@ export type Tab = "flights" | "hotels" | "trip" | null;
 const TAB_ORDER: Tab[] = ["trip", "flights", "hotels"];
 const TAB_LABELS: Record<string, string> = { trip: "Trip", flights: "Flights", hotels: "Hotels" };
 
-export default function PlannerSidebar({ onTabChange }: { onTabChange?: (tab: Tab) => void } = {}) {
-    const [expandedTab, setExpandedTabRaw] = React.useState<Tab>("trip");
+export default function PlannerSidebar({ onTabChange, activeTab }: { onTabChange?: (tab: Tab) => void, activeTab?: Tab } = {}) {
+    const [expandedTabRaw, setExpandedTabRaw] = React.useState<Tab>("trip");
     const setExpandedTab = React.useCallback((tab: Tab) => {
         setExpandedTabRaw(tab);
         onTabChange?.(tab);
     }, [onTabChange]);
+    
+    React.useEffect(() => {
+        if (activeTab !== undefined && activeTab !== expandedTabRaw) {
+            setExpandedTabRaw(activeTab);
+        }
+    }, [activeTab]);
+    const expandedTab = expandedTabRaw;
     const [direction, setDirection] = React.useState(0);
     const [showOnboarding, setShowOnboarding] = React.useState(false);
     // Show blur overlay only on initial page load when sidebar auto-opens

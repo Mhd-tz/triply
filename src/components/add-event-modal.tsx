@@ -7,7 +7,6 @@ import {
   Search,
   MapPin,
   Clock,
-  ArrowRight,
   ExternalLink,
   Wand2,
   Sparkles,
@@ -147,8 +146,18 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function timeToMins(t: string) {
-  const [h, m] = t.split(":").map(Number);
+function timeToMins(t: string | undefined): number {
+  if (!t) return 0;
+  const match = t.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (!match) return 0;
+
+  let h = parseInt(match[1] || "0", 10);
+  const m = parseInt(match[2] || "0", 10);
+  const modifier = match[3]?.toUpperCase();
+
+  if (modifier === "PM" && h < 12) h += 12;
+  else if (modifier === "AM" && h === 12) h = 0;
+
   return h * 60 + m;
 }
 
@@ -183,11 +192,13 @@ function MiniTimePicker({
   onChange,
   label,
   accentColor,
+  minTimeMins,
 }: {
   value: string;
   onChange: (v: string) => void;
   label: string;
   accentColor: string;
+  minTimeMins?: number;
 }) {
   const [open, setOpen] = React.useState(false);
   const [h, m] = value.split(":").map(Number);
@@ -208,6 +219,23 @@ function MiniTimePicker({
     if (toPM === isPM) return;
     const newH = toPM ? h + 12 : h - 12;
     onChange(`${String(newH).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+  };
+
+  // Constraint helpers
+  const isAMDisabled = minTimeMins ? minTimeMins > 11 * 60 + 59 : false;
+  const isPMDisabled = false; // PM is practically never entirely disabled
+
+  const isHourDisabled = (hr12: number) => {
+    if (!minTimeMins) return false;
+    const h24 = isPM ? (hr12 === 12 ? 12 : hr12 + 12) : hr12 === 12 ? 0 : hr12;
+    // Hour is disabled only if it's completely before minTimeMins
+    return (h24 * 60 + 59) < minTimeMins;
+  };
+
+  const isMinDisabled = (min: number) => {
+    if (!minTimeMins) return false;
+    const h24 = isPM ? (hour12 === 12 ? 12 : hour12 + 12) : hour12 === 12 ? 0 : hour12;
+    return (h24 * 60 + min) < minTimeMins;
   };
 
   const display = `${hour12}:${String(m).padStart(2, "0")} ${isPM ? "PM" : "AM"}`;
@@ -262,22 +290,26 @@ function MiniTimePicker({
               <div className="flex p-0.5 bg-gray-100 rounded-lg mb-2.5">
                 <button
                   onClick={() => toggleAMPM(false)}
+                  disabled={isAMDisabled}
                   className={cn(
                     "flex-1 py-1.5 text-[11px] font-bold rounded-md transition-all",
                     !isPM
                       ? "bg-white text-gray-900 shadow-sm"
                       : "text-gray-400 hover:text-gray-600",
+                    isAMDisabled && "opacity-30 cursor-not-allowed"
                   )}
                 >
                   AM
                 </button>
                 <button
                   onClick={() => toggleAMPM(true)}
+                  disabled={isPMDisabled}
                   className={cn(
                     "flex-1 py-1.5 text-[11px] font-bold rounded-md transition-all",
                     isPM
                       ? "bg-white text-gray-900 shadow-sm"
                       : "text-gray-400 hover:text-gray-600",
+                    isPMDisabled && "opacity-30 cursor-not-allowed"
                   )}
                 >
                   PM
@@ -291,27 +323,32 @@ function MiniTimePicker({
                     Hour
                   </p>
                   <div className="grid grid-cols-4 gap-1">
-                    {hours.map((hr) => (
-                      <button
-                        key={hr}
-                        onClick={() => {
-                          setHour(hr);
-                        }}
-                        className={cn(
-                          "h-7 rounded-full text-[12px] font-bold transition-all",
-                          hr === hour12
-                            ? "text-white shadow-md"
-                            : "text-gray-600 hover:bg-gray-50",
-                        )}
-                        style={
-                          hr === hour12
-                            ? { backgroundColor: accentColor }
-                            : undefined
-                        }
-                      >
-                        {hr}
-                      </button>
-                    ))}
+                    {hours.map((hr) => {
+                      const disabled = isHourDisabled(hr);
+                      return (
+                        <button
+                          key={hr}
+                          disabled={disabled}
+                          onClick={() => {
+                            setHour(hr);
+                          }}
+                          className={cn(
+                            "h-7 rounded-full text-[12px] font-bold transition-all",
+                            hr === hour12
+                              ? "text-white shadow-md"
+                              : "text-gray-600 hover:bg-gray-50",
+                            disabled && "opacity-30 cursor-not-allowed hover:bg-transparent text-gray-400"
+                          )}
+                          style={
+                            hr === hour12
+                              ? { backgroundColor: accentColor }
+                              : undefined
+                          }
+                        >
+                          {hr}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -322,27 +359,32 @@ function MiniTimePicker({
                     Min
                   </p>
                   <div className="grid grid-cols-4 gap-1">
-                    {minutes.map((min) => (
-                      <button
-                        key={min}
-                        onClick={() => {
-                          setMinute(min);
-                        }}
-                        className={cn(
-                          "h-7 rounded-full text-[12px] font-bold transition-all",
-                          min === m
-                            ? "text-white shadow-md"
-                            : "text-gray-500 hover:bg-gray-50",
-                        )}
-                        style={
-                          min === m
-                            ? { backgroundColor: accentColor }
-                            : undefined
-                        }
-                      >
-                        {String(min).padStart(2, "0")}
-                      </button>
-                    ))}
+                    {minutes.map((min) => {
+                      const disabled = isMinDisabled(min);
+                      return (
+                        <button
+                          key={min}
+                          disabled={disabled}
+                          onClick={() => {
+                            setMinute(min);
+                          }}
+                          className={cn(
+                            "h-7 rounded-full text-[12px] font-bold transition-all",
+                            min === m
+                              ? "text-white shadow-md"
+                              : "text-gray-500 hover:bg-gray-50",
+                            disabled && "opacity-30 cursor-not-allowed hover:bg-transparent text-gray-400"
+                          )}
+                          style={
+                            min === m
+                              ? { backgroundColor: accentColor }
+                              : undefined
+                          }
+                        >
+                          {String(min).padStart(2, "0")}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -697,6 +739,7 @@ export default function AddEventModal({
   onSave,
   activeDayIndex,
 }: AddEventModalProps) {
+  const plannerFlights = useTripStore((s) => s.plannerFlights);
   const prefill = config.prefillFromSearch;
   const destinations = useTripStore((s) => s.plannerDestinations);
 
@@ -733,6 +776,27 @@ export default function AddEventModal({
   const [reviews] = React.useState(event?.reviews || prefill?.reviews || []);
   const [url] = React.useState(event?.url || prefill?.url || "");
   const [targetDay, setTargetDay] = React.useState<number>(activeDayIndex);
+
+  // Compute flight constraint for the selected day
+  const flightsOnDay = plannerFlights.filter((f) => f.dayNum === targetDay + 1 && f.arriveTime);
+  const minStartMins = flightsOnDay.reduce((m, f) => {
+    const arrivalMins = f.arriveTime ? timeToMins(f.arriveTime) : 0;
+    return arrivalMins > m ? arrivalMins : m;
+  }, 0);
+  const timeStartError = minStartMins > 0 && timeToMins(time) < minStartMins
+    ? `Please start after flight arrival (${flightsOnDay.map(f => f.arriveTime).join(", ")})`
+    : null;
+
+  React.useEffect(() => {
+    if (minStartMins > 0 && timeToMins(time) < minStartMins) {
+      const startH = Math.floor(minStartMins / 60);
+      const startM = minStartMins % 60;
+      setTime(`${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}`);
+      const endMins = minStartMins + 60;
+      setEndTime(`${String(Math.floor(endMins / 60)).padStart(2, "0")}:${String(endMins % 60).padStart(2, "0")}`);
+    }
+  }, [minStartMins, time]);
+
   const [searchQuery, setSearchQuery] = React.useState("");
   const [transportTo, setTransportTo] = React.useState<
     "walk" | "transit" | "drive"
@@ -958,7 +1022,6 @@ export default function AddEventModal({
       }
 
       // Find a non-overlapping time slot on the target day
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const occupiedSlots = dayEvents
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .filter((e: any) => e.type !== "transit" && !e.fromId)
@@ -972,9 +1035,12 @@ export default function AddEventModal({
       // Duration based on category
       const durationMins = selectedCategory === "meal" ? 60 : 90;
 
-      // Try time slots from 8am to 10pm in 30-min increments
+      // Try time slots in 30-min increments
       let bestStart = -1;
-      for (let t = 480; t <= 1320 - durationMins; t += 30) {
+      // Start checking from minStartMins if applicable, else 480 (8am)
+      const searchStart = Math.max(480, minStartMins > 0 ? minStartMins + 30 : 480);
+
+      for (let t = searchStart; t <= 1320 - durationMins; t += 30) {
         const candidateEnd = t + durationMins;
         const overlaps = occupiedSlots.some(
           (slot: { start: number; end: number }) => t < slot.end && candidateEnd > slot.start,
@@ -985,8 +1051,8 @@ export default function AddEventModal({
         }
       }
 
-      // If no slot found, try to find earliest gap
-      if (bestStart === -1) bestStart = 600; // fallback to 10am
+      // If no slot found, try to find earliest gap (respecting flight arrival)
+      if (bestStart === -1) bestStart = Math.max(600, minStartMins > 0 ? minStartMins + 30 : 0);
 
       const startH = Math.floor(bestStart / 60);
       const startM = bestStart % 60;
@@ -1245,7 +1311,11 @@ export default function AddEventModal({
                       onChange={setTime}
                       label="Start Time"
                       accentColor={accentColor}
+                      minTimeMins={minStartMins > 0 ? minStartMins : undefined}
                     />
+                    {timeStartError && (
+                      <p className="text-[10px] text-red-500 font-medium mt-1.5 ml-1">{timeStartError}</p>
+                    )}
                   </div>
                   <div className="flex-1">
                     <MiniTimePicker
@@ -1433,13 +1503,13 @@ export default function AddEventModal({
                 <div className="flex gap-3 pt-2 border-t border-gray-100">
                   <Button
                     onClick={handleSave}
-                    disabled={!title || !!conflictEvent}
+                    disabled={!title || !!conflictEvent || !!timeStartError}
                     className={cn(
                       "flex-1 h-11 rounded-xl text-white font-bold shadow-md transition-colors",
-                      conflictEvent && "opacity-50 cursor-not-allowed",
+                      (conflictEvent || timeStartError) && "opacity-50 cursor-not-allowed",
                     )}
                     style={{
-                      backgroundColor: conflictEvent ? "#9ca3af" : accentColor,
+                      backgroundColor: (conflictEvent || timeStartError) ? "#9ca3af" : accentColor,
                     }}
                   >
                     <MapPin className="w-4 h-4 mr-1.5" />

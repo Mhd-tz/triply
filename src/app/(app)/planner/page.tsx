@@ -359,17 +359,17 @@ function rebuildTransits(
   events: EventItem[],
   fallbackMode: TransportMode,
 ): EventItem[] {
-  // Keep logistics pinned at top in fixed order: flights first, then hotels.
+  // Keep flights pinned at top in fixed order. Include hotels in transit sequence.
   const flightEvents = events.filter((e) => e.id.startsWith("flight-"));
   const hotelEvents = events.filter((e) => e.id.startsWith("hotel-"));
-  const flightHotelEvents = [...flightEvents, ...hotelEvents];
   const regularEvents = events.filter(
     (e) => !e.id.startsWith("flight-") && !e.id.startsWith("hotel-"),
   );
-  const places = regularEvents.filter(
-    (e) => !(e.type === "transit" && e.fromId),
-  );
-  if (places.length < 2) return [...flightHotelEvents, ...places];
+  const places = [
+    ...hotelEvents,
+    ...regularEvents.filter((e) => !(e.type === "transit" && e.fromId)),
+  ];
+  if (places.length < 2) return [...flightEvents, ...places];
 
   // Collect existing transit segments to preserve user-set modes
   const existingTransits: Record<string, TransportMode> = {};
@@ -410,7 +410,7 @@ function rebuildTransits(
       });
     }
   }
-  return [...flightHotelEvents, ...result];
+  return [...flightEvents, ...result];
 }
 
 // route fetching via OSRM
@@ -1066,19 +1066,46 @@ export default function TripMapPage() {
         // Add hotel events for this day
         const hotelEvents: EventItem[] = plannerHotelsAll
           .filter((h) => h.dayNum === dayNum)
-          .map((h) => ({
-            id: `hotel-${h.id}`,
-            time: h.checkIn || "3:00 PM",
-            title: `𖠿 ${h.name}`,
-            type: "activity" as const,
-            color: "#7F77DD",
-            lat: h.lat,
-            lng: h.lng,
-            address: h.address,
-            desc: h.alreadyBooked
-              ? `Booking Ref: ${h.bookingRef || "-"}${h.roomType ? ` · ${h.roomType}` : ""}${h.guestName ? ` · Guest: ${h.guestName}` : ""}`
-              : `$${h.pricePerNight}/night${h.rating ? ` · ★ ${h.rating}` : ""}`,
-          }));
+          .map((h) => {
+            // Find all instances of this hotel to determine first/last day
+            const stayDays = plannerHotelsAll
+              .filter((other) => other.name === h.name && (h.bookingRef ? other.bookingRef === h.bookingRef : true))
+              .map((other) => other.dayNum)
+              .filter((dn): dn is number => dn !== undefined)
+              .sort((a, b) => a - b);
+            
+            const isFirstDay = stayDays.length > 0 && stayDays[0] === dayNum;
+            const isLastDay = stayDays.length > 0 && stayDays[stayDays.length - 1] === dayNum;
+            
+            // Left sidebar time label natively just 3:00 PM
+            let timeLabel = "Stay";
+            if (isFirstDay) timeLabel = h.checkIn || "Check-in";
+            else if (isLastDay) timeLabel = h.checkOut || "Check-out";
+
+            const detailStr = h.alreadyBooked
+              ? `Booking Ref: ${h.bookingRef || "-"}`
+              : `$${h.pricePerNight || "?"}/night${h.rating ? ` · ★ ${h.rating}` : ""}`;
+              
+            return {
+              id: `hotel-${h.id}`,
+              time: timeLabel,
+              title: `𖠿 ${h.name}`,
+              type: "activity" as const,
+              color: "#7F77DD",
+              lat: h.lat,
+              lng: h.lng,
+              address: h.address,
+              images: h.image ? [h.image] : undefined,
+              desc: detailStr,
+              roomType: h.roomType,
+              bookingRef: h.bookingRef,
+              checkIn: isFirstDay ? (h.checkIn || "3:00 PM") : undefined,
+              checkOut: isLastDay ? (h.checkOut || "11:00 AM") : undefined,
+              stayStr: (!isFirstDay && !isLastDay) ? "Stay" : undefined,
+              pricePerNight: String(h.pricePerNight || ""),
+              guestName: h.guestName,
+            };
+          });
         return {
           ...dayPlan,
           events: [...flightEvents, ...hotelEvents, ...cleanEvents],
@@ -1112,12 +1139,14 @@ export default function TripMapPage() {
     (newPlaceEvents: EventItem[]) => {
       setTripData((prev) => {
         const newData = prev.map((d) => ({ ...d, events: [...d.events] }));
-        const pinnedEvents = newData[activeDay].events.filter(
-          (e) => e.id.startsWith("flight-") || e.id.startsWith("hotel-"),
+        const pinnedFlights = newData[activeDay].events.filter(
+          (e) => e.id.startsWith("flight-")
         );
-        // Keep flight/hotel fixed, reorder only regular events, then rebuild transits.
+        // Keep flights fixed, reorder only hotels and regular events, then rebuild transits.
+        // We ensure hotels stay at the top unless reordered within themselves or places.
+        // The itinerary-view enforces hotels at the top of the sortable list if needed.
         newData[activeDay].events = [
-          ...pinnedEvents,
+          ...pinnedFlights,
           ...rebuildTransits(newPlaceEvents, transportMode),
         ];
         return newData;
@@ -1331,7 +1360,7 @@ export default function TripMapPage() {
       </div>
 
       <div className="flex-1 w-full relative overflow-hidden bg-[#e2e8f0] flex">
-        <PlannerSidebar onTabChange={setSidebarTab} />
+        <PlannerSidebar onTabChange={setSidebarTab} activeTab={sidebarTab} />
         <div className="flex-1 w-full relative overflow-hidden h-full">
           <AnimatePresence mode="wait">
             {view === "itinerary" ? (
@@ -1343,9 +1372,15 @@ export default function TripMapPage() {
                 setExpandedEvent={setExpandedEvent}
                 transportMode={transportMode}
                 setTransportMode={setTransportMode}
-                onOpenModal={(mode, eventId) =>
-                  setModalConfig({ isOpen: true, mode, eventId })
-                }
+                onOpenModal={(mode, eventId) => {
+                  if (eventId?.startsWith("hotel-")) {
+                    useTripStore.getState().setEditingHotelId(eventId.replace("hotel-", ""));
+                    setSidebarTab("hotels");
+                    setExpandedEvent(null);
+                    return;
+                  }
+                  setModalConfig({ isOpen: true, mode, eventId });
+                }}
                 searchResults={DUMMY_SEARCH_RESULTS}
                 onSearchResultClick={async (r) => {
                   setSelectedSearchResult(r as SearchResult);
@@ -1371,9 +1406,15 @@ export default function TripMapPage() {
                   const enriched = await enrichSearchResult(r);
                   setSelectedSearchResult(enriched);
                 }}
-                onOpenModal={(mode: ActionMode, eventId?: string) =>
-                  setModalConfig({ isOpen: true, mode: mode as any, eventId })
-                }
+                onOpenModal={(mode: ActionMode, eventId?: string) => {
+                  if (eventId?.startsWith("hotel-")) {
+                    useTripStore.getState().setEditingHotelId(eventId.replace("hotel-", ""));
+                    setSidebarTab("hotels");
+                    setExpandedEvent(null);
+                    return;
+                  }
+                  setModalConfig({ isOpen: true, mode: mode as any, eventId });
+                }}
                 onReorder={handleReorder}
                 parentMapRef={parentMapRef}
                 onChangeTransitMode={handleChangeTransitMode}
@@ -2140,6 +2181,11 @@ function MapView({
 
     initialFlyDone.current = true;
     const flyToDestination = async () => {
+      // Do not fly to destination on load if expanding an event OR if pinEvents exist
+      if (expandedEvent) return;
+      const hasPins = day?.events?.some((e: any) => e.type !== "transit" && e.lat && e.lng);
+      if (hasPins) return;
+      
       try {
         const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(dest)}&format=json&limit=1&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`;
         const r = await fetch(url);
@@ -2205,7 +2251,7 @@ function MapView({
 
     // Small delay to let map initialize
     setTimeout(flyToDestination, 300);
-  }, [searchParamsMap, plannerOrigin]);
+  }, [searchParamsMap, plannerOrigin, expandedEvent, day?.events]);
 
   const placeEvents = React.useMemo(
     () =>
@@ -2232,46 +2278,64 @@ function MapView({
   }, [expandedEvent, placeEvents, day.events]);
 
   React.useEffect(() => {
-    if (!mapRef.current) return;
-    if (selectedEventObj) {
-      mapRef.current.flyTo({
-        center: [selectedEventObj.lng!, selectedEventObj.lat!],
-        zoom: 15.5,
-        pitch: 45,
-        duration: 1200,
-        offset: [0, 250],
-      });
-    } else if (!expandedEvent) {
-      // Zoom out when collapsing a timeline item
-      const pinEvents = day.events.filter(
-        (e: EventItem) => e.type !== "transit" && e.lat && e.lng,
-      );
-      if (pinEvents.length > 1) {
-        const lngs = pinEvents.map((e: EventItem) => e.lng!);
-        const lats = pinEvents.map((e: EventItem) => e.lat!);
-        const sw: [number, number] = [
-          Math.min(...lngs) - 0.05,
-          Math.min(...lats) - 0.05,
-        ];
-        const ne: [number, number] = [
-          Math.max(...lngs) + 0.05,
-          Math.max(...lats) + 0.05,
-        ];
-        mapRef.current.fitBounds([sw, ne], {
-          padding: { top: 100, bottom: 100, left: 440, right: 100 },
-          duration: 1200,
-          maxZoom: 11,
-        });
-      } else if (pinEvents.length === 1) {
+    const handleFly = () => {
+      if (!mapRef.current) return;
+      if (selectedEventObj) {
         mapRef.current.flyTo({
-          center: [pinEvents[0].lng!, pinEvents[0].lat!],
-          zoom: 11,
-          pitch: 0,
+          center: [selectedEventObj.lng!, selectedEventObj.lat!],
+          zoom: 15.5,
+          pitch: 45,
           duration: 1200,
+          offset: [0, 250],
         });
+      } else if (!expandedEvent) {
+        // Zoom out when collapsing a timeline item
+        const pinEvents = day.events.filter(
+          (e: EventItem) => e.type !== "transit" && e.lat && e.lng,
+        );
+        if (pinEvents.length > 1) {
+          const lngs = pinEvents.map((e: EventItem) => e.lng!);
+          const lats = pinEvents.map((e: EventItem) => e.lat!);
+          const sw: [number, number] = [
+            Math.min(...lngs) - 0.05,
+            Math.min(...lats) - 0.05,
+          ];
+          const ne: [number, number] = [
+            Math.max(...lngs) + 0.05,
+            Math.max(...lats) + 0.05,
+          ];
+          mapRef.current.fitBounds([sw, ne], {
+            padding: { top: 100, bottom: 100, left: 440, right: 100 },
+            duration: 1200,
+            maxZoom: 11,
+          });
+        } else if (pinEvents.length === 1) {
+          mapRef.current.flyTo({
+            center: [pinEvents[0].lng!, pinEvents[0].lat!],
+            zoom: 11,
+            pitch: 0,
+            duration: 1200,
+          });
+        } else {
+          const flightEvent = day.events.find((e: EventItem) => e.type === "transit" && e.id.startsWith("flight-"));
+          if (flightEvent) {
+            const fObj = plannerFlights.find(f => f.id === flightEvent.id.replace("flight-", ""));
+            if (fObj?.toCoords) {
+              mapRef.current.flyTo({
+                center: fObj.toCoords,
+                zoom: 11,
+                pitch: 0,
+                duration: 1200,
+              });
+            }
+          }
+        }
       }
-    }
-  }, [expandedEvent, selectedEventObj, day.events]);
+    };
+
+    const timer = setTimeout(handleFly, 300);
+    return () => clearTimeout(timer);
+  }, [expandedEvent, selectedEventObj, day.events, plannerFlights]);
 
   // Fetch route geometry via OSRM
   const [rawRoutes, setRawRoutes] = React.useState<
@@ -2284,11 +2348,24 @@ function MapView({
     }[]
   >([]);
 
+  // Nodes used for routing (includes hotels)
+  const routeNodes = React.useMemo(
+    () =>
+      day.events.filter(
+        (e: EventItem) =>
+          e.type !== "transit" &&
+          e.lat &&
+          e.lng &&
+          !e.id.startsWith("flight-"),
+      ),
+    [day.events],
+  );
+
   // Stable serialized key for place events to prevent infinite re-renders
   const placeEventsKey = React.useMemo(
     () =>
-      placeEvents.map((e: EventItem) => `${e.id}:${e.lat}:${e.lng}`).join("|"),
-    [placeEvents],
+      routeNodes.map((e: EventItem) => `${e.id}:${e.lat}:${e.lng}`).join("|"),
+    [routeNodes],
   );
 
   // Key for transit modes so routes re-render when a segment's mode changes
@@ -2302,7 +2379,7 @@ function MapView({
   );
 
   React.useEffect(() => {
-    if (placeEvents.length < 2) {
+    if (routeNodes.length < 2) {
       setRawRoutes([]);
       return;
     }
@@ -2312,9 +2389,9 @@ function MapView({
     async function buildRoutes() {
       const routes: typeof rawRoutes = [];
 
-      for (let i = 0; i < placeEvents.length - 1; i++) {
-        const from = placeEvents[i];
-        const to = placeEvents[i + 1];
+      for (let i = 0; i < routeNodes.length - 1; i++) {
+        const from = routeNodes[i];
+        const to = routeNodes[i + 1];
         const transitEvt = day.events.find(
           (e: EventItem) =>
             e.type === "transit" && e.fromId === from.id && e.toId === to.id,
@@ -3368,7 +3445,8 @@ function MapView({
                 );
                 if (oldIdx === -1 || newIdx === -1) return;
                 const reordered = arrayMove(placeEvts, oldIdx, newIdx);
-                onReorder(reordered);
+                const hotels = day.events.filter((ev: EventItem) => ev.id.startsWith("hotel-"));
+                onReorder([...hotels, ...reordered]);
               }}
               onDragCancel={() => setActiveSidebarDragId(null)}
             >
@@ -3419,7 +3497,6 @@ function MapView({
                         isSelected={expandedEvent === event.id}
                         isLast={index === day.events.length - 1}
                         onClick={() => handleItemInteract(event)}
-                        hideTime={isHotel}
                       />
                     );
                   }
@@ -4050,13 +4127,70 @@ function StaticPlaceRow(props: {
                         )}
                       </div>
                     </div>
-                  ) : props.event.desc ? (
-                    <div className="p-4">
-                      <p className="text-[13px] text-gray-600 line-clamp-2 leading-relaxed">
-                        {props.event.desc}
-                      </p>
+                  ) : (
+                    <div className="flex flex-col bg-white">
+                      {props.event.images && props.event.images.length > 0 && (
+                        <div className="flex overflow-x-auto snap-x h-28 border-b border-gray-100" style={{ scrollbarWidth: "none" }}>
+                          {props.event.images.map((img, i) => (
+                            <img key={i} src={img} alt={props.event.title} className="w-full h-full object-cover shrink-0 snap-center" />
+                          ))}
+                        </div>
+                      )}
+                      <div className="p-4">
+                        {props.event.id.startsWith("hotel-") ? (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex flex-wrap gap-2">
+                              {(props.event as any).checkIn && (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-md">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                  Check-in: {(props.event as any).checkIn}
+                                </span>
+                              )}
+                              {(props.event as any).checkOut && (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-orange-700 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-md">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                                  Check-out: {(props.event as any).checkOut}
+                                </span>
+                              )}
+                              {(props.event as any).stayStr && (
+                                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                  Staying
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {(props.event as any).roomType && (
+                                <span className="text-[12px] text-gray-700 bg-gray-100 px-2 py-0.5 rounded shadow-sm border border-gray-200">
+                                  Room: <span className="font-semibold">{(props.event as any).roomType}</span>
+                                </span>
+                              )}
+                              {(props.event as any).guestName && (
+                                <span className="text-[12px] text-gray-700 bg-gray-100 px-2 py-0.5 rounded shadow-sm border border-gray-200">
+                                  Guest: <span className="font-semibold">{(props.event as any).guestName}</span>
+                                </span>
+                              )}
+                              {(props.event as any).bookingRef && (
+                                <span className="text-[12px] text-gray-700 bg-gray-100 px-2 py-0.5 rounded shadow-sm border border-gray-200">
+                                  Ref: <span className="font-semibold">{(props.event as any).bookingRef}</span>
+                                </span>
+                              )}
+                              {(props.event as any).pricePerNight && (props.event as any).pricePerNight !== "undefined" && (props.event as any).pricePerNight !== "0" && !(props.event as any).bookingRef && (
+                                <span className="text-[12px] text-gray-700 bg-gray-100 px-2 py-0.5 rounded shadow-sm border border-gray-200">
+                                  <span className="font-semibold">${(props.event as any).pricePerNight}</span>/night
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ) : props.event.desc ? (
+                          <p className="text-[13px] text-gray-600 line-clamp-3 leading-relaxed">
+                            {props.event.desc}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
-                  ) : null}
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

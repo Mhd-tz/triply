@@ -156,17 +156,19 @@ function TransitRow({
     const label = modeLabels[currentMode];
 
     const gray = "#9CA3AF";
-    const color = isHighlighted ? (fromColor || gray) : gray;
+    const baseColor = (fromColor || gray);
+    const textAndDotsColor = isHighlighted ? baseColor : "#64748B"; // distinct slate gray when not highlighted
     const hexToRgba = (hex: string, alpha: number) => {
+        if (!hex || hex.length < 7) return `rgba(156,163,175,${alpha})`; // fallback
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);
         return `rgba(${r},${g},${b},${alpha})`;
     };
-    const badgeBg = isHighlighted ? hexToRgba(fromColor || gray, 0.2) : hexToRgba(gray, 0.1);
-    const cardStyle = isHighlighted && fromColor && toColor
-        ? { background: `linear-gradient(135deg, ${hexToRgba(fromColor, 0.12)}, ${hexToRgba(toColor, 0.12)})`, borderColor: hexToRgba(fromColor, 0.25) }
-        : { backgroundColor: hexToRgba(gray, 0.08), borderColor: hexToRgba(gray, 0.15) };
+    const badgeBg = hexToRgba(baseColor, isHighlighted ? 0.2 : 0.1);
+    const cardStyle = fromColor && toColor
+        ? { background: `linear-gradient(135deg, ${hexToRgba(fromColor, isHighlighted ? 0.22 : 0.06)}, ${hexToRgba(toColor, isHighlighted ? 0.22 : 0.06)})`, borderColor: hexToRgba(fromColor, isHighlighted ? 0.4 : 0.15) }
+        : { backgroundColor: hexToRgba(gray, isHighlighted ? 0.15 : 0.06), borderColor: hexToRgba(gray, isHighlighted ? 0.3 : 0.15) };
 
     const allModes: TransportMode[] = ["walk", "transit", "drive"];
 
@@ -183,7 +185,7 @@ function TransitRow({
                             animate={{ opacity: 1, scaleY: 1 }}
                             transition={{ delay: i * 0.04 }}
                             className="w-[2px] h-[4px] rounded-full"
-                            style={{ backgroundColor: color }}
+                            style={{ backgroundColor: textAndDotsColor }}
                         />
                     ))}
                 </div>
@@ -199,18 +201,18 @@ function TransitRow({
                     <div className="flex items-center gap-2.5">
                         <div
                             className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: badgeBg, color }}
+                            style={{ backgroundColor: badgeBg, color: textAndDotsColor }}
                         >
                             <Icon className="w-3.5 h-3.5" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between gap-1">
-                                <span className="text-[13px] font-bold" style={{ color }}>
+                                <span className="text-[13px] font-bold" style={{ color: textAndDotsColor }}>
                                     {event.duration}
                                 </span>
                                 <span
                                     className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-md shrink-0"
-                                    style={{ backgroundColor: badgeBg, color }}
+                                    style={{ backgroundColor: badgeBg, color: textAndDotsColor }}
                                 >
                                     {label}
                                 </span>
@@ -299,9 +301,6 @@ function PlaceRow({
                 {!hideTime && (
                     <div className="flex flex-col items-end">
                         <span className="text-[11px] font-bold text-gray-500">{event.time}</span>
-                        {event.id.startsWith("flight-") && event.arriveTime && (
-                            <span className="text-[9px] text-gray-400 mt-0.5">{event.arriveTime}</span>
-                        )}
                     </div>
                 )}
             </div>
@@ -342,9 +341,9 @@ function PlaceRow({
                                 <span className="w-4 h-4" />
                             )}
                             {event.id.startsWith("flight-") && event.endTitle ? (
-                                <span className="text-[14px] font-bold text-white truncate flex items-center gap-1">
+                                <span className="text-[14px] font-bold text-white truncate flex items-center gap-1.5">
                                     {event.title}
-                                    <ArrowRight className="w-3 h-3 text-white/80 shrink-0" />
+                                    <ArrowRight className="w-3.5 h-3.5 text-white/80 shrink-0" />
                                     {event.endTitle}
                                 </span>
                             ) : (
@@ -392,7 +391,7 @@ function PlaceRow({
                                     <div className="flex flex-wrap items-center gap-2 mb-3">
                                         <span className="flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg">
                                             <Clock className="w-3 h-3" />
-                                            {event.time}{event.endTime ? ` – ${event.endTime}` : ""}
+                                            {event.time}{event.endTime ? ` – ${event.endTime}` : ""}{event.arriveTime ? ` – Arrival: ${event.arriveTime}` : ""}
                                         </span>
                                         {event.rating && (
                                             <span className="flex items-center gap-1.5 text-[11px] font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg">
@@ -409,10 +408,58 @@ function PlaceRow({
                                         )}
                                     </div>
 
-                                    {event.desc && (
+                                    {event.desc && !event.id.startsWith("hotel-") && (
                                         <p className="text-[13px] text-gray-600 leading-relaxed mb-4 border-l-2 pl-3" style={{ borderColor: event.color }}>
                                             {event.desc}
                                         </p>
+                                    )}
+
+                                    {event.id.startsWith("hotel-") && (
+                                        <div className="flex flex-col gap-2 mb-4">
+                                            <div className="flex flex-wrap gap-2">
+                                                {(event as any).checkIn && (
+                                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-md">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                        Check-in: {(event as any).checkIn}
+                                                    </span>
+                                                )}
+                                                {(event as any).checkOut && (
+                                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-orange-700 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-md">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                                                        Check-out: {(event as any).checkOut}
+                                                    </span>
+                                                )}
+                                                {(event as any).stayStr && (
+                                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-md">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                                                        Staying
+                                                    </span>
+                                                )}
+                                            </div>
+                                            
+                                            <div className="flex flex-wrap gap-2 mt-1">
+                                                {(event as any).roomType && (
+                                                    <span className="text-[12px] text-gray-700 bg-gray-100 px-2 py-0.5 rounded shadow-sm border border-gray-200">
+                                                        Room: <span className="font-semibold">{(event as any).roomType}</span>
+                                                    </span>
+                                                )}
+                                                {(event as any).guestName && (
+                                                    <span className="text-[12px] text-gray-700 bg-gray-100 px-2 py-0.5 rounded shadow-sm border border-gray-200">
+                                                        Guest: <span className="font-semibold">{(event as any).guestName}</span>
+                                                    </span>
+                                                )}
+                                                {(event as any).bookingRef && (
+                                                    <span className="text-[12px] text-gray-700 bg-gray-100 px-2 py-0.5 rounded shadow-sm border border-gray-200">
+                                                        Ref: <span className="font-semibold">{(event as any).bookingRef}</span>
+                                                    </span>
+                                                )}
+                                                {(event as any).pricePerNight && (event as any).pricePerNight !== "undefined" && (event as any).pricePerNight !== "0" && !(event as any).bookingRef && (
+                                                    <span className="text-[12px] text-gray-700 bg-gray-100 px-2 py-0.5 rounded shadow-sm border border-gray-200">
+                                                        <span className="font-semibold">${(event as any).pricePerNight}</span>/night
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     )}
 
                                     {event.reviews && event.reviews.length > 0 && (
@@ -863,7 +910,7 @@ export default function ItineraryView({
     const [activePlaceDragId, setActivePlaceDragId] = React.useState<string | null>(null);
     const [highlightedTransitId, setHighlightedTransitId] = React.useState<string | null>(null);
 
-    const placeEvents = day.events.filter((e) => !(e.type === "transit" && e.fromId) && !e.id.startsWith("flight-") && !e.id.startsWith("hotel-"));
+    const placeEvents = day.events.filter((e) => !(e.type === "transit" && e.fromId) && !e.id.startsWith("flight-"));
     const placeIds = placeEvents.map((e) => e.id);
 
     const handleDragEnd = (evt: DragEndEvent) => {
@@ -939,7 +986,7 @@ export default function ItineraryView({
                                             />
                                         );
                                     }
-                                    if (isFlight || isHotel) {
+                                    if (isFlight) {
                                         const currentPlaceIndex = placeIndex;
                                         return (
                                             <PlaceRow
@@ -952,7 +999,7 @@ export default function ItineraryView({
                                                 onEdit={() => onOpenModal("edit", event.id)}
                                                 onRemove={() => onOpenModal("remove", event.id)}
                                                 draggable={false}
-                                                hideTime={isHotel}
+                                                hideTime={false}
                                                 hideTypeBadge
                                             />
                                         );
@@ -972,6 +1019,9 @@ export default function ItineraryView({
                                             onClick={() => setExpandedEvent(expandedEvent === event.id ? null : event.id)}
                                             onEdit={() => onOpenModal("edit", event.id)}
                                             onRemove={() => onOpenModal("remove", event.id)}
+                                            draggable={true}
+                                            hideTime={false}
+                                            hideTypeBadge={isHotel}
                                         />
                                     );
                                 });
