@@ -856,14 +856,39 @@ export default function AddEventModal({
       setPlaceImage(null);
       setHasUserSelectedPlace(true);
       aiSavedRef.current = false;
+    } else if (
+      config.isOpen &&
+      !prevOpenRef.current &&
+      config.mode === "edit" &&
+      event
+    ) {
+      // Edit mode: populate form from the existing event
+      setTitle(event.title || "");
+      setTime(event.time || "12:00");
+      setEndTime(event.endTime || "13:00");
+      setAddress(event.address || "");
+      setDesc(event.desc || "");
+      setType(event.type || "activity");
+      setLat(event.lat);
+      setLng(event.lng);
+      setImages(event.images || []);
+      setSearchQuery("");
+      setStep("manual");
+      setTargetDay(activeDayIndex);
+      setTransportTo("walk");
+      setPlaceImage(null);
+      setHasUserSelectedPlace(!!(event.lat && event.lng));
+      aiSavedRef.current = false;
     }
     if (!config.isOpen) {
       setPlaceImage(null);
       setImages([]);
       setHasUserSelectedPlace(false);
+      setStep("manual");
+      aiSavedRef.current = false;
     }
     prevOpenRef.current = config.isOpen;
-  }, [config.isOpen, config.mode, prefill, activeDayIndex]);
+  }, [config.isOpen, config.mode, prefill, activeDayIndex, event]);
 
   const activeCategory =
     CATEGORY_META.find((c) => c.key === type) || CATEGORY_META[1];
@@ -1087,7 +1112,7 @@ export default function AddEventModal({
             color: catColor,
             lat: selectedPlace.lat,
             lng: selectedPlace.lng,
-            desc: `${selectedPlace.description || `AI Recommended: ${displayName}`}${isKidFriendly ? " · Great for kids!" : ""}`,
+            desc: `${selectedPlace.description || `Triply Recommended: ${displayName}`}${isKidFriendly ? " · Great for kids!" : ""}`,
             address: selectedPlace.address || "",
             images: selectedPlace.imageUrl
               ? [selectedPlace.imageUrl]
