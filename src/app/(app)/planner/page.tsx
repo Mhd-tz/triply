@@ -2177,27 +2177,24 @@ function MapView({
   // When flights tab opens: zoom out to show all flight routes; when it closes: zoom back to saved view
   const showFlightRoutes =
     sidebarTab === "flights" && flightsWithCoords.length > 0;
-  const savedCameraRef = React.useRef<{
-    center: [number, number];
-    zoom: number;
-    pitch: number;
-    bearing: number;
-  } | null>(null);
-  React.useEffect(() => {
-    if (!mapRef.current) return;
-    const map = mapRef.current.getMap();
-    if (!map) return;
+  const destCoordsRef = React.useRef<[number, number] | null>(null);
+  const sidebarTabRef = React.useRef(sidebarTab);
+  React.useEffect(() => { sidebarTabRef.current = sidebarTab; }, [sidebarTab]);
+  const expandedEventRef = React.useRef(expandedEvent);
+  React.useEffect(() => { expandedEventRef.current = expandedEvent; }, [expandedEvent]);
 
-    if (showFlightRoutes) {
-      // Save current camera before zooming out
-      const c = map.getCenter();
-      savedCameraRef.current = {
-        center: [c.lng, c.lat],
-        zoom: map.getZoom(),
-        pitch: map.getPitch(),
-        bearing: map.getBearing(),
-      };
-      // Zoom out to fit all flight points
+  // Unified flight camera: show route when flights tab is open, return to destination when closed.
+  // Uses mapRef.current.flyTo() directly (same as the working flight-item-expand handler).
+  const prevSidebarTabForFlight = React.useRef<string | null>(sidebarTab);
+  React.useEffect(() => {
+    const wasFlights = prevSidebarTabForFlight.current === "flights";
+    const isFlights = sidebarTab === "flights";
+    prevSidebarTabForFlight.current = sidebarTab;
+
+    if (!mapRef.current) return;
+
+    if (isFlights && flightsWithCoords.length > 0) {
+      // Show the full flight route — identical logic to the flight-item-expand handler
       const pts = flightsWithCoords.flatMap(
         (f) => [f.fromCoords, f.toCoords].filter(Boolean) as [number, number][],
       );
@@ -2213,7 +2210,7 @@ function MapView({
           Math.log2(180 / latSpan),
           5,
         );
-        map.flyTo({
+        mapRef.current.flyTo({
           center: [centerLng, centerLat],
           zoom: Math.max(1.2, zoom),
           duration: 1200,
@@ -2221,60 +2218,22 @@ function MapView({
           offset: [200, 0],
         });
       }
-    } else if (savedCameraRef.current) {
-      // Restore saved camera view
-      map.flyTo({
-        center: savedCameraRef.current.center,
-        zoom: savedCameraRef.current.zoom,
-        pitch: savedCameraRef.current.pitch,
-        bearing: savedCameraRef.current.bearing,
-        duration: 1000,
-      });
-      savedCameraRef.current = null;
+    } else if (wasFlights && !isFlights) {
+      // Flights sidebar just closed — return to destination area
+      // unless a flight timeline item is expanded (handleFly owns camera then)
+      if (!expandedEventRef.current?.startsWith("flight-") && destCoordsRef.current) {
+        mapRef.current.flyTo({
+          center: destCoordsRef.current,
+          zoom: 5,
+          pitch: 0,
+          bearing: 0,
+          duration: 1000,
+          essential: true,
+          offset: [200, 0],
+        });
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showFlightRoutes]);
-
-  // Re-fly camera when flights are added/removed while flights tab is already open
-  const prevFlightKey = React.useRef("");
-  React.useEffect(() => {
-    if (!mapRef.current || sidebarTab !== "flights") {
-      prevFlightKey.current = "";
-      return;
-    }
-    // Use a serialized key so we detect both count changes and coord updates
-    const key = flightsWithCoords.map(f => `${f.id}-${f.fromCoords?.[0]}-${f.toCoords?.[0]}`).join("|");
-    if (key === prevFlightKey.current || flightsWithCoords.length === 0) {
-      prevFlightKey.current = key;
-      return;
-    }
-    prevFlightKey.current = key;
-    const map = mapRef.current.getMap();
-    if (!map) return;
-    const pts = flightsWithCoords.flatMap(
-      (f) => [f.fromCoords, f.toCoords].filter(Boolean) as [number, number][],
-    );
-    if (pts.length >= 2) {
-      const lngs = pts.map((p) => p[0]);
-      const lats = pts.map((p) => p[1]);
-      const centerLng = (Math.min(...lngs) + Math.max(...lngs)) / 2;
-      const centerLat = (Math.min(...lats) + Math.max(...lats)) / 2;
-      const lngSpan = Math.max(...lngs) - Math.min(...lngs) + 30;
-      const latSpan = Math.max(...lats) - Math.min(...lats) + 20;
-      const zoom = Math.min(
-        Math.log2(360 / lngSpan),
-        Math.log2(180 / latSpan),
-        5,
-      );
-      map.flyTo({
-        center: [centerLng, centerLat],
-        zoom: Math.max(1.2, zoom),
-        duration: 1200,
-        essential: true,
-        offset: [200, 0],
-      });
-    }
-  }, [flightsWithCoords, sidebarTab]);
+  }, [sidebarTab, flightsWithCoords]);
 
   // Initial camera: geocode destination from URL and fly to show it + origin
   const searchParamsMap = useSearchParams();
@@ -2287,9 +2246,7 @@ function MapView({
     initialFlyDone.current = true;
     const flyToDestination = async () => {
       // Do not fly to destination on load if expanding an event OR if pinEvents exist
-      if (expandedEvent) return;
-      const hasPins = day?.events?.some((e: any) => e.type !== "transit" && e.lat && e.lng);
-      if (hasPins) return;
+      const shouldFly = !expandedEvent && !day?.events?.some((e: any) => e.type !== "transit" && e.lat && e.lng);
 
       try {
         const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(dest)}&format=json&limit=1&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`;
@@ -2300,6 +2257,10 @@ function MapView({
 
         const destLon = destResult.lon;
         const destLat = destResult.lat;
+        // Always store dest coords so other effects (e.g. closing flights sidebar) can use them
+        destCoordsRef.current = [destLon, destLat];
+
+        if (!shouldFly) return;
         const map = mapRef.current.getMap();
         if (!map) return;
 
@@ -2385,6 +2346,8 @@ function MapView({
   React.useEffect(() => {
     const handleFly = () => {
       if (!mapRef.current) return;
+      // Let the flight camera effect own the camera while flights tab is open
+      if (sidebarTabRef.current === "flights") return;
       if (selectedEventObj) {
         mapRef.current.flyTo({
           center: [selectedEventObj.lng!, selectedEventObj.lat!],
@@ -2433,6 +2396,14 @@ function MapView({
                 duration: 1200,
               });
             }
+          } else if (destCoordsRef.current) {
+            mapRef.current.flyTo({
+              center: destCoordsRef.current,
+              zoom: 5,
+              pitch: 0,
+              duration: 1200,
+              offset: [200, 0],
+            });
           }
         }
       }
