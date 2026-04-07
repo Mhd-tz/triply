@@ -1073,19 +1073,19 @@ export default function TripMapPage() {
               .map((other) => other.dayNum)
               .filter((dn): dn is number => dn !== undefined)
               .sort((a, b) => a - b);
-            
+
             const isFirstDay = stayDays.length > 0 && stayDays[0] === dayNum;
             const isLastDay = stayDays.length > 0 && stayDays[stayDays.length - 1] === dayNum;
-            
+
             // Left sidebar time label natively just 3:00 PM
             let timeLabel = "Stay";
-            if (isFirstDay) timeLabel = h.checkIn || "Check-in";
-            else if (isLastDay) timeLabel = h.checkOut || "Check-out";
+            if (isFirstDay) timeLabel = h.checkIn || "3:00 PM";
+            else if (isLastDay) timeLabel = h.checkOut || "11:00 AM";
 
             const detailStr = h.alreadyBooked
               ? `Booking Ref: ${h.bookingRef || "-"}`
               : `$${h.pricePerNight || "?"}/night${h.rating ? ` · ★ ${h.rating}` : ""}`;
-              
+
             return {
               id: `hotel-${h.id}`,
               time: timeLabel,
@@ -1946,6 +1946,33 @@ function MapView({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
+  const [isTimelineCollapsed, setIsTimelineCollapsed] = React.useState(false);
+
+  // Summary logic
+  const eventSummary = React.useMemo(() => {
+    if (!day?.events) return null;
+    const flights = day.events.filter((e: any) => e.id.startsWith("flight-")).length;
+    const hotels = day.events.filter((e: any) => e.id.startsWith("hotel-")).length;
+    const activities = day.events.filter((e: any) => e.type === "activity").length;
+    const meals = day.events.filter((e: any) => e.type === "meal").length;
+    const locations = day.events.filter((e: any) => e.type === "location").length;
+
+    const parts = [];
+    if (flights > 0)
+      parts.push(`${flights} ${flights === 1 ? "flight" : "flights"}`);
+    if (hotels > 0)
+      parts.push(`${hotels} ${hotels === 1 ? "hotel" : "hotels"}`);
+    if (activities > 0)
+      parts.push(`${activities} ${activities === 1 ? "activity" : "activities"}`);
+    if (meals > 0) parts.push(`${meals} ${meals === 1 ? "meal" : "meals"}`);
+    if (locations > 0)
+      parts.push(`${locations} ${locations === 1 ? "location" : "locations"}`);
+
+    return parts.join(" · ");
+  }, [day?.events]);
+
+
+
   // Flight arcs from store
   const plannerFlights = useTripStore((s) => s.plannerFlights);
   const plannerOrigin = useTripStore((s) => s.plannerOrigin);
@@ -2185,7 +2212,7 @@ function MapView({
       if (expandedEvent) return;
       const hasPins = day?.events?.some((e: any) => e.type !== "transit" && e.lat && e.lng);
       if (hasPins) return;
-      
+
       try {
         const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(dest)}&format=json&limit=1&apiKey=${process.env.NEXT_PUBLIC_GEOAPIFY_API_KEY}`;
         const r = await fetch(url);
@@ -3403,161 +3430,217 @@ function MapView({
         initial={{ x: -350, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ ease: "easeInOut" }}
-        className="absolute left-4 top-4 bottom-4 z-20 w-[360px] flex flex-col gap-3 pointer-events-none"
+        className={cn(
+          "absolute left-4 top-4 z-20 w-[360px] flex flex-col gap-3 pointer-events-none",
+          !isTimelineCollapsed && "bottom-4"
+        )}
       >
-        <div className="pointer-events-auto bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden shrink-0">
+        <div className="z-50 pointer-events-auto bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden shrink-0">
           <div className="px-5 py-4 flex items-center justify-between">
-            <span className="font-heading font-bold text-gray-900 text-lg">
-              Day {day.day} Timeline
-            </span>
-            <span className="text-gray-500 font-medium text-xs bg-gray-100 px-3 py-1.5 rounded-md">
-              {day.date}
-            </span>
+            <div className="flex flex-col min-w-0">
+              <span className="font-heading font-bold text-gray-900 text-lg leading-tight truncate">
+                Day {day.day} Timeline
+              </span>
+              <AnimatePresence>
+                {isTimelineCollapsed && eventSummary && (
+                  <motion.span
+                    initial={{ opacity: 0, height: 0, y: -10 }}
+                    animate={{ opacity: 1, height: "auto", y: 0 }}
+                    exit={{ opacity: 0, height: 0, y: -10 }}
+                    className="text-[11px] font-medium text-gray-500 truncate"
+                  >
+                    {eventSummary}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-gray-500 font-medium text-xs bg-gray-100 px-3 py-1.5 rounded-md">
+                {day.date}
+              </span>
+              <button
+                onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
+                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600"
+              >
+                {isTimelineCollapsed ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronUp className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="pointer-events-auto flex-1 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200 overflow-hidden flex flex-col relative">
-          <div className="flex-1 overflow-y-auto p-4 pr-5 pb-24 scrollbar-none">
-            {day.events.length === 0 && (
-              <div className="h-full flex items-center justify-center text-gray-400 text-sm italic py-10">
-                No plans yet. Add something!
-              </div>
-            )}
-            <DndContext
-              sensors={sidebarDndSensors}
-              collisionDetection={closestCenter}
-              onDragStart={(e) => setActiveSidebarDragId(String(e.active.id))}
-              onDragEnd={(e) => {
-                setActiveSidebarDragId(null);
-                const { active, over } = e;
-                if (!over || active.id === over.id || !onReorder) return;
-                const placeEvts = day.events.filter(
-                  (ev: EventItem) =>
-                    !(ev.type === "transit" && ev.fromId) &&
-                    !ev.id.startsWith("flight-") &&
-                    !ev.id.startsWith("hotel-"),
-                );
-                const oldIdx = placeEvts.findIndex(
-                  (ev: EventItem) => ev.id === active.id,
-                );
-                const newIdx = placeEvts.findIndex(
-                  (ev: EventItem) => ev.id === over.id,
-                );
-                if (oldIdx === -1 || newIdx === -1) return;
-                const reordered = arrayMove(placeEvts, oldIdx, newIdx);
-                const hotels = day.events.filter((ev: EventItem) => ev.id.startsWith("hotel-"));
-                onReorder([...hotels, ...reordered]);
-              }}
-              onDragCancel={() => setActiveSidebarDragId(null)}
+        <AnimatePresence mode="popLayout" initial={false}>
+          {isTimelineCollapsed ? (
+            <motion.div
+              key="collapsed-button"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="pointer-events-auto flex justify-center"
             >
-              <SortableContext
-                items={day.events
-                  .filter(
-                    (ev: EventItem) =>
-                      !(ev.type === "transit" && ev.fromId) &&
-                      !ev.id.startsWith("flight-") &&
-                      !ev.id.startsWith("hotel-"),
-                  )
-                  .map((ev: EventItem) => ev.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {day.events.map((event: EventItem, index: number) => {
-                  const isTransit = event.type === "transit" && !!event.fromId;
-                  const isFlight = event.id.startsWith("flight-");
-                  const isHotel = event.id.startsWith("hotel-");
-                  if (isTransit && !isFlight) {
-                    const fromEvt = day.events.find(
-                      (e: EventItem) => e.id === event.fromId,
-                    );
-                    const toEvt = day.events.find(
-                      (e: EventItem) => e.id === event.toId,
-                    );
-                    return (
-                      <TransitRow
-                        key={event.id}
-                        event={event}
-                        onChangeMode={onChangeTransitMode}
-                        isLast={index === day.events.length - 1}
-                        isHighlighted={highlightedTransitId === event.id}
-                        onToggleHighlight={() =>
-                          setHighlightedTransitId(
-                            highlightedTransitId === event.id ? null : event.id,
-                          )
-                        }
-                        fromColor={fromEvt?.color}
-                        toColor={toEvt?.color}
-                      />
-                    );
-                  }
-                  if (isFlight || isHotel) {
-                    return (
-                      <StaticPlaceRow
-                        key={event.id}
-                        event={event}
-                        isSelected={expandedEvent === event.id}
-                        isLast={index === day.events.length - 1}
-                        onClick={() => handleItemInteract(event)}
-                      />
-                    );
-                  }
-                  return (
-                    <SortablePlaceRow
-                      key={event.id}
-                      event={event}
-                      isSelected={expandedEvent === event.id}
-                      isLast={index === day.events.length - 1}
-                      onClick={() => handleItemInteract(event)}
-                    />
-                  );
-                })}
-              </SortableContext>
-              {typeof document !== "undefined" &&
-                ReactDOM.createPortal(
-                  <DragOverlay dropAnimation={null}>
-                    {activeSidebarDragId
-                      ? (() => {
-                        const dragEvt = day.events.find(
-                          (e: EventItem) => e.id === activeSidebarDragId,
-                        );
-                        if (!dragEvt) return null;
-                        return (
-                          <div
-                            className="rounded-lg p-3 border-2 border-blue-400 shadow-2xl opacity-90 max-w-[300px]"
-                            style={{ backgroundColor: dragEvt.color }}
-                          >
-                            <p className="text-[15px] font-bold text-white truncate">
-                              {dragEvt.title}
-                            </p>
-                            <p className="text-[11px] text-white/70 mt-0.5">
-                              {dragEvt.time}
-                            </p>
-                          </div>
-                        );
-                      })()
-                      : null}
-                  </DragOverlay>,
-                  document.body,
-                )}
-            </DndContext>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 z-10 shadow-[0_-10px_15px_-5px_rgba(0,0,0,0.05)]">
-            <div className="px-4 pt-3 pb-2 flex justify-center">
               <button
                 onClick={() => onOpenModal("add")}
-                className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-white text-[12px] font-bold shadow-md hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+                className="z-50 flex items-center gap-1.5 px-5 py-2 rounded-xl text-white text-[12px] font-bold shadow-md hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
                 style={{ backgroundColor: "#1D4983" }}
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
                 Add Activity
               </button>
-            </div>
-            <div className="px-4 pb-3 pt-1 flex items-center justify-center gap-x-5 gap-y-2 flex-wrap">
-              <LegendItem color={COLORS.meal} label="Meal" />
-              <LegendItem color={COLORS.activity} label="Activity" />
-              <LegendItem color={COLORS.location} label="Location" />
-            </div>
-          </div>
-        </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="expanded-panel"
+              initial={{ opacity: 0, height: 0, y: -20 }}
+              animate={{ opacity: 1, height: "auto", y: 0 }}
+              exit={{ opacity: 0, height: 0, y: -20 }}
+              className="pointer-events-auto flex-1 bg-white/95 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200 overflow-hidden flex flex-col relative"
+            >
+              <div className="flex-1 overflow-y-auto p-4 pr-5 pb-24 scrollbar-none">
+                {day.events.length === 0 && (
+                  <div className="h-full flex items-center justify-center text-gray-400 text-sm italic py-10">
+                    No plans yet. Add something!
+                  </div>
+                )}
+                <DndContext
+                  sensors={sidebarDndSensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={(e) => setActiveSidebarDragId(String(e.active.id))}
+                  onDragEnd={(e) => {
+                    setActiveSidebarDragId(null);
+                    const { active, over } = e;
+                    if (!over || active.id === over.id || !onReorder) return;
+                    const placeEvts = day.events.filter(
+                      (ev: EventItem) =>
+                        !(ev.type === "transit" && ev.fromId) &&
+                        !ev.id.startsWith("flight-") &&
+                        !ev.id.startsWith("hotel-"),
+                    );
+                    const oldIdx = placeEvts.findIndex(
+                      (ev: EventItem) => ev.id === active.id,
+                    );
+                    const newIdx = placeEvts.findIndex(
+                      (ev: EventItem) => ev.id === over.id,
+                    );
+                    if (oldIdx === -1 || newIdx === -1) return;
+                    const reordered = arrayMove(placeEvts, oldIdx, newIdx);
+                    const hotels = day.events.filter((ev: EventItem) => ev.id.startsWith("hotel-"));
+                    onReorder([...hotels, ...reordered]);
+                  }}
+                  onDragCancel={() => setActiveSidebarDragId(null)}
+                >
+                  <SortableContext
+                    items={day.events
+                      .filter(
+                        (ev: EventItem) =>
+                          !(ev.type === "transit" && ev.fromId) &&
+                          !ev.id.startsWith("flight-") &&
+                          !ev.id.startsWith("hotel-"),
+                      )
+                      .map((ev: EventItem) => ev.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {day.events.map((event: EventItem, index: number) => {
+                      const isTransit = event.type === "transit" && !!event.fromId;
+                      const isFlight = event.id.startsWith("flight-");
+                      const isHotel = event.id.startsWith("hotel-");
+                      if (isTransit && !isFlight) {
+                        const fromEvt = day.events.find(
+                          (e: EventItem) => e.id === event.fromId,
+                        );
+                        const toEvt = day.events.find(
+                          (e: EventItem) => e.id === event.toId,
+                        );
+                        return (
+                          <TransitRow
+                            key={event.id}
+                            event={event}
+                            onChangeMode={onChangeTransitMode}
+                            isLast={index === day.events.length - 1}
+                            isHighlighted={highlightedTransitId === event.id}
+                            onToggleHighlight={() =>
+                              setHighlightedTransitId(
+                                highlightedTransitId === event.id ? null : event.id,
+                              )
+                            }
+                            fromColor={fromEvt?.color}
+                            toColor={toEvt?.color}
+                          />
+                        );
+                      }
+                      if (isFlight || isHotel) {
+                        return (
+                          <StaticPlaceRow
+                            key={event.id}
+                            event={event}
+                            isSelected={expandedEvent === event.id}
+                            isLast={index === day.events.length - 1}
+                            onClick={() => handleItemInteract(event)}
+                          />
+                        );
+                      }
+                      return (
+                        <SortablePlaceRow
+                          key={event.id}
+                          event={event}
+                          isSelected={expandedEvent === event.id}
+                          isLast={index === day.events.length - 1}
+                          onClick={() => handleItemInteract(event)}
+                        />
+                      );
+                    })}
+                  </SortableContext>
+                  {typeof document !== "undefined" &&
+                    ReactDOM.createPortal(
+                      <DragOverlay dropAnimation={null}>
+                        {activeSidebarDragId
+                          ? (() => {
+                            const dragEvt = day.events.find(
+                              (e: EventItem) => e.id === activeSidebarDragId,
+                            );
+                            if (!dragEvt) return null;
+                            return (
+                              <div
+                                className="rounded-lg p-3 border-2 border-blue-400 shadow-2xl opacity-90 max-w-[300px]"
+                                style={{ backgroundColor: dragEvt.color }}
+                              >
+                                <p className="text-[15px] font-bold text-white truncate">
+                                  {dragEvt.title}
+                                </p>
+                                <p className="text-[11px] text-white/70 mt-0.5">
+                                  {dragEvt.time}
+                                </p>
+                              </div>
+                            );
+                          })()
+                          : null}
+                      </DragOverlay>,
+                      document.body,
+                    )}
+                </DndContext>
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 z-10 shadow-[0_-10px_15px_-5px_rgba(0,0,0,0.05)]">
+                <div className="px-4 pt-3 pb-2 flex justify-center">
+                  <button
+                    onClick={() => onOpenModal("add")}
+                    className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-white text-[12px] font-bold shadow-md hover:shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ backgroundColor: "#1D4983" }}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Activity
+                  </button>
+                </div>
+                <div className="px-4 pb-3 pt-1 flex items-center justify-center gap-x-5 gap-y-2 flex-wrap">
+                  <LegendItem color={COLORS.meal} label="Meal" />
+                  <LegendItem color={COLORS.activity} label="Activity" />
+                  <LegendItem color={COLORS.location} label="Location" />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* RIGHT TOOLBAR */}
@@ -4159,7 +4242,7 @@ function StaticPlaceRow(props: {
                                 </span>
                               )}
                             </div>
-                            
+
                             <div className="flex flex-wrap gap-2 mt-1">
                               {(props.event as any).roomType && (
                                 <span className="text-[12px] text-gray-700 bg-gray-100 px-2 py-0.5 rounded shadow-sm border border-gray-200">
