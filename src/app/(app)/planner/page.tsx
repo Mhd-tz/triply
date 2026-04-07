@@ -3857,7 +3857,7 @@ function MapView({
       </div>
 
       {/* Mobile floating Add Activity button */}
-      <div className="md:hidden absolute bottom-3 right-3 z-30 pointer-events-auto">
+      <div className="md:hidden absolute bottom-20 right-3 z-30 pointer-events-auto">
         {isTimelineCollapsed && (
           <motion.button
             initial={{ scale: 0 }}
