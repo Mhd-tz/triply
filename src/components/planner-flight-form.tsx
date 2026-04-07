@@ -346,8 +346,6 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         // If it already matches an airport city, return as-is
         const match = AIRPORTS.find(a => a.city.toLowerCase() === cityName.split(",")[0].trim().toLowerCase());
         if (match) return `${match.city}, ${match.country}`;
-        // Otherwise geocode-style: find nearest airport by name similarity or use the geolocated one
-        if (nearestAirportRef.current) return nearestAirportRef.current;
         return cityName;
     }, []);
 
@@ -387,11 +385,17 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
 
     React.useEffect(() => {
         if (effectiveLegs.length > selectedLegIdx) {
-            // Resolve from/to to valid airport cities (prevents "Could not find airport" errors)
-            setManualFrom(resolveToAirport(effectiveLegs[selectedLegIdx].from));
-            setManualTo(resolveToAirport(effectiveLegs[selectedLegIdx].to));
+            const leg = effectiveLegs[selectedLegIdx];
+            // For "from": resolve to airport city; fall back to nearest airport (user location) if not found
+            const resolvedFrom = resolveToAirport(leg.from) !== leg.from
+                ? resolveToAirport(leg.from)
+                : (nearestAirportRef.current && leg.from === plannerOrigin ? nearestAirportRef.current : leg.from);
+            // For "to": resolve to airport city only; do NOT fall back to nearest airport
+            const resolvedTo = resolveToAirport(leg.to);
+            setManualFrom(resolvedFrom);
+            setManualTo(resolvedTo);
         }
-    }, [effectiveLegs, selectedLegIdx, resolveToAirport]);
+    }, [effectiveLegs, selectedLegIdx, resolveToAirport, plannerOrigin]);
 
     const [mode, setMode] = React.useState<"idle" | "search" | "booked" | "results">("idle");
     const [allFlights, setAllFlights] = React.useState<FlightResult[]>([]);
@@ -661,7 +665,12 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
                                 )}
                             >
                                 {hasBooked && <CheckCircle2 className="w-3 h-3 text-green-500" />}
-                                {leg.id === "leg-return" ? "Return" : `Leg ${idx + 1}`}: {leg.label}
+                                <span>{leg.id === "leg-return" ? "Return" : `Leg ${idx + 1}`}:</span>
+                                <span className="flex items-center gap-1">
+                                    {leg.from.split(",")[0]}
+                                    <ArrowRight className="w-3 h-3" />
+                                    {leg.to.split(",")[0]}
+                                </span>
                             </button>
                         );
                     })}
