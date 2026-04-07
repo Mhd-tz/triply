@@ -227,9 +227,7 @@ export default function StyleGuidePage() {
             {/* Main content */}
             <main className="w-[90%] max-w-6xl mx-auto px-4 py-12">
 
-                {/* ═══════════════════════════════════════════
-                    SECTION 1 — COLOR PALETTE
-                    ═══════════════════════════════════════════ */}
+                {/* SECTION 1 COLOR PALETTE */}
                 <SectionHeading
                     id="colors"
                     title="Color Palette"
@@ -282,9 +280,7 @@ export default function StyleGuidePage() {
 
 
 
-                {/* ═══════════════════════════════════════════
-                    SECTION 2 — TYPOGRAPHY
-                    ═══════════════════════════════════════════ */}
+                {/* SECTION 2  TYPOGRAPHY */}
                 <SectionHeading
                     id="typography"
                     title="Typography"
@@ -362,7 +358,7 @@ export default function StyleGuidePage() {
                         { tag: "H2", size: "text-2xl", font: "font-subheading", weight: "font-bold", sample: "Featured Destinations" },
                         { tag: "H3", size: "text-xl", font: "font-subheading", weight: "font-semibold", sample: "Popular Hotels" },
                         { tag: "H4", size: "text-lg", font: "font-subheading", weight: "font-semibold", sample: "Hotel Details" },
-                        { tag: "Body", size: "text-base", font: "font-body", weight: "font-normal", sample: "Plan your next adventure with Triply — the smartest way to travel." },
+                        { tag: "Body", size: "text-base", font: "font-body", weight: "font-normal", sample: "Plan your next adventure with Triply  the smartest way to travel." },
                         { tag: "Small", size: "text-sm", font: "font-body", weight: "font-normal", sample: "Terms and conditions apply. See our policy for details." },
                         { tag: "Caption", size: "text-xs", font: "font-body", weight: "font-medium", sample: "Updated 2 hours ago · 4 min read" },
                     ].map((t, i) => (
@@ -382,9 +378,8 @@ export default function StyleGuidePage() {
 
 
 
-                {/* ═══════════════════════════════════════════
-                    SECTION 3 — INTERACTIVE ELEMENTS
-                    ═══════════════════════════════════════════ */}
+                {/*                     SECTION 3  INTERACTIVE ELEMENTS
+                    */}
                 <SectionHeading
                     id="interactive"
                     title="Interactive Elements"
@@ -533,9 +528,8 @@ export default function StyleGuidePage() {
 
                 </div>
 
-                {/* ═══════════════════════════════════════════
-                    SECTION 4 — COMBINED ELEMENTS
-                    ═══════════════════════════════════════════ */}
+                {/*                     SECTION 4  COMBINED ELEMENTS
+                    */}
                 <SectionHeading
                     id="combined"
                     title="Combined Elements"
@@ -691,13 +685,11 @@ export default function StyleGuidePage() {
 
                 </div>
 
-                {/* ═══════════════════════════════════════════
-                    SECTION 5 — BRAND CONTEXT
-                    ═══════════════════════════════════════════ */}
+                {/* SECTION 5  BRAND CONTEXT */}
                 <SectionHeading
                     id="brand-context"
                     title="Brand Context"
-                    description="How the Triply design system comes together in real interface patterns. Brand persona: 'The Adventurous Planner' — friendly, trustworthy, and forward-looking."
+                    description="How the Triply design system comes together in real interface patterns. Brand persona: 'The Adventurous Planner' a friendly, trustworthy, and forward-looking."
                 />
 
                 {/* Hero Mockup */}
@@ -740,8 +732,7 @@ export default function StyleGuidePage() {
                             { name: "Unsplash Photography", url: "https://unsplash.com/" },
                         ].map((c) => (
                             <li key={c.name} className="flex items-baseline gap-2">
-                                <span className="font-semibold text-foreground">{c.name}</span>
-                                <span className="text-muted-foreground">—</span>
+                                <span className="font-semibold text-foreground">{c.name}: </span>
                                 <a
                                     href={c.url}
                                     target="_blank"
