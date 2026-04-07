@@ -288,8 +288,8 @@ export default function PlannerSearch() {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -10, scale: 0.98 }}
                             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                            className="absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 z-50 w-[750px] bg-white rounded-[2rem] shadow-2xl border border-gray-100 p-5 flex flex-col origin-top"
-                            style={{ maxHeight: "calc(100vh - 80px)" }}
+                            className="absolute top-[calc(100%+0.5rem)] left-0 md:left-1/2 md:-translate-x-1/2 z-50 w-full md:w-[750px] bg-white rounded-2xl md:rounded-[2rem] shadow-2xl border border-gray-100 p-4 md:p-5 flex flex-col origin-top overflow-y-auto"
+                            style={{ maxHeight: "calc(100vh - 200px)" }}
                         >
                             <DatePickerWidget
                                 today={today}

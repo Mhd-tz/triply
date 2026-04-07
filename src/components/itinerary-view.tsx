@@ -928,13 +928,13 @@ export default function ItineraryView({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 flex overflow-hidden bg-[#f0f4fa]"
+            className="absolute inset-0 flex flex-col md:flex-row overflow-hidden bg-[#f0f4fa]"
         >
             <motion.div
                 initial={{ x: -30, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ ease: "easeOut", duration: 0.3 }}
-                className="w-[420px] shrink-0 flex flex-col bg-white border-r border-gray-200 shadow-sm overflow-hidden"
+                className="w-full md:w-[420px] shrink-0 flex flex-col bg-white md:border-r border-b md:border-b-0 border-gray-200 shadow-sm overflow-hidden"
             >
                 <div className="shrink-0 px-5 py-4 border-b border-gray-100">
                     <div className="flex items-center justify-between gap-2">
@@ -1056,11 +1056,11 @@ export default function ItineraryView({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.15 }}
-                className="flex-1 flex flex-col overflow-hidden"
+                className="flex-1 flex flex-col overflow-hidden min-h-0"
             >
-                <div className="shrink-0 px-5 py-4 bg-white border-b border-gray-100">
+                <div className="shrink-0 px-4 md:px-5 py-3 md:py-4 bg-white border-b border-gray-100">
                     <div>
-                        <h2 className="font-bold text-gray-900 text-[16px]">{day.date}</h2>
+                        <h2 className="font-bold text-gray-900 text-sm md:text-[16px]">{day.date}</h2>
                         <p className="text-[12px] text-gray-500 mt-0.5">
                             {
                                 day.events.filter(

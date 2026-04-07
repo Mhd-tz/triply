@@ -43,6 +43,8 @@ import {
   AlertTriangle,
   Bed,
   Plane,
+  Menu,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { parseYYYYMMDD } from "@/lib/utils";
@@ -753,6 +755,8 @@ export default function TripMapPage() {
     React.useState<TransportMode>("transit");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [sidebarTab, setSidebarTab] = React.useState<SidebarTab>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = React.useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = React.useState(false);
   const [selectedSearchResult, setSelectedSearchResult] =
     React.useState<SearchResult | null>(null);
   const parentMapRef = React.useRef<MapRef>(null);
@@ -1163,10 +1167,19 @@ export default function TripMapPage() {
         }}
       />
 
-      <header className="shrink-0 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 z-100 shadow-sm relative">
-        <Link href="/">
-          <Image src={Logo} alt="Triply Logo" className="w-auto h-9" />
-        </Link>
+      <header className="shrink-0 h-14 md:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-3 md:px-8 z-100 shadow-sm relative">
+        <div className="flex items-center gap-2">
+          <button
+            className="md:hidden p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-600"
+            onClick={() => setMobileSidebarOpen(prev => !prev)}
+          >
+            {mobileSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+          <Link href="/">
+            <Image src={Logo} alt="Triply Logo" className="w-auto h-7 md:h-9" />
+          </Link>
+        </div>
+        {/* Desktop: inline search bar */}
         <div className="absolute left-1/2 -translate-x-1/2 w-full max-w-xl hidden md:block">
           <React.Suspense
             fallback={
@@ -1177,12 +1190,19 @@ export default function TripMapPage() {
           </React.Suspense>
         </div>
         {user ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
+            {/* Mobile search button */}
+            <button
+              className="md:hidden p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-600"
+              onClick={() => setMobileSearchOpen(true)}
+            >
+              <SlidersHorizontal className="w-5 h-5" />
+            </button>
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Button
                 size="sm"
                 variant="outline"
-                className="w-[102px] px-0 overflow-hidden"
+                className="hidden sm:flex w-[102px] px-0 overflow-hidden"
                 asChild
               >
                 <Link
@@ -1257,7 +1277,14 @@ export default function TripMapPage() {
             </DropdownMenu>
           </div>
         ) : (
-          <>
+          <div className="flex items-center gap-1.5">
+            {/* Mobile search button */}
+            <button
+              className="md:hidden p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-600"
+              onClick={() => setMobileSearchOpen(true)}
+            >
+              <SlidersHorizontal className="w-5 h-5" />
+            </button>
             <Button
               variant="ghost"
               size="sm"
@@ -1266,13 +1293,13 @@ export default function TripMapPage() {
             >
               Sign In
             </Button>
-          </>
+          </div>
         )}
         {/* View mode toggler moved to bottom of content area */}
       </header>
 
       {/* Day tabs */}
-      <div className="px-5 bg-white border-b border-gray-200 flex items-center justify-between h-14 relative w-full overflow-hidden">
+      <div className="px-2 md:px-5 bg-white border-b border-gray-200 flex items-center justify-between h-11 md:h-14 relative w-full overflow-hidden">
         <div className="flex-1 min-w-0 h-full flex items-center gap-1 overflow-x-auto scrollbar-none z-10 pr-4 mask-[linear-gradient(to_right,white_calc(100%-24px),transparent)] mr-2">
           {tripData.map((d, i) => {
             const hasFlight = plannerFlightsAll.some((f) => f.dayNum === d.day);
@@ -1287,7 +1314,7 @@ export default function TripMapPage() {
                   setExpandedEvent(null);
                 }}
                 className={cn(
-                  "relative flex items-center gap-2 shrink-0 px-4 h-full text-sm font-semibold whitespace-nowrap transition-colors",
+                  "relative flex items-center gap-1.5 md:gap-2 shrink-0 px-2 md:px-4 h-full text-xs md:text-sm font-semibold whitespace-nowrap transition-colors",
                   activeDay === i
                     ? "text-accent"
                     : "text-gray-500 hover:text-gray-900",
@@ -1343,16 +1370,18 @@ export default function TripMapPage() {
             onClick={handleConfirmSync}
             variant="outline"
             disabled
+            size="sm"
+            className="text-[11px] md:text-sm"
           // disabled={!user || syncPhase === "syncing" || syncPhase === "complete" }
           // className="rounded-xl h-9 px-5 bg-primary hover:bg-primary/80 text-white font-bold text-[12px] gap-2 shadow-sm"
           >
             {user ? (
               <>
-                <Check className="h-3.5 w-3.5" /> Confirm & Sync
+                <Check className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Confirm &</span> Sync
               </>
             ) : (
               <>
-                <LogIn className="h-3.5 w-3.5" /> Sign in to Confirm
+                <LogIn className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Sign in to</span> Confirm
               </>
             )}
           </Button>
@@ -1423,8 +1452,8 @@ export default function TripMapPage() {
             )}
           </AnimatePresence>
 
-          {/* View mode toggler - bottom-left */}
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-30">
+          {/* View mode toggler - bottom-center */}
+          <div className={cn("absolute left-1/2 -translate-x-1/2 z-30", view === "map" ? "bottom-20 md:bottom-5" : "bottom-5")}>
             <div className="flex items-center bg-white/95 backdrop-blur-md rounded-full p-1 gap-0.5 shadow-lg border border-gray-200">
               {(["map", "itinerary"] as ViewMode[]).map((v) => (
                 <button
@@ -1462,6 +1491,55 @@ export default function TripMapPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobile sidebar overlay */}
+      <AnimatePresence>
+        {mobileSidebarOpen && (
+          <PlannerSidebar
+            mobile
+            onTabChange={setSidebarTab}
+            activeTab={sidebarTab}
+            onClose={() => setMobileSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Mobile search modal */}
+      <AnimatePresence>
+        {mobileSearchOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col bg-black/40 backdrop-blur-sm md:hidden"
+            onClick={() => setMobileSearchOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="bg-white m-4 mt-16 rounded-2xl shadow-2xl p-4 flex flex-col gap-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-bold text-base text-gray-900">Trip Details</h3>
+                <button
+                  onClick={() => setMobileSearchOpen(false)}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-500"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <React.Suspense
+                fallback={<div className="h-10 w-full animate-pulse bg-gray-100 rounded-lg" />}
+              >
+                <PlannerSearch />
+              </React.Suspense>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {selectedSearchResult && (
@@ -3311,8 +3389,8 @@ function MapView({
         </Map>
       </div>
 
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-md px-4 pointer-events-auto flex flex-col gap-2">
-        <div className="flex items-center gap-2 bg-white/95 backdrop-blur-md rounded-full shadow-lg border border-gray-200 px-4 h-12 relative z-30">
+      <div className="absolute top-3 md:top-4 left-1/2 -translate-x-1/2 z-20 w-full max-w-[calc(100%-2rem)] md:max-w-md px-0 md:px-4 pointer-events-auto flex flex-col gap-2">
+        <div className="flex items-center gap-2 bg-white/95 backdrop-blur-md rounded-full shadow-lg border border-gray-200 px-3 md:px-4 h-10 md:h-12 relative z-30">
           <Search className="h-5 w-5 text-gray-400 shrink-0" />
           <input
             type="text"
@@ -3426,12 +3504,13 @@ function MapView({
         </AnimatePresence>
       </div>
 
+      {/* Desktop timeline panel */}
       <motion.div
         initial={{ x: -350, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ ease: "easeInOut" }}
         className={cn(
-          "absolute left-4 top-4 z-20 w-[360px] flex flex-col gap-3 pointer-events-none",
+          "hidden md:flex absolute left-4 top-4 z-20 w-[360px] flex-col gap-3 pointer-events-none",
           !isTimelineCollapsed && "bottom-4"
         )}
       >
@@ -3642,6 +3721,185 @@ function MapView({
           )}
         </AnimatePresence>
       </motion.div>
+
+      {/* Mobile bottom sheet timeline panel */}
+      <div className="md:hidden absolute bottom-0 left-0 right-0 z-20 pointer-events-auto">
+        <motion.div
+          animate={{ height: isTimelineCollapsed ? "auto" : "60vh" }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="bg-white rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.12)] border-t border-gray-200 flex flex-col overflow-hidden"
+        >
+          {/* Drag handle */}
+          <div className="flex justify-center pt-2 pb-0 shrink-0">
+            <div className="w-10 h-1 rounded-full bg-gray-300" />
+          </div>
+          {/* Mobile header with expand/collapse */}
+          <div
+            className="px-4 py-2 flex items-center justify-between shrink-0 cursor-pointer"
+            onClick={() => setIsTimelineCollapsed(!isTimelineCollapsed)}
+          >
+            <div className="flex flex-col min-w-0">
+              <span className="font-heading font-bold text-gray-900 text-base leading-tight truncate">
+                Day {day.day} Timeline
+              </span>
+              {isTimelineCollapsed && eventSummary && (
+                <span className="text-[10px] font-medium text-gray-500 truncate">
+                  {eventSummary}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-gray-500 font-medium text-[10px] bg-gray-100 px-2 py-1 rounded-md">
+                {day.date}
+              </span>
+              <button className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-600">
+                {isTimelineCollapsed ? (
+                  <ChevronUp className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile timeline content */}
+          {!isTimelineCollapsed && (
+            <div className="flex-1 overflow-y-auto px-3 pb-20 scrollbar-none">
+              {day.events.length === 0 && (
+                <div className="h-full flex items-center justify-center text-gray-400 text-sm italic py-10">
+                  No plans yet. Add something!
+                </div>
+              )}
+              <DndContext
+                sensors={sidebarDndSensors}
+                collisionDetection={closestCenter}
+                onDragStart={(e) => setActiveSidebarDragId(String(e.active.id))}
+                onDragEnd={(e) => {
+                  setActiveSidebarDragId(null);
+                  const { active, over } = e;
+                  if (!over || active.id === over.id || !onReorder) return;
+                  const placeEvts = day.events.filter(
+                    (ev: EventItem) =>
+                      !(ev.type === "transit" && ev.fromId) &&
+                      !ev.id.startsWith("flight-") &&
+                      !ev.id.startsWith("hotel-"),
+                  );
+                  const oldIdx = placeEvts.findIndex(
+                    (ev: EventItem) => ev.id === active.id,
+                  );
+                  const newIdx = placeEvts.findIndex(
+                    (ev: EventItem) => ev.id === over.id,
+                  );
+                  if (oldIdx === -1 || newIdx === -1) return;
+                  const reordered = arrayMove(placeEvts, oldIdx, newIdx);
+                  const hotels = day.events.filter((ev: EventItem) => ev.id.startsWith("hotel-"));
+                  onReorder([...hotels, ...reordered]);
+                }}
+                onDragCancel={() => setActiveSidebarDragId(null)}
+              >
+                <SortableContext
+                  items={day.events
+                    .filter(
+                      (ev: EventItem) =>
+                        !(ev.type === "transit" && ev.fromId) &&
+                        !ev.id.startsWith("flight-") &&
+                        !ev.id.startsWith("hotel-"),
+                    )
+                    .map((ev: EventItem) => ev.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {day.events.map((event: EventItem, index: number) => {
+                    const isTransit = event.type === "transit" && !!event.fromId;
+                    const isFlight = event.id.startsWith("flight-");
+                    const isHotel = event.id.startsWith("hotel-");
+                    if (isTransit && !isFlight) {
+                      const fromEvt = day.events.find(
+                        (e: EventItem) => e.id === event.fromId,
+                      );
+                      const toEvt = day.events.find(
+                        (e: EventItem) => e.id === event.toId,
+                      );
+                      return (
+                        <TransitRow
+                          key={event.id}
+                          event={event}
+                          onChangeMode={onChangeTransitMode}
+                          isLast={index === day.events.length - 1}
+                          isHighlighted={highlightedTransitId === event.id}
+                          onToggleHighlight={() =>
+                            setHighlightedTransitId(
+                              highlightedTransitId === event.id ? null : event.id,
+                            )
+                          }
+                          fromColor={fromEvt?.color}
+                          toColor={toEvt?.color}
+                        />
+                      );
+                    }
+                    if (isFlight || isHotel) {
+                      return (
+                        <StaticPlaceRow
+                          key={event.id}
+                          event={event}
+                          isSelected={expandedEvent === event.id}
+                          isLast={index === day.events.length - 1}
+                          onClick={() => handleItemInteract(event)}
+                        />
+                      );
+                    }
+                    return (
+                      <SortablePlaceRow
+                        key={event.id}
+                        event={event}
+                        isSelected={expandedEvent === event.id}
+                        isLast={index === day.events.length - 1}
+                        onClick={() => handleItemInteract(event)}
+                      />
+                    );
+                  })}
+                </SortableContext>
+              </DndContext>
+            </div>
+          )}
+
+          {/* Mobile footer with add button + legend */}
+          {!isTimelineCollapsed && (
+            <div className="absolute bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-100 z-10 shadow-[0_-10px_15px_-5px_rgba(0,0,0,0.05)]">
+              <div className="px-4 pt-2 pb-1 flex justify-center">
+                <button
+                  onClick={() => onOpenModal("add")}
+                  className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-white text-[12px] font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98]"
+                  style={{ backgroundColor: "#1D4983" }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add Activity
+                </button>
+              </div>
+              <div className="px-4 pb-2 pt-1 flex items-center justify-center gap-x-4 gap-y-1 flex-wrap">
+                <LegendItem color={COLORS.meal} label="Meal" />
+                <LegendItem color={COLORS.activity} label="Activity" />
+                <LegendItem color={COLORS.location} label="Location" />
+              </div>
+            </div>
+          )}
+        </motion.div>
+      </div>
+
+      {/* Mobile floating Add Activity button */}
+      <div className="md:hidden absolute bottom-3 right-3 z-30 pointer-events-auto">
+        {isTimelineCollapsed && (
+          <motion.button
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0 }}
+            onClick={() => onOpenModal("add")}
+            className="w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white"
+            style={{ backgroundColor: "#1D4983" }}
+          >
+            <Plus className="w-6 h-6" />
+          </motion.button>
+        )}
+      </div>
 
       {/* RIGHT TOOLBAR */}
       {/* <motion.div

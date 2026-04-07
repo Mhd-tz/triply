@@ -8,7 +8,7 @@ import { Slider } from "@/components/ui/slider";
 import { DestinationAutocomplete } from "@/components/search-bar-components";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Plane, Search, Ticket, CheckCircle2, Trash2, SlidersHorizontal, ArrowUpDown, Clock, CircleDot, X, Info, Wifi, Plug, Monitor, Utensils, LocateFixed, CornerDownRight, Plus, Repeat, ArrowRight } from "lucide-react";
+import { Plane, Search, Ticket, CheckCircle2, Trash2, SlidersHorizontal, ArrowUpDown, Clock, CircleDot, X, Info, Wifi, Plug, Monitor, Utensils, LocateFixed, CornerDownRight, Repeat, ArrowRight } from "lucide-react";
 import { useTripStore, type PlannerFlight, type CabinClass } from "@/lib/trip-store";
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -1283,7 +1283,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
 
                         <DialogTitle className="sr-only">{detailFlight.airline} {detailFlight.flightNo} Flight Details</DialogTitle>
 
-                        {/* Segments — or basic info for API flights */}
+                        {/* Segments or basic info for API flights */}
                         <div className="p-4 space-y-0">
                             {(!detailFlight.segments || detailFlight.segments.length === 0) && (
                                 <div className="py-4 space-y-3">
