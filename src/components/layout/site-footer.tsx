@@ -13,6 +13,7 @@ const FOOTER_LINKS = [
             { label: "Press & Media", href: "/press" },
             { label: "Blog", href: "/blog" },
             { label: "Contact Us", href: "/contact" },
+            { label: "Style Guide", href: "/guide" },
         ],
     },
     {

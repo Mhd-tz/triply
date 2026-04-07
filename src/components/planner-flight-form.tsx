@@ -13,7 +13,7 @@ import { useTripStore, type PlannerFlight, type CabinClass } from "@/lib/trip-st
 import { useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 
-/* ── Nearest airport lookup (client-side, no extra API) ── */
+/* Nearest airport lookup (client-side, no extra API) */
 const AIRPORTS: { city: string; country: string; iata: string; lat: number; lon: number }[] = [
     { city: "Vancouver", country: "CA", iata: "YVR", lat: 49.1967, lon: -123.1815 },
     { city: "Toronto", country: "CA", iata: "YYZ", lat: 43.6777, lon: -79.6248 },
@@ -94,7 +94,7 @@ function findNearestAirport(lat: number, lon: number) {
     return { ...a, label: `${a.city}, ${a.country}` };
 }
 
-/* ── cabin class config ── */
+/* cabin class config */
 const CABIN_CLASSES: { value: CabinClass; label: string; short: string }[] = [
     { value: "economy", label: "Economy", short: "Eco" },
     { value: "premium_economy", label: "Premium Economy", short: "Prem" },
@@ -102,7 +102,7 @@ const CABIN_CLASSES: { value: CabinClass; label: string; short: string }[] = [
     { value: "first", label: "First Class", short: "1st" },
 ];
 
-/* ── sort options ── */
+/* sort options */
 type SortOption = "price-asc" | "price-desc" | "depart-asc" | "depart-desc" | "arrive-asc" | "arrive-desc" | "duration-asc" | "duration-desc";
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: "price-asc", label: "Price: Low → High" },
@@ -115,7 +115,7 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
     { value: "duration-desc", label: "Duration: Longest" },
 ];
 
-/* ── time-of-day filter ── */
+/* time-of-day filter */
 type TimeOfDay = "early-morning" | "morning" | "afternoon" | "evening" | "night";
 const TIME_OF_DAY_OPTIONS: { value: TimeOfDay; label: string; range: string }[] = [
     { value: "early-morning", label: "Early Morning", range: "12am – 6am" },
@@ -125,14 +125,14 @@ const TIME_OF_DAY_OPTIONS: { value: TimeOfDay; label: string; range: string }[] 
     { value: "night", label: "Night", range: "9pm – 12am" },
 ];
 
-/* ── stop filter ── */
+/* stop filter */
 const STOP_OPTIONS = [
     { value: 0, label: "Non-stop" },
     { value: 1, label: "1 stop" },
     { value: 2, label: "2+ stops" },
 ];
 
-/* ── Amenity icon map ── */
+/* Amenity icon map */
 const AMENITY_ICON_MAP: Record<string, React.ReactNode> = {
     "WiFi": <Wifi className="w-3.5 h-3.5" />,
     "In-seat power": <Plug className="w-3.5 h-3.5" />,
@@ -186,7 +186,7 @@ interface FlightResult {
     layovers?: LayoverInfo[];
 }
 
-/* ── helpers ── */
+/* helpers */
 function parseTime12h(t: string): number {
     const match = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
     if (!match) return 0;
@@ -241,7 +241,7 @@ async function geocodeFlight(q: string): Promise<[number, number] | null> {
     return null;
 }
 
-/* ── trip type ── */
+/* trip type */
 type TripType = "one-way" | "round-trip";
 const TRIP_TYPES: { value: TripType; label: string; icon: React.ReactNode }[] = [
     { value: "one-way", label: "One Way", icon: <CornerDownRight className="w-3.5 h-3.5" /> },
@@ -313,7 +313,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         return arr;
     }, [plannerOrigin, plannerDestinations]);
 
-    /* ── trip type state ── */
+    /* trip type state */
     const [tripType, setTripType] = React.useState<TripType>("one-way");
 
     // Build effective legs based on trip type
@@ -399,21 +399,21 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
     const [searching, setSearching] = React.useState(false);
     const [bookingRef, setBookingRef] = React.useState("");
 
-    /* ── cabin class ── */
+    /* cabin class */
     const [selectedCabin, setSelectedCabin] = React.useState<CabinClass>("economy");
 
-    /* ── filter state ── */
+    /* filter state */
     const [showFilters, setShowFilters] = React.useState(false);
     const [maxStops, setMaxStops] = React.useState<number | null>(null); // null = any
     const [departTimeFilter, setDepartTimeFilter] = React.useState<TimeOfDay[]>([]);
     const [arriveTimeFilter, setArriveTimeFilter] = React.useState<TimeOfDay[]>([]);
     const [priceRange, setPriceRange] = React.useState<[number, number]>([0, 10000]);
 
-    /* ── sort state ── */
+    /* sort state */
     const [showSort, setShowSort] = React.useState(false);
     const [sortBy, setSortBy] = React.useState<SortOption>("price-asc");
 
-    /* ── detail modal ── */
+    /* detail modal */
     const [detailFlight, setDetailFlight] = React.useState<FlightResult | null>(null);
 
     const activeFilterCount = React.useMemo(() => {
@@ -425,7 +425,7 @@ export default function PlannerFlightForm({ onClose: _onClose }: { onClose: () =
         return count;
     }, [maxStops, departTimeFilter, arriveTimeFilter, priceRange]);
 
-    /* ── filtered & sorted flights ── */
+    /* filtered & sorted flights */
     const filteredFlights = React.useMemo(() => {
         let result = allFlights.filter(f => {
             // cabin class filter (always applied)

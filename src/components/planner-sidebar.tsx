@@ -25,7 +25,7 @@ export default function PlannerSidebar({ onTabChange, activeTab, mobile, onClose
         setExpandedTabRaw(tab);
         onTabChange?.(tab);
     }, [onTabChange]);
-    
+
     React.useEffect(() => {
         if (activeTab !== undefined && activeTab !== expandedTabRaw) {
             setExpandedTabRaw(activeTab);
@@ -40,7 +40,7 @@ export default function PlannerSidebar({ onTabChange, activeTab, mobile, onClose
     // Notify parent of initial "trip" tab on mount
     React.useEffect(() => {
         onTabChange?.("trip");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const currentIdx = expandedTab ? TAB_ORDER.indexOf(expandedTab) : -1;
@@ -150,7 +150,7 @@ export default function PlannerSidebar({ onTabChange, activeTab, mobile, onClose
         </>
     );
 
-    // ── Mobile: full-screen overlay ──
+    // Mobile: full-screen overlay
     if (mobile) {
         const mobileTab = expandedTab || "trip";
 
@@ -209,7 +209,7 @@ export default function PlannerSidebar({ onTabChange, activeTab, mobile, onClose
         );
     }
 
-    // ── Desktop: original sidebar ──
+    // Desktop: original sidebar
     return (
         <div className="hidden md:flex h-full shrink-0 z-40 relative">
             {/* Blur overlay – only on first visit, positioned below header + day tabs */}
