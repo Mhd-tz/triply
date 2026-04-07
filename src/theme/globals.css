@@ -194,3 +194,10 @@
     display: none;
   }
 }
+
+/* Hide map navigation controls (zoom in, out, compass) on mobile view */
+@media (max-width: 767px) {
+  .maplibregl-ctrl-group {
+    display: none !important;
+  }
+}
